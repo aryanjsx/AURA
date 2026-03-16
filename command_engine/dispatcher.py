@@ -4,28 +4,31 @@ AURA — Command Dispatcher
 Receives a raw text command from the user, parses it, and routes it
 to the appropriate handler in the command engine or modules layer.
 
+All path arguments are forwarded as-is to the handler functions, which
+internally call :func:`~command_engine.path_utils.resolve_path` for
+safe, absolute resolution (``~``, smart keywords, cross-platform).
+
 Routing table
 -------------
-===============================  ============================
-Pattern                          Handler
-===============================  ============================
-``create file <path>``           file_manager.create_file
-``delete file <path>``           file_manager.delete_file
-``rename file <old> <new>``      file_manager.rename_file
-``move file <src> <dst>``        file_manager.move_file
-``search files <dir> <pattern>`` file_manager.search_files
-``run command <cmd>``            process_manager.run_shell_command
-``list processes``               process_manager.list_running_processes
-``kill process <name>``          process_manager.kill_process
-``check system health``          system_check.check_system_health
-``create project <name>``        project_scaffolder.create_project
-``show logs <path> [n]``         log_reader.read_last_lines
-===============================  ============================
+====================================  ==============================
+Pattern                               Handler
+====================================  ==============================
+``create file <path>``                file_manager.create_file
+``delete file <path>``                file_manager.delete_file
+``rename file <old> <new>``           file_manager.rename_file
+``move file <src> <dst>``             file_manager.move_file
+``search files <dir> <pattern>``      file_manager.search_files
+``run command <cmd>``                 process_manager.run_shell_command
+``list processes``                    process_manager.list_running_processes
+``kill process <name>``               process_manager.kill_process
+``check system health``               system_check.check_system_health
+``create project <name|path>``        project_scaffolder.create_project
+``show logs <path> [n]``              log_reader.read_last_lines
+====================================  ==============================
 """
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from command_engine.file_manager import (
@@ -78,7 +81,8 @@ def dispatch(command: str) -> str:
 def _route(parts: list[str], keyword: str, raw: str) -> str:
     """Internal routing logic — keeps ``dispatch`` concise."""
 
-    # --- file operations ---
+    # ── file operations ──────────────────────────────────────────────
+
     if keyword == "create" and _word(parts, 1) == "file":
         path = _rest(parts, 2)
         if not path:
@@ -93,23 +97,26 @@ def _route(parts: list[str], keyword: str, raw: str) -> str:
 
     if keyword == "rename" and _word(parts, 1) == "file":
         if len(parts) < 4:
-            return "Usage: rename file <old_name> <new_name>"
-        return rename_file(parts[2], parts[3])
+            return "Usage: rename file <old_path> <new_name>"
+        new_name = parts[-1]
+        old_path = " ".join(parts[2:-1])
+        return rename_file(old_path, new_name)
 
     if keyword == "move" and _word(parts, 1) == "file":
         if len(parts) < 4:
             return "Usage: move file <source> <destination>"
-        return move_file(parts[2], parts[3])
+        src, dst = _split_two_paths(parts[2:])
+        return move_file(src, dst)
 
     if keyword == "search" and _word(parts, 1) == "files":
         if len(parts) < 4:
             return "Usage: search files <directory> <pattern>"
-        matches = search_files(parts[2], parts[3])
-        if not matches:
-            return "No files matched."
-        return "\n".join(matches)
+        pattern = parts[-1]
+        directory = " ".join(parts[2:-1])
+        return search_files(directory, pattern)
 
-    # --- process operations ---
+    # ── process operations ───────────────────────────────────────────
+
     if keyword == "run" and _word(parts, 1) == "command":
         cmd = _rest(parts, 2)
         if not cmd:
@@ -132,28 +139,36 @@ def _route(parts: list[str], keyword: str, raw: str) -> str:
             return "Usage: kill process <name>"
         return kill_process(name)
 
-    # --- system health ---
+    # ── system health ────────────────────────────────────────────────
+
     if raw.lower().startswith("check system health"):
         report = check_system_health()
         return _format_health(report)
 
-    # --- project scaffolding ---
+    # ── project scaffolding ──────────────────────────────────────────
+
     if keyword == "create" and _word(parts, 1) == "project":
         name = _rest(parts, 2)
         if not name:
-            return "Usage: create project <name>"
+            return "Usage: create project <name|path>"
         return create_project(name)
 
-    # --- log reading ---
+    # ── log reading ──────────────────────────────────────────────────
+
     if keyword == "show" and _word(parts, 1) == "logs":
         if len(parts) < 3:
             return "Usage: show logs <file_path> [lines]"
-        file_path = parts[2]
-        n = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 20
+        if len(parts) > 3 and parts[-1].isdigit():
+            n = int(parts[-1])
+            file_path = " ".join(parts[2:-1])
+        else:
+            n = 20
+            file_path = _rest(parts, 2)
         lines = read_last_lines(file_path, n)
         return "\n".join(lines)
 
-    # --- fallback ---
+    # ── fallback ─────────────────────────────────────────────────────
+
     logger.warning("Unrecognised command: %s", raw)
     return (
         f"Unknown command: '{raw}'\n"
@@ -173,6 +188,32 @@ def _word(parts: list[str], index: int) -> str:
 def _rest(parts: list[str], start: int) -> str:
     """Re-join parts from *start* onward."""
     return " ".join(parts[start:])
+
+
+def _split_two_paths(tokens: list[str]) -> tuple[str, str]:
+    """Split a token list into two path strings.
+
+    Heuristic: scan left-to-right for the first token that looks like
+    the start of a second path (starts with ``~``, ``/``, a drive
+    letter, or a smart-location keyword).  Everything before it is the
+    source path; everything from it onward is the destination.
+
+    Falls back to splitting at the midpoint if no boundary is detected.
+    """
+    from command_engine.path_utils import SMART_LOCATIONS
+
+    for i in range(1, len(tokens)):
+        t = tokens[i]
+        lower = t.lower().rstrip("/\\")
+        if (
+            t.startswith("~")
+            or t.startswith("/")
+            or (len(t) >= 2 and t[1] == ":")
+            or lower in SMART_LOCATIONS
+        ):
+            return " ".join(tokens[:i]), " ".join(tokens[i:])
+
+    return tokens[0], " ".join(tokens[1:])
 
 
 def _format_shell_result(result: dict[str, Any]) -> str:

@@ -62,7 +62,7 @@ AURA is designed as a layered pipeline. Each layer has a single responsibility, 
 ## How a Command Flows (Phase 1)
 
 ```
-User types "create file report.txt"
+User types "create file desktop/report.txt"
        │
        ▼
 ┌─────────────┐
@@ -72,13 +72,19 @@ User types "create file report.txt"
        │
        ▼
 ┌──────────────────┐
-│   dispatcher.py  │  REASONING — parses "create file report.txt"
-│                  │  routes to file_manager.create_file("report.txt")
+│   dispatcher.py  │  REASONING — parses "create file desktop/report.txt"
+│                  │  routes to file_manager.create_file("desktop/report.txt")
 └──────┬───────────┘
        │
        ▼
 ┌──────────────────┐
-│ file_manager.py  │  EXECUTION — pathlib creates the file
+│   path_utils.py  │  PATH RESOLUTION — "desktop/report.txt"
+│                  │  → ~/Desktop/report.txt → C:\Users\You\Desktop\report.txt
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│ file_manager.py  │  EXECUTION — pathlib creates the file at the resolved path
 └──────┬───────────┘
        │
        ▼
@@ -88,7 +94,7 @@ User types "create file report.txt"
        │
        ▼
 ┌─────────────┐
-│   aura.py   │  OUTPUT — prints "File created: report.txt"
+│   aura.py   │  OUTPUT — prints "File created: C:\Users\You\Desktop\report.txt"
 │   (CLI)     │
 └─────────────┘
 ```
@@ -131,11 +137,13 @@ User says "push the backend to GitHub"
 
 ## Design Principles
 
-1. **Zero cross-dependencies** — modules only depend on the logger, never on each other
-2. **Pure routing** — the dispatcher maps commands to handlers; adding a new input source (voice, GUI) requires zero changes to execution modules
-3. **Offline-first** — no module makes network calls; all tools run locally
-4. **Incremental** — each phase adds a new layer without modifying existing ones
-5. **Testable** — every function accepts explicit arguments and returns explicit results
+1. **Zero cross-dependencies** — modules only depend on shared utilities (`logger`, `path_utils`), never on each other
+2. **Centralized path resolution** — every module funnels user paths through `path_utils.resolve_path()`, so `~`, smart keywords, and relative paths are handled uniformly
+3. **Pure routing** — the dispatcher maps commands to handlers; adding a new input source (voice, GUI) requires zero changes to execution modules
+4. **Offline-first** — no module makes network calls; all tools run locally
+5. **Incremental** — each phase adds a new layer without modifying existing ones
+6. **Safe by default** — destructive operations are blocked on system-critical directories
+7. **Testable** — every function accepts explicit arguments and returns explicit results
 
 ---
 
@@ -145,6 +153,7 @@ User says "push the backend to GitHub"
 |---|---|---|---|
 | `aura.py` | Input + Output | 1 | CLI REPL |
 | `command_engine/dispatcher.py` | Reasoning | 1 | Text command router |
+| `command_engine/path_utils.py` | Infrastructure | 1 | Centralized path resolution + safety |
 | `command_engine/file_manager.py` | Execution | 1 | File CRUD |
 | `command_engine/process_manager.py` | Execution | 1 | Shell + process control |
 | `command_engine/system_check.py` | Execution | 1 | Tool version probes |

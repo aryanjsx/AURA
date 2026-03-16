@@ -2,14 +2,15 @@
 AURA — Project Scaffolder
 
 Generates a starter directory layout for new projects with sensible
-defaults (backend/, frontend/, README, .gitignore).
+defaults (backend/, frontend/, README, .gitignore).  The target
+location is resolved through :func:`~command_engine.path_utils.resolve_path`
+so paths like ``~/Desktop/my_project`` work as expected.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from command_engine.logger import get_logger
+from command_engine.path_utils import resolve_path
 
 logger = get_logger("aura.project_scaffolder")
 
@@ -30,8 +31,12 @@ dist/
 """
 
 
-def create_project(project_name: str, base_dir: str = ".") -> str:
+def create_project(project_name: str) -> str:
     """Scaffold a new project directory.
+
+    *project_name* can be a bare name (``my_app``), a path with ``~``
+    (``~/Desktop/my_app``), or a smart-location keyword
+    (``desktop/my_app``).
 
     Creates::
 
@@ -44,16 +49,17 @@ def create_project(project_name: str, base_dir: str = ".") -> str:
     Parameters
     ----------
     project_name:
-        Name of the project (used as directory name).
-    base_dir:
-        Parent directory in which the project folder is created.
+        Name or path of the project.
 
     Returns
     -------
     str
         Human-readable result message.
     """
-    root = Path(base_dir).resolve() / project_name
+    try:
+        root = resolve_path(project_name)
+    except (ValueError, OSError) as exc:
+        return f"Invalid project path: {exc}"
 
     if root.exists():
         msg = f"Directory already exists: {root}"
@@ -66,7 +72,7 @@ def create_project(project_name: str, base_dir: str = ".") -> str:
 
         readme = root / "README.md"
         readme.write_text(
-            f"# {project_name}\n\nProject scaffolded by AURA.\n",
+            f"# {root.name}\n\nProject scaffolded by AURA.\n",
             encoding="utf-8",
         )
 
@@ -74,7 +80,7 @@ def create_project(project_name: str, base_dir: str = ".") -> str:
         gitignore.write_text(_DEFAULT_GITIGNORE, encoding="utf-8")
 
         logger.info("Project scaffolded: %s", root)
-        return f"Project '{project_name}' created at {root}"
+        return f"Project '{root.name}' created at {root}"
     except OSError as exc:
         logger.error("Failed to scaffold project '%s': %s", project_name, exc)
         return f"Error creating project: {exc}"

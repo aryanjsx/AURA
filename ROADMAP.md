@@ -13,12 +13,13 @@ The foundation. A modular command-execution engine accessible through a CLI.
 | Deliverable | Module | Status |
 |---|---|---|
 | Command dispatcher (text → action router) | `command_engine/dispatcher.py` | ✅ Done |
+| Centralized path resolution (`~`, smart keywords, safety) | `command_engine/path_utils.py` | ✅ Done |
 | File operations (create, delete, rename, move, search) | `command_engine/file_manager.py` | ✅ Done |
 | Process management (run, list, kill) | `command_engine/process_manager.py` | ✅ Done |
 | System health checker (Python, Git, Node, Docker) | `command_engine/system_check.py` | ✅ Done |
 | Centralized structured logging | `command_engine/logger.py` | ✅ Done |
-| Project scaffolder | `modules/project_scaffolder.py` | ✅ Done |
-| Log file reader | `modules/log_reader.py` | ✅ Done |
+| Project scaffolder (supports full paths) | `modules/project_scaffolder.py` | ✅ Done |
+| Log file reader (supports full paths) | `modules/log_reader.py` | ✅ Done |
 | Interactive CLI interface | `aura.py` | ✅ Done |
 
 ---

@@ -36,10 +36,12 @@ AURA is in active development. The repository is public from Day 1 so contributo
 ### Phase 1 — Available Now
 
 - **Command Execution Engine** — dispatch natural-language text commands to file, process, and system handlers
-- **File Operations** — create, delete, rename, move, and glob-search files from a single prompt
+- **Smart Path Resolution** — `~`, `desktop/`, `downloads/`, `documents/` keywords are automatically expanded to real absolute paths across all modules
+- **File Operations** — create, delete, rename, move, and glob-search files anywhere on your machine
+- **Path Safety** — protected system directories (`C:\Windows`, `/usr`, etc.) are blocked from destructive operations
 - **Process Management** — run shell commands, inspect running processes, kill by name
 - **System Health Checks** — instantly verify Python, Git, Node, and Docker availability
-- **Project Scaffolding** — spin up a new project skeleton (`backend/`, `frontend/`, `.gitignore`) in one command
+- **Project Scaffolding** — spin up a new project skeleton anywhere (`create project ~/Desktop/my_app`)
 - **Log Inspection** — tail any log file without leaving the assistant
 - **Structured Logging** — every action, result, and error timestamped to `logs/aura.log`
 
@@ -108,6 +110,7 @@ AURA/
 ├── aura.py                        # CLI entry-point
 ├── command_engine/                 # Core automation backbone
 │   ├── dispatcher.py              # Text command → handler router
+│   ├── path_utils.py              # Centralized path resolution + safety
 │   ├── file_manager.py            # File CRUD (pathlib + shutil)
 │   ├── process_manager.py         # subprocess + psutil wrappers
 │   ├── system_check.py            # Developer tool version probes
@@ -134,6 +137,7 @@ AURA/
 | Layer | Technology | Status |
 |---|---|---|
 | Language | Python 3.10+ | ✅ Active |
+| Path Resolution | `pathlib` (centralized via `path_utils`) | ✅ Active |
 | File I/O | `pathlib`, `shutil` | ✅ Active |
 | Process Control | `subprocess`, `psutil` | ✅ Active |
 | Logging | `logging` (stdlib) | ✅ Active |
@@ -177,8 +181,14 @@ python aura.py
 Autonomous Utility & Resource Assistant
 Phase 1 — Command Execution Engine
 
-> create file hello.txt
-File created: hello.txt
+> create file ~/Desktop/hello.txt
+File created: C:\Users\You\Desktop\hello.txt
+
+> create file desktop/notes.txt
+File created: C:\Users\You\Desktop\notes.txt
+
+> move file ~/Desktop/notes.txt ~/Documents/
+Moved: C:\Users\You\Desktop\notes.txt -> C:\Users\You\Documents\notes.txt
 
 > check system health
 System Health:
@@ -187,12 +197,8 @@ System Health:
   node       : v24.11.0
   docker     : NOT INSTALLED
 
-> create project my-app
-Project 'my-app' created at C:\...\my-app
-
-> run command echo Hello World
-Hello World
-(exit code 0)
+> create project ~/Desktop/my-app
+Project 'my-app' created at C:\Users\You\Desktop\my-app
 
 > help
 (full command reference)
@@ -214,10 +220,12 @@ Goodbye.
 | `list processes` | Show top processes by memory |
 | `kill process <name>` | Terminate processes by name |
 | `check system health` | Check Python, Git, Node, Docker |
-| `create project <name>` | Scaffold a new project |
+| `create project <name\|path>` | Scaffold a new project |
 | `show logs <file> [n]` | Tail a log file (default 20 lines) |
 | `help` | Show in-app help |
 | `exit` / `quit` | Exit the CLI |
+
+> All paths support `~` (home directory), smart keywords (`desktop/`, `downloads/`, `documents/`), and absolute paths. Files are always created at the correct location, not inside the AURA project folder.
 
 > Full voice and LLM-driven interaction coming in Phase 2+.
 
