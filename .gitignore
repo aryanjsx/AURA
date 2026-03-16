@@ -11,6 +11,9 @@ venv/
 .venv/
 .env
 
+# Config (local copy — config.example.yaml is the tracked template)
+config.yaml
+
 # Logs
 logs/*.log
 

@@ -1,0 +1,55 @@
+# ──────────────────────────────────────────────────────────
+# AURA Configuration — copy this file to config.yaml
+#   cp config.example.yaml config.yaml
+# config.yaml is gitignored; edit it freely for your machine.
+# ──────────────────────────────────────────────────────────
+
+aura:
+  name: "AURA"
+  version: "0.1.0"
+  # offline = fully local, no network calls
+  # api     = reserved for future external integrations
+  mode: "offline"
+
+# Directories that must never be deleted or overwritten.
+# Add any machine-specific paths you want to protect.
+paths:
+  protected:
+    # Windows
+    - "C:/Windows"
+    - "C:/Windows/System32"
+    - "C:/Program Files"
+    - "C:/Program Files (x86)"
+    # Linux / macOS
+    - "/"
+    - "/bin"
+    - "/usr"
+    - "/etc"
+    - "/sbin"
+
+# Default folders created by "create project <name>"
+project_scaffold:
+  folders:
+    - "src"
+    - "tests"
+    - "docs"
+    - "logs"
+  # Files generated in the project root
+  files:
+    - "README.md"
+    - ".gitignore"
+
+# Logging configuration
+logging:
+  file: "logs/aura.log"
+  level: "INFO"           # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  max_bytes: 5242880      # 5 MB per log file before rotation
+  backup_count: 3         # keep 3 rotated backups
+
+# Tools probed by "check system health"
+system_check:
+  tools:
+    - "python"
+    - "git"
+    - "node"
+    - "docker"
