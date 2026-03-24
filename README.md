@@ -1,5 +1,9 @@
 # ⚡ AURA — Autonomous Utility & Resource Assistant
 
+<p align="center">
+  <img src="AURA.jpg" alt="AURA — Autonomous Utility & Resource Assistant" width="800"/>
+</p>
+
 ![Build Status](https://github.com/aryanjsx/AURA/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/github/license/aryanjsx/AURA)
 ![Stars](https://img.shields.io/github/stars/aryanjsx/AURA?style=social)
