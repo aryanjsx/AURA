@@ -56,13 +56,13 @@ def create_project(project_name: str) -> CommandResult:
         return CommandResult(
             success=False,
             message=f"Invalid project path: {exc}",
-            command_type="create_project",
+            command_type="project.create",
         )
 
     if root.exists():
         msg = f"Directory already exists: {root}"
         logger.warning(msg)
-        return CommandResult(success=False, message=msg, command_type="create_project")
+        return CommandResult(success=False, message=msg, command_type="project.create")
 
     folders: list[str] = get_config(
         "project_scaffold.folders", ["src", "tests", "docs", "logs"]
@@ -86,12 +86,12 @@ def create_project(project_name: str) -> CommandResult:
             success=True,
             message=f"Project '{root.name}' created at {root}",
             data={"path": str(root), "folders": folders},
-            command_type="create_project",
+            command_type="project.create",
         )
     except OSError as exc:
         logger.error("Failed to scaffold project '%s': %s", project_name, exc)
         return CommandResult(
             success=False,
             message=f"Error creating project: {exc}",
-            command_type="create_project",
+            command_type="project.create",
         )

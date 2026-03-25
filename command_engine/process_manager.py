@@ -6,10 +6,11 @@ using ``subprocess`` and ``psutil``.
 
 Security note
 -------------
-``run_shell_command`` validates every command against a blocked-pattern
-list before execution.  On non-Windows platforms the command string is
-split with ``shlex.split`` and executed **without** ``shell=True``.
-On Windows ``shell=True`` is unavoidable for built-in commands.
+``run_shell_command`` validates every command against the centralized
+:class:`~core.policy.CommandPolicy` before execution.  On non-Windows
+platforms the command string is split with ``shlex.split`` and executed
+**without** ``shell=True``.  On Windows ``shell=True`` is unavoidable
+for built-in commands.
 """
 
 from __future__ import annotations
@@ -23,57 +24,12 @@ import psutil
 
 from command_engine.logger import get_logger
 from core.config_loader import get as get_config
+from core.policy import CommandPolicy
 from core.result import CommandResult
 
 logger = get_logger("aura.process_manager")
 
-# ---------------------------------------------------------------------------
-# Shell-safety: patterns that must never be executed
-# ---------------------------------------------------------------------------
-
-_BLOCKED_EXACT: frozenset[str] = frozenset({
-    "rm -rf /",
-    "rm -rf /*",
-    "rm -rf ~",
-    "rm -rf ~/*",
-    "halt",
-    "poweroff",
-    "init 0",
-    "init 6",
-})
-
-_BLOCKED_SUBSTRINGS: tuple[str, ...] = (
-    "mkfs.",
-    "mkfs ",
-    ":(){",
-    "dd if=/dev/zero",
-    "dd if=/dev/random",
-    "dd if=/dev/urandom",
-    "> /dev/sd",
-    "format c:",
-    "format d:",
-    "del /s /q c:\\",
-    "del /s /q c:/",
-    "rd /s /q c:\\",
-    "rd /s /q c:/",
-)
-
-
-def _is_command_blocked(command: str) -> str | None:
-    """Return a warning message if *command* matches a blocked pattern."""
-    lower = command.lower().strip()
-
-    if lower in _BLOCKED_EXACT:
-        return f"Blocked: '{command}' is a destructive command."
-
-    for pattern in _BLOCKED_SUBSTRINGS:
-        if pattern in lower:
-            return (
-                f"Blocked: command contains dangerous pattern ('{pattern}'). "
-                f"Run it directly in your terminal if this is intentional."
-            )
-
-    return None
+_policy = CommandPolicy()
 
 
 # ---------------------------------------------------------------------------
@@ -99,10 +55,12 @@ def run_shell_command(
     CommandResult
         Contains stdout, stderr, and return code in *data*.
     """
-    blocked = _is_command_blocked(command)
+    blocked = _policy.check_shell_command(command)
     if blocked:
         logger.warning(blocked)
-        return CommandResult(success=False, message=blocked, command_type="shell")
+        return CommandResult(
+            success=False, message=blocked, command_type="process.shell",
+        )
 
     if timeout is None:
         timeout = int(get_config("shell.timeout", 120))
@@ -142,7 +100,7 @@ def run_shell_command(
             success=code == 0,
             message=message,
             data={"stdout": out, "stderr": err, "returncode": code},
-            command_type="shell",
+            command_type="process.shell",
         )
 
     except subprocess.TimeoutExpired:
@@ -151,7 +109,7 @@ def run_shell_command(
             success=False,
             message=f"Command timed out after {timeout}s",
             data={"stdout": "", "stderr": "Command timed out", "returncode": -1},
-            command_type="shell",
+            command_type="process.shell",
         )
     except FileNotFoundError as exc:
         logger.error("Command not found: %s (%s)", command, exc)
@@ -159,7 +117,7 @@ def run_shell_command(
             success=False,
             message=f"Command not found: {exc}",
             data={"stdout": "", "stderr": str(exc), "returncode": -1},
-            command_type="shell",
+            command_type="process.shell",
         )
     except Exception as exc:
         logger.error("Unexpected error running '%s': %s", command, exc)
@@ -167,7 +125,7 @@ def run_shell_command(
             success=False,
             message=f"Error: {exc}",
             data={"stdout": "", "stderr": str(exc), "returncode": -1},
-            command_type="shell",
+            command_type="process.shell",
         )
 
 
@@ -211,7 +169,7 @@ def list_running_processes(limit: int = 25) -> CommandResult:
         success=True,
         message=message,
         data={"processes": top},
-        command_type="list_processes",
+        command_type="process.list",
     )
 
 
@@ -240,7 +198,7 @@ def kill_process(process_name: str) -> CommandResult:
             success=True,
             message=f"Terminated {killed} process(es) named '{process_name}'",
             data={"killed": killed, "name": process_name},
-            command_type="kill_process",
+            command_type="process.kill",
         )
 
     msg = f"No running process found with name '{process_name}'"
@@ -249,5 +207,5 @@ def kill_process(process_name: str) -> CommandResult:
         success=False,
         message=msg,
         data={"killed": 0, "name": process_name},
-        command_type="kill_process",
+        command_type="process.kill",
     )

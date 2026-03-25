@@ -40,14 +40,18 @@ AURA is in active development. The repository is public from Day 1 so contributo
 ### Phase 1 — Available Now
 
 - **Command Execution Engine** — dispatch natural-language text commands to file, process, and system handlers
+- **Structured Results** — every handler returns a `CommandResult` with `success`, `message`, and typed `data` payload, ready for programmatic consumers (LLM, GUI)
 - **Smart Path Resolution** — `~`, `desktop/`, `downloads/`, `documents/` keywords are automatically expanded to real absolute paths across all modules
 - **File Operations** — create, delete, rename, move, and glob-search files anywhere on your machine
-- **Path Safety** — protected system directories (`C:\Windows`, `/usr`, etc.) are blocked from destructive operations
+- **Path Safety** — protected system directories (`C:\Windows`, `/usr`, etc.) are blocked using full ancestry checking, with path-traversal protection on renames
+- **Shell Safety** — dangerous commands (`rm -rf /`, `format c:`, `dd`, etc.) are blocked before they reach `subprocess`
 - **Process Management** — run shell commands, inspect running processes, kill by name
-- **System Health Checks** — instantly verify Python, Git, Node, and Docker availability
-- **Project Scaffolding** — spin up a new project skeleton anywhere (`create project ~/Desktop/my_app`)
+- **System Health Checks** — instantly verify Python, Git, Node, and Docker availability (configurable tool list)
+- **Project Scaffolding** — spin up a new project skeleton anywhere (`create project ~/Desktop/my_app`) with configurable folder layout
 - **Log Inspection** — tail any log file without leaving the assistant
-- **Structured Logging** — every action, result, and error timestamped to `logs/aura.log`
+- **Config-Driven** — all settings (protected paths, log levels, tool lists, timeouts) loaded from `config.yaml` with safe fallback defaults
+- **Structured Logging** — every action, result, and error timestamped to `logs/aura.log` with automatic log rotation
+- **I/O Abstraction** — pluggable `InputSource` / `OutputSink` interfaces so Phase 2 can swap in voice input and TTS output with zero changes to the engine
 
 ### Coming Soon
 
@@ -66,23 +70,23 @@ AURA is built as a 6-layer pipeline where each layer is a standalone module with
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                     INPUT LAYER                      │
-│           CLI (Phase 1) · Voice (Phase 2)            │
+│                     INPUT LAYER                     │
+│           CLI (Phase 1) · Voice (Phase 2)           │
 ├─────────────────────────────────────────────────────┤
-│                  REASONING LAYER                     │
-│        Command Dispatcher · Ollama LLM (Phase 2)     │
+│                  REASONING LAYER                    │
+│        Command Dispatcher · Ollama LLM (Phase 2)    │
 ├─────────────────────────────────────────────────────┤
-│                  EXECUTION LAYER                     │
-│     File Manager · Process Manager · System Check    │
+│                  EXECUTION LAYER                    │
+│     File Manager · Process Manager · System Check   │
 ├─────────────────────────────────────────────────────┤
-│                  DEV TOOLS LAYER                     │
-│        GitPython (Phase 3) · Docker SDK (Phase 3)    │
+│                  DEV TOOLS LAYER                    │
+│        GitPython (Phase 3) · Docker SDK (Phase 3)   │
 ├─────────────────────────────────────────────────────┤
-│                   OUTPUT LAYER                       │
-│         Console · Piper TTS (Phase 2) · GUI (Phase 4)│
+│                   OUTPUT LAYER                      │
+│        Console · Piper TTS (Phase 2) · GUI (Phase 4)│
 ├─────────────────────────────────────────────────────┤
-│                   MEMORY LAYER                       │
-│             ChromaDB (Phase 5) · Logs                │
+│                  MEMORY LAYER                       │
+│            ChromaDB (Phase 5) · Logs                │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -90,41 +94,33 @@ AURA is built as a 6-layer pipeline where each layer is a standalone module with
 
 ```
 AURA/
-├── README.md
-├── LICENSE
-├── CONTRIBUTING.md
-├── CODE_OF_CONDUCT.md
-├── ROADMAP.md
-├── CHANGELOG.md
-├── SECURITY.md
-├── .gitignore
+├── aura.py                        # CLI entry-point (uses I/O abstraction)
+├── config.example.yaml            # Configuration template (copy to config.yaml)
 │
-├── .github/
-│   ├── ISSUE_TEMPLATE/
-│   │   ├── bug_report.md
-│   │   ├── feature_request.md
-│   │   └── module_proposal.md
-│   ├── PULL_REQUEST_TEMPLATE.md
-│   └── workflows/
-│       └── ci.yml
+├── core/                          # Foundational infrastructure
+│   ├── config_loader.py           # YAML config with fallback defaults
+│   ├── io.py                      # InputSource / OutputSink abstractions
+│   └── result.py                  # CommandResult structured return type
 │
-├── docs/
-│   └── architecture.md
-│
-├── aura.py                        # CLI entry-point
-├── command_engine/                 # Core automation backbone
+├── command_engine/                # Automation backbone
 │   ├── dispatcher.py              # Text command → handler router
 │   ├── path_utils.py              # Centralized path resolution + safety
 │   ├── file_manager.py            # File CRUD (pathlib + shutil)
-│   ├── process_manager.py         # subprocess + psutil wrappers
+│   ├── process_manager.py         # subprocess + psutil wrappers + shell safety
 │   ├── system_check.py            # Developer tool version probes
-│   └── logger.py                  # Centralized file + console logger
+│   └── logger.py                  # Config-driven rotating file + console logger
 │
 ├── modules/                       # Higher-level utilities
-│   ├── project_scaffolder.py      # Project directory generator
+│   ├── project_scaffolder.py      # Config-driven project directory generator
 │   └── log_reader.py              # Efficient log file tail reader
 │
-├── logs/                          # Runtime log output (auto-created)
+├── tests/                         # Unit tests (pytest)
+│   ├── test_file_manager.py
+│   ├── test_process_manager.py
+│   └── test_system_check.py
+│
+├── logs/                          # Runtime log output (auto-created, rotated)
+├── docs/                          # Architecture and design documents
 │
 ├── aura-core/                     # [Planned] STT, LLM, TTS pipeline
 ├── aura-devtools/                 # [Planned] Git & Docker automation
@@ -141,10 +137,11 @@ AURA/
 | Layer | Technology | Status |
 |---|---|---|
 | Language | Python 3.10+ | ✅ Active |
+| Configuration | PyYAML (`config.yaml` with fallback defaults) | ✅ Active |
 | Path Resolution | `pathlib` (centralized via `path_utils`) | ✅ Active |
 | File I/O | `pathlib`, `shutil` | ✅ Active |
 | Process Control | `subprocess`, `psutil` | ✅ Active |
-| Logging | `logging` (stdlib) | ✅ Active |
+| Logging | `logging` (stdlib, `RotatingFileHandler`) | ✅ Active |
 | Speech-to-Text | Whisper | ⏳ Phase 2 |
 | Local LLM | Ollama (Llama 3) | ⏳ Phase 2 |
 | Text-to-Speech | Piper TTS | ⏳ Phase 2 |
@@ -168,6 +165,14 @@ git clone https://github.com/aryanjsx/AURA.git
 cd AURA
 pip install -r requirements.txt
 ```
+
+### Configure (optional)
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+Edit `config.yaml` to customize protected paths, logging levels, shell timeouts, system-check tools, and project scaffolding folders. If you skip this step, AURA uses sensible defaults from `config.example.yaml`.
 
 ### Run
 
@@ -241,7 +246,7 @@ See [ROADMAP.md](ROADMAP.md) for the detailed phase breakdown.
 
 | Phase | What Ships | Key Tech |
 |---|---|---|
-| **1** ✅ | Command Execution Engine + CLI | Python, subprocess, psutil |
+| **1** ✅ | Command Execution Engine + CLI | Python, subprocess, psutil, PyYAML |
 | **2** ⏳ | Offline Voice Pipeline — hear, think, speak | Whisper, Ollama, Piper |
 | **3** ⏳ | Developer Tools — Git & Docker automation | GitPython, Docker SDK |
 | **4** ⏳ | Desktop GUI — visual dashboard | PyQt6 |
@@ -252,14 +257,16 @@ See [ROADMAP.md](ROADMAP.md) for the detailed phase breakdown.
 ## 🙋 Where We Need Help
 
 ### Currently Open (Phase 1)
-- Python automation module testing
+- Additional test coverage (dispatcher, path_utils, scaffolder, log_reader)
+- Custom `InputSource` / `OutputSink` implementations for new frontends
 - Documentation improvements
-- `.gitignore` and project config refinements
+- Config schema validation and documentation
 
 ### Opening Soon (Phase 2)
 - Whisper STT integration and optimization
 - Ollama prompt engineering for developer tasks
 - Piper TTS voice configuration
+- Command registry for LLM tool-use discovery
 
 ### Future (Phase 3+)
 - Git automation edge cases

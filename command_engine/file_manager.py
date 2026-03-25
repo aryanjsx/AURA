@@ -39,12 +39,12 @@ def create_file(path: str) -> CommandResult:
         return CommandResult(
             success=False,
             message=f"Invalid path or permission denied: {exc}",
-            command_type="create_file",
+            command_type="file.create",
         )
 
     blocked = validate_not_protected(target)
     if blocked:
-        return CommandResult(success=False, message=blocked, command_type="create_file")
+        return CommandResult(success=False, message=blocked, command_type="file.create")
 
     try:
         target.touch(exist_ok=True)
@@ -53,14 +53,14 @@ def create_file(path: str) -> CommandResult:
             success=True,
             message=f"File created: {target}",
             data={"path": str(target)},
-            command_type="create_file",
+            command_type="file.create",
         )
     except OSError as exc:
         logger.error("Failed to create file %s: %s", target, exc)
         return CommandResult(
             success=False,
             message=f"Error creating file: {exc}",
-            command_type="create_file",
+            command_type="file.create",
         )
 
 
@@ -79,17 +79,17 @@ def delete_file(path: str) -> CommandResult:
         return CommandResult(
             success=False,
             message=f"Invalid path or permission denied: {exc}",
-            command_type="delete_file",
+            command_type="file.delete",
         )
 
     blocked = validate_not_protected(target)
     if blocked:
-        return CommandResult(success=False, message=blocked, command_type="delete_file")
+        return CommandResult(success=False, message=blocked, command_type="file.delete")
 
     if not target.exists():
         msg = f"File not found: {target}"
         logger.warning(msg)
-        return CommandResult(success=False, message=msg, command_type="delete_file")
+        return CommandResult(success=False, message=msg, command_type="file.delete")
 
     try:
         target.unlink()
@@ -98,14 +98,14 @@ def delete_file(path: str) -> CommandResult:
             success=True,
             message=f"File deleted: {target}",
             data={"path": str(target)},
-            command_type="delete_file",
+            command_type="file.delete",
         )
     except OSError as exc:
         logger.error("Failed to delete file %s: %s", target, exc)
         return CommandResult(
             success=False,
             message=f"Error deleting file: {exc}",
-            command_type="delete_file",
+            command_type="file.delete",
         )
 
 
@@ -120,7 +120,7 @@ def rename_file(old_name: str, new_name: str) -> CommandResult:
         return CommandResult(
             success=False,
             message="Error: new name must be a filename, not a path.",
-            command_type="rename_file",
+            command_type="file.rename",
         )
 
     try:
@@ -129,13 +129,13 @@ def rename_file(old_name: str, new_name: str) -> CommandResult:
         return CommandResult(
             success=False,
             message=f"Invalid source path: {exc}",
-            command_type="rename_file",
+            command_type="file.rename",
         )
 
     if not source.exists():
         msg = f"Source file not found: {source}"
         logger.warning(msg)
-        return CommandResult(success=False, message=msg, command_type="rename_file")
+        return CommandResult(success=False, message=msg, command_type="file.rename")
 
     destination = source.parent / new_name
 
@@ -146,14 +146,14 @@ def rename_file(old_name: str, new_name: str) -> CommandResult:
             success=True,
             message=f"Renamed: {source.name} -> {destination.name}",
             data={"old": str(source), "new": str(destination)},
-            command_type="rename_file",
+            command_type="file.rename",
         )
     except OSError as exc:
         logger.error("Failed to rename %s: %s", source, exc)
         return CommandResult(
             success=False,
             message=f"Error renaming file: {exc}",
-            command_type="rename_file",
+            command_type="file.rename",
         )
 
 
@@ -173,7 +173,7 @@ def move_file(source: str, destination: str) -> CommandResult:
         return CommandResult(
             success=False,
             message=f"Invalid source path: {exc}",
-            command_type="move_file",
+            command_type="file.move",
         )
 
     try:
@@ -182,13 +182,13 @@ def move_file(source: str, destination: str) -> CommandResult:
         return CommandResult(
             success=False,
             message=f"Invalid destination path: {exc}",
-            command_type="move_file",
+            command_type="file.move",
         )
 
     if not src.exists():
         msg = f"Source file not found: {src}"
         logger.warning(msg)
-        return CommandResult(success=False, message=msg, command_type="move_file")
+        return CommandResult(success=False, message=msg, command_type="file.move")
 
     if dst.is_dir():
         dst = dst / src.name
@@ -200,14 +200,14 @@ def move_file(source: str, destination: str) -> CommandResult:
             success=True,
             message=f"Moved: {src} -> {dst}",
             data={"source": str(src), "destination": str(dst)},
-            command_type="move_file",
+            command_type="file.move",
         )
     except OSError as exc:
         logger.error("Failed to move %s: %s", src, exc)
         return CommandResult(
             success=False,
             message=f"Error moving file: {exc}",
-            command_type="move_file",
+            command_type="file.move",
         )
 
 
@@ -230,7 +230,7 @@ def search_files(
         return CommandResult(
             success=False,
             message=f"Invalid search directory: {exc}",
-            command_type="search_files",
+            command_type="file.search",
         )
 
     if not root.is_dir():
@@ -238,7 +238,7 @@ def search_files(
         return CommandResult(
             success=False,
             message=f"Directory not found: {root}",
-            command_type="search_files",
+            command_type="file.search",
         )
 
     matches: list[str] = []
@@ -256,7 +256,7 @@ def search_files(
             success=True,
             message="No files found.",
             data={"matches": []},
-            command_type="search_files",
+            command_type="file.search",
         )
 
     truncated = f" (limited to {limit})" if len(matches) >= limit else ""
@@ -265,5 +265,5 @@ def search_files(
         success=True,
         message=message,
         data={"matches": matches},
-        command_type="search_files",
+        command_type="file.search",
     )

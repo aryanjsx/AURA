@@ -39,12 +39,12 @@ def read_last_lines(file_path: str, lines: int = 20) -> CommandResult:
     except (ValueError, OSError) as exc:
         msg = f"Invalid path or permission denied: {exc}"
         logger.warning(msg)
-        return CommandResult(success=False, message=msg, command_type="show_logs")
+        return CommandResult(success=False, message=msg, command_type="logs.show")
 
     if not target.is_file():
         msg = f"File not found: {target}"
         logger.warning(msg)
-        return CommandResult(success=False, message=msg, command_type="show_logs")
+        return CommandResult(success=False, message=msg, command_type="logs.show")
 
     try:
         with target.open("r", encoding="utf-8", errors="replace") as fh:
@@ -55,12 +55,12 @@ def read_last_lines(file_path: str, lines: int = 20) -> CommandResult:
             success=True,
             message="\n".join(result_lines),
             data={"lines": result_lines, "path": str(target)},
-            command_type="show_logs",
+            command_type="logs.show",
         )
     except OSError as exc:
         logger.error("Error reading %s: %s", target, exc)
         return CommandResult(
             success=False,
             message=f"Error reading file: {exc}",
-            command_type="show_logs",
+            command_type="logs.show",
         )

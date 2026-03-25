@@ -89,5 +89,5 @@ def check_system_health() -> CommandResult:
         success=True,
         message="System Health:\n" + "\n".join(lines),
         data={"tools": report},
-        command_type="system_health",
+        command_type="system.health",
     )
