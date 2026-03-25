@@ -25,7 +25,7 @@ The foundation. A modular command-execution engine accessible through a CLI.
 | Command registry + intent-based routing | `command_engine/dispatcher.py` | ✅ Done |
 | Command policy (centralized safety gate) | `core/policy.py` | ✅ Done |
 | LLM backend abstraction + Ollama stub | `core/backends/` | ✅ Done |
-| LLM brain (intent translator stub) | `modules/llm_brain.py` | ✅ Done |
+| LLM brain (intent translator stub) | `core/llm_brain.py` | ✅ Done |
 | Application context container | `core/context.py` | ✅ Done |
 
 ---
@@ -39,9 +39,9 @@ The transformation. AURA hears you, thinks locally, and speaks back.
 | Deliverable | Tech | Module |
 |---|---|---|
 | Microphone listener + speech-to-text | Whisper (OpenAI) | `core/io.py` + new STT source |
-| Intent parsing + command generation | Ollama (Llama 3) | `modules/llm_brain.py`, `core/backends/` |
+| Intent parsing + command generation | Ollama (Llama 3) | `core/llm_brain.py`, `core/backends/` |
 | Voice response synthesis | Piper TTS | `core/io.py` + new TTS sink |
-| Prompt engineering for dev-task classification | — | `modules/llm_brain.py` |
+| Prompt engineering for dev-task classification | — | `core/llm_brain.py` |
 | End-to-end voice → action → response pipeline | — | `aura.py` (async main loop) |
 
 ---

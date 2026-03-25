@@ -3,8 +3,8 @@ AURA — LLM Brain
 
 High-level interface that accepts natural-language text and returns
 a structured :class:`~core.intent.Intent`.  Phase 1 uses a stub that
-returns a mock intent; Phase 2 will delegate to a real LLM backend
-for intent classification and argument extraction.
+returns a passthrough intent; Phase 2 will delegate to a real LLM
+backend for intent classification and argument extraction.
 """
 
 from __future__ import annotations
@@ -50,18 +50,7 @@ class LLMBrain:
             )
 
         logger.info("Processing text via LLM: %s", text[:80])
-        response = self.backend.complete(
-            prompt=text,
-            system=(
-                "You are AURA, a developer assistant. "
-                "Parse the user's intent into an action and arguments."
-            ),
-        )
-
-        return Intent(
-            action="file.create",
-            args={"path": "test.txt"},
-            raw_text=text,
-            source="llm",
-            confidence=0.5,
+        raise NotImplementedError(
+            "LLM response parsing is not yet implemented. "
+            "Wire up prompt construction and response parsing in Phase 2."
         )

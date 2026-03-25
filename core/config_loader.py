@@ -60,6 +60,12 @@ _DEFAULTS: dict[str, Any] = {
     "shell": {
         "timeout": 120,
     },
+    "llm": {
+        "mode": "offline",
+        "provider": "ollama",
+        "model": "llama3",
+        "host": "http://localhost:11434",
+    },
 }
 
 _cache: dict[str, Any] | None = None
@@ -92,9 +98,9 @@ def load_config() -> dict[str, Any]:
             with path.open("r", encoding="utf-8") as fh:
                 raw = yaml.safe_load(fh) or {}
         except ImportError:
-            pass
-        except Exception:
-            pass
+            print("[WARNING] PyYAML not installed — using built-in defaults.")
+        except Exception as exc:
+            print(f"[WARNING] Failed to parse {path.name}: {exc}")
 
     _cache = _deep_merge(_DEFAULTS, raw)
     return _cache

@@ -185,6 +185,10 @@ def move_file(source: str, destination: str) -> CommandResult:
             command_type="file.move",
         )
 
+    blocked = validate_not_protected(dst)
+    if blocked:
+        return CommandResult(success=False, message=blocked, command_type="file.move")
+
     if not src.exists():
         msg = f"Source file not found: {src}"
         logger.warning(msg)

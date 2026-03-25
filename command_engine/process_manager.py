@@ -24,12 +24,12 @@ import psutil
 
 from command_engine.logger import get_logger
 from core.config_loader import get as get_config
-from core.policy import CommandPolicy
+from core.policy import get_policy
 from core.result import CommandResult
 
 logger = get_logger("aura.process_manager")
 
-_policy = CommandPolicy()
+_policy = get_policy()
 
 
 # ---------------------------------------------------------------------------
@@ -176,10 +176,19 @@ def list_running_processes(limit: int = 25) -> CommandResult:
 def kill_process(process_name: str) -> CommandResult:
     """Terminate all processes matching *process_name* (case-insensitive).
 
+    Protected system processes are blocked by :class:`CommandPolicy`.
+
     Returns
     -------
     CommandResult
     """
+    blocked = _policy.check_kill_target(process_name)
+    if blocked:
+        logger.warning(blocked)
+        return CommandResult(
+            success=False, message=blocked, command_type="process.kill",
+        )
+
     killed = 0
     for proc in psutil.process_iter(["name"]):
         try:

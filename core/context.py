@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from core.config_loader import load_config
-from core.policy import CommandPolicy
+from core.policy import CommandPolicy, get_policy
 
 
 @dataclass
@@ -25,12 +25,12 @@ class AppContext:
     config:
         Merged configuration dictionary.
     policy:
-        Command safety policy.
+        Command safety policy (shared singleton).
     session:
         Mutable dict for per-session state (working directory,
         conversation history, etc.).
     """
 
     config: dict[str, Any] = field(default_factory=load_config)
-    policy: CommandPolicy = field(default_factory=CommandPolicy)
+    policy: CommandPolicy = field(default_factory=get_policy)
     session: dict[str, Any] = field(default_factory=dict)

@@ -36,14 +36,14 @@ from command_engine.process_manager import (
 )
 from command_engine.system_check import check_system_health
 from core.intent import Intent
-from core.policy import CommandPolicy
+from core.policy import get_policy
 from core.result import CommandResult
 from modules.log_reader import read_last_lines
 from modules.project_scaffolder import create_project
 
 logger = get_logger("aura.dispatcher")
 
-_policy = CommandPolicy()
+_policy = get_policy()
 
 
 # ── Command Registry ────────────────────────────────────────────────
@@ -120,14 +120,32 @@ def dispatch(command: str) -> CommandResult:
         return CommandResult(success=False, message=f"Error: {exc}")
 
 
+_LLM_CONFIDENCE_THRESHOLD = 0.6
+
+
 def execute_intent(intent: Intent) -> CommandResult:
     """Execute a pre-built intent.
 
     Called by :func:`dispatch` for CLI input and directly by the
     LLM pipeline in Phase 2.
 
-    Pipeline: policy check → registry lookup → handler invocation.
+    Pipeline: confidence gate → policy check → registry lookup → handler.
     """
+    if intent.source == "llm" and intent.confidence < _LLM_CONFIDENCE_THRESHOLD:
+        logger.warning(
+            "Low-confidence LLM intent (%.2f): %s",
+            intent.confidence,
+            intent.action,
+        )
+        return CommandResult(
+            success=False,
+            message=(
+                f"Low confidence intent ({intent.confidence:.0%}) — "
+                f"confirmation required before executing '{intent.action}'."
+            ),
+            command_type="system.warning",
+        )
+
     violation = _policy.validate_intent(intent)
     if violation:
         logger.warning(

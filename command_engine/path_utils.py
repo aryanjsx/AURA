@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Optional
 
 from command_engine.logger import get_logger
 from core.config_loader import get as get_config
@@ -92,7 +91,7 @@ def resolve_path(raw: str, create_parents: bool = False) -> Path:
     return path
 
 
-def validate_not_protected(path: Path) -> Optional[str]:
+def validate_not_protected(path: Path) -> str | None:
     """Return an error message if *path* is a protected system location.
 
     Returns ``None`` when the path is safe to operate on.

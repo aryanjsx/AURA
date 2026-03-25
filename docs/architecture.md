@@ -135,7 +135,7 @@ Probes the local environment for commonly required developer tools (Python, Git,
 
 Configures a stdlib `logging.Logger` with two handlers: a `RotatingFileHandler` that writes every entry to `logs/aura.log` with automatic rotation, and a `StreamHandler` for the console (WARNING and above). `get_logger()` is idempotent — calling it multiple times with the same name returns the same configured instance.
 
-### modules/llm_brain.py
+### core/llm_brain.py
 
 The `LLMBrain` class accepts natural-language text and returns a structured `Intent`. It wraps an `LLMBackend` and will (in Phase 2) build a prompt from the command registry, send it to the model, and parse the structured response. Currently a stub that returns a low-confidence passthrough intent when the backend is unavailable.
 

@@ -58,3 +58,10 @@ system_check:
 # Shell execution settings
 shell:
   timeout: 120            # seconds before a command is killed
+
+# LLM integration (Phase 2)
+llm:
+  mode: "offline"         # offline = stub, api = cloud provider
+  provider: "ollama"      # ollama (local), openai, anthropic, etc.
+  model: "llama3"         # model name passed to the provider
+  host: "http://localhost:11434"  # Ollama server address
