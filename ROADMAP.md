@@ -21,6 +21,12 @@ The foundation. A modular command-execution engine accessible through a CLI.
 | Project scaffolder (supports full paths) | `modules/project_scaffolder.py` | ✅ Done |
 | Log file reader (supports full paths) | `modules/log_reader.py` | ✅ Done |
 | Interactive CLI interface | `aura.py` | ✅ Done |
+| Intent system (text/LLM → structured action) | `core/intent.py` | ✅ Done |
+| Command registry + intent-based routing | `command_engine/dispatcher.py` | ✅ Done |
+| Command policy (centralized safety gate) | `core/policy.py` | ✅ Done |
+| LLM backend abstraction + Ollama stub | `core/backends/` | ✅ Done |
+| LLM brain (intent translator stub) | `modules/llm_brain.py` | ✅ Done |
+| Application context container | `core/context.py` | ✅ Done |
 
 ---
 
@@ -32,11 +38,11 @@ The transformation. AURA hears you, thinks locally, and speaks back.
 
 | Deliverable | Tech | Module |
 |---|---|---|
-| Microphone listener + speech-to-text | Whisper (OpenAI) | `aura-core/` |
-| Intent parsing + command generation | Ollama (Llama 3) | `aura-core/` |
-| Voice response synthesis | Piper TTS | `aura-core/` |
-| Prompt engineering for dev-task classification | — | `aura-core/` |
-| End-to-end voice → action → response pipeline | — | `aura-core/` |
+| Microphone listener + speech-to-text | Whisper (OpenAI) | `core/io.py` + new STT source |
+| Intent parsing + command generation | Ollama (Llama 3) | `modules/llm_brain.py`, `core/backends/` |
+| Voice response synthesis | Piper TTS | `core/io.py` + new TTS sink |
+| Prompt engineering for dev-task classification | — | `modules/llm_brain.py` |
+| End-to-end voice → action → response pipeline | — | `aura.py` (async main loop) |
 
 ---
 
@@ -81,6 +87,8 @@ AURA remembers. Persistent semantic context across sessions.
 | Project context indexer | ChromaDB | `aura-memory/` |
 | Semantic codebase search | ChromaDB | `aura-memory/` |
 | Conversation history persistence | ChromaDB | `aura-memory/` |
+
+> **Note:** Folders like `aura-devtools/`, `aura-gui/`, and `aura-memory/` are expansion placeholders. The final module structure for each phase will be determined when implementation begins and may follow the `core/` + `modules/` pattern established in Phase 2.
 
 ---
 

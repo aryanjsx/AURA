@@ -52,6 +52,10 @@ AURA is in active development. The repository is public from Day 1 so contributo
 - **Config-Driven** — all settings (protected paths, log levels, tool lists, timeouts) loaded from `config.yaml` with safe fallback defaults
 - **Structured Logging** — every action, result, and error timestamped to `logs/aura.log` with automatic log rotation
 - **I/O Abstraction** — pluggable `InputSource` / `OutputSink` interfaces so Phase 2 can swap in voice input and TTS output with zero changes to the engine
+- **Intent System** — structured `Intent` dataclass decouples text parsing from command execution, enabling LLM-generated actions in Phase 2
+- **Command Registry** — programmatic registry of all commands with metadata, powering LLM tool-use discovery and dynamic help
+- **Command Policy** — centralized `CommandPolicy` safety gate validates every intent before any handler runs
+- **LLM Backend Abstraction** — pluggable `LLMBackend` interface with Ollama stub, ready for real model integration
 
 ### Coming Soon
 
@@ -97,13 +101,20 @@ AURA/
 ├── aura.py                        # CLI entry-point (uses I/O abstraction)
 ├── config.example.yaml            # Configuration template (copy to config.yaml)
 │
-├── core/                          # Foundational infrastructure
+├── core/                          # System layer — types, config, abstractions
+│   ├── intent.py                  # Intent dataclass (text/LLM → structured action)
+│   ├── policy.py                  # CommandPolicy safety gate
+│   ├── context.py                 # AppContext (config + policy + session state)
 │   ├── config_loader.py           # YAML config with fallback defaults
 │   ├── io.py                      # InputSource / OutputSink abstractions
-│   └── result.py                  # CommandResult structured return type
+│   ├── result.py                  # CommandResult structured return type
+│   └── backends/                  # LLM provider abstraction
+│       ├── base.py                # LLMBackend ABC
+│       ├── ollama_backend.py      # Ollama stub (Phase 2)
+│       └── factory.py             # Backend factory
 │
 ├── command_engine/                # Automation backbone
-│   ├── dispatcher.py              # Text command → handler router
+│   ├── dispatcher.py              # Intent-based command router + registry
 │   ├── path_utils.py              # Centralized path resolution + safety
 │   ├── file_manager.py            # File CRUD (pathlib + shutil)
 │   ├── process_manager.py         # subprocess + psutil wrappers + shell safety
@@ -122,13 +133,13 @@ AURA/
 ├── logs/                          # Runtime log output (auto-created, rotated)
 ├── docs/                          # Architecture and design documents
 │
-├── aura-core/                     # [Planned] STT, LLM, TTS pipeline
-├── aura-devtools/                 # [Planned] Git & Docker automation
-├── aura-gui/                      # [Planned] PyQt6 dashboard
-└── aura-memory/                   # [Planned] ChromaDB memory layer
+├── aura-core/                     # [Future] Whisper STT + Piper TTS voice I/O
+├── aura-devtools/                 # [Future] Git & Docker automation
+├── aura-gui/                      # [Future] PyQt6 dashboard
+└── aura-memory/                   # [Future] ChromaDB memory layer
 ```
 
-> Each module folder is clearly scoped so contributors immediately know where their code belongs.
+> Active development happens in `core/`, `command_engine/`, and `modules/`. Folders prefixed with `aura-` are expansion placeholders for future phases and do not contain implementation code yet.
 
 ---
 
@@ -284,7 +295,7 @@ Contributions, issues, and feature requests are welcome! See [CONTRIBUTING.md](C
 
 1. Fork the repo
 2. Create your branch (`git checkout -b feat/amazing-feature`)
-3. Commit using [Conventional Commits](https://www.conventionalcommits.org/) (`feat(aura-core): add amazing feature`)
+3. Commit using [Conventional Commits](https://www.conventionalcommits.org/) (`feat(core): add amazing feature`)
 4. Push to your branch (`git push origin feat/amazing-feature`)
 5. Open a Pull Request
 

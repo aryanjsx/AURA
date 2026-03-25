@@ -16,7 +16,7 @@ What does this module do? What problem does it solve for developers?
 
 ## Proposed Location
 
-Where should this live in the codebase? (e.g., `aura-core/`, `aura-devtools/`, new directory)
+Where should this live in the codebase? (e.g., `core/`, `modules/`, `command_engine/`, or new directory)
 
 ## Key Functions / API
 

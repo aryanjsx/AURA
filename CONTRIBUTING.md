@@ -38,11 +38,11 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/).
 **Format:** `type(module): short description`
 
 ```
-feat(aura-core): add subprocess command dispatcher
-fix(aura-devtools): resolve git push auth error
+feat(core): add LLM backend abstraction
+fix(command_engine): resolve path traversal edge case
 docs(readme): update architecture diagram
 chore(.github): add PR template
-test(aura-core): add unit tests for file operations
+test(modules): add unit tests for LLM brain
 refactor(command_engine): simplify dispatcher routing
 ```
 
@@ -75,12 +75,12 @@ Each module has a clear home in the codebase:
 
 | Module | Directory | Description |
 |---|---|---|
-| Command Engine | `command_engine/` | Dispatcher, file ops, process control, system checks |
-| Utilities | `modules/` | Project scaffolder, log reader |
-| Core Pipeline | `aura-core/` | *(Phase 2)* Whisper STT, Ollama LLM, Piper TTS |
-| Dev Tools | `aura-devtools/` | *(Phase 3)* GitPython, Docker SDK |
-| GUI | `aura-gui/` | *(Phase 4)* PyQt6 dashboard |
-| Memory | `aura-memory/` | *(Phase 5)* ChromaDB vector store |
+| System Layer | `core/` | Intent, policy, config, I/O abstractions, LLM backend |
+| Execution Layer | `command_engine/` | Dispatcher + registry, file ops, process control, system checks |
+| Feature Modules | `modules/` | LLM brain, project scaffolder, log reader |
+| Dev Tools | `aura-devtools/` | *(Phase 3 — placeholder)* GitPython, Docker SDK |
+| GUI | `aura-gui/` | *(Phase 4 — placeholder)* PyQt6 dashboard |
+| Memory | `aura-memory/` | *(Phase 5 — placeholder)* ChromaDB vector store |
 | Documentation | `docs/` | Architecture docs, guides |
 
 ### Currently Accepting Contributions

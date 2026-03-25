@@ -4,12 +4,12 @@
 
 ## Which module does it affect?
 
-- [ ] `command_engine/` — Core automation
-- [ ] `modules/` — Utilities
-- [ ] `aura-core/` — Voice / LLM pipeline
-- [ ] `aura-devtools/` — Git / Docker
-- [ ] `aura-gui/` — GUI dashboard
-- [ ] `aura-memory/` — Memory layer
+- [ ] `core/` — System layer (intent, policy, config, backends)
+- [ ] `command_engine/` — Execution layer (dispatcher, file/process ops)
+- [ ] `modules/` — Feature modules (LLM brain, scaffolder, log reader)
+- [ ] `aura-devtools/` — Git / Docker (Phase 3)
+- [ ] `aura-gui/` — GUI dashboard (Phase 4)
+- [ ] `aura-memory/` — Memory layer (Phase 5)
 - [ ] `docs/` — Documentation
 - [ ] `.github/` — CI / templates
 
