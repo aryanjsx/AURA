@@ -7,6 +7,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from command_engine.system_check import check_system_health
+from core.result import CommandResult
 
 EXPECTED_KEYS = {"python", "git", "node", "docker"}
 
@@ -14,23 +15,25 @@ EXPECTED_KEYS = {"python", "git", "node", "docker"}
 class TestCheckSystemHealth:
     """Tests for check_system_health()."""
 
-    def test_returns_dict_with_expected_keys(self) -> None:
-        report = check_system_health()
+    def test_returns_command_result_with_expected_keys(self) -> None:
+        result = check_system_health()
 
-        assert isinstance(report, dict)
-        assert set(report.keys()) == EXPECTED_KEYS
+        assert isinstance(result, CommandResult)
+        assert result.success is True
+        assert result.data is not None
+        assert set(result.data["tools"].keys()) == EXPECTED_KEYS
 
     def test_values_are_strings(self) -> None:
-        report = check_system_health()
+        result = check_system_health()
 
-        for tool, value in report.items():
+        for tool, value in result.data["tools"].items():
             assert isinstance(value, str), f"{tool} value is not a string"
 
     def test_python_always_detected(self) -> None:
-        report = check_system_health()
+        result = check_system_health()
 
-        assert report["python"] != "not installed"
-        assert "python" in report["python"].lower()
+        assert result.data["tools"]["python"] != "not installed"
+        assert "python" in result.data["tools"]["python"].lower()
 
     def test_handles_missing_tool_gracefully(self) -> None:
         """Simulate a world where every tool probe fails."""
@@ -38,22 +41,21 @@ class TestCheckSystemHealth:
             "command_engine.system_check._probe_tool",
             return_value="not installed",
         ):
-            report = check_system_health()
+            result = check_system_health()
 
-        assert isinstance(report, dict)
-        for value in report.values():
+        assert isinstance(result, CommandResult)
+        for value in result.data["tools"].values():
             assert value == "not installed"
 
-    def test_does_not_raise_on_missing_tools(self) -> None:
-        """The function must never raise, even if subprocess fails."""
+    def test_does_not_raise_on_probe_exception(self) -> None:
+        """The function must never raise, even if _probe_tool raises."""
         with patch(
             "command_engine.system_check._probe_tool",
             side_effect=Exception("boom"),
         ):
-            try:
-                check_system_health()
-                raised = False
-            except Exception:
-                raised = True
+            result = check_system_health()
 
-        assert not raised or True  # we mainly care it doesn't crash pytest
+        assert isinstance(result, CommandResult)
+        assert result.success is True
+        for value in result.data["tools"].values():
+            assert value == "not installed"

@@ -2,15 +2,18 @@
 AURA — Project Scaffolder
 
 Generates a starter directory layout for new projects with sensible
-defaults (backend/, frontend/, README, .gitignore).  The target
-location is resolved through :func:`~command_engine.path_utils.resolve_path`
-so paths like ``~/Desktop/my_project`` work as expected.
+defaults.  Folder names and generated files are loaded from config.
+The target location is resolved through
+:func:`~command_engine.path_utils.resolve_path` so paths like
+``~/Desktop/my_project`` work as expected.
 """
 
 from __future__ import annotations
 
 from command_engine.logger import get_logger
 from command_engine.path_utils import resolve_path
+from core.config_loader import get as get_config
+from core.result import CommandResult
 
 logger = get_logger("aura.project_scaffolder")
 
@@ -31,20 +34,12 @@ dist/
 """
 
 
-def create_project(project_name: str) -> str:
+def create_project(project_name: str) -> CommandResult:
     """Scaffold a new project directory.
 
     *project_name* can be a bare name (``my_app``), a path with ``~``
     (``~/Desktop/my_app``), or a smart-location keyword
     (``desktop/my_app``).
-
-    Creates::
-
-        <project_name>/
-        ├── backend/
-        ├── frontend/
-        ├── README.md
-        └── .gitignore
 
     Parameters
     ----------
@@ -53,22 +48,29 @@ def create_project(project_name: str) -> str:
 
     Returns
     -------
-    str
-        Human-readable result message.
+    CommandResult
     """
     try:
         root = resolve_path(project_name)
     except (ValueError, OSError) as exc:
-        return f"Invalid project path: {exc}"
+        return CommandResult(
+            success=False,
+            message=f"Invalid project path: {exc}",
+            command_type="create_project",
+        )
 
     if root.exists():
         msg = f"Directory already exists: {root}"
         logger.warning(msg)
-        return msg
+        return CommandResult(success=False, message=msg, command_type="create_project")
+
+    folders: list[str] = get_config(
+        "project_scaffold.folders", ["src", "tests", "docs", "logs"]
+    )
 
     try:
-        (root / "backend").mkdir(parents=True, exist_ok=True)
-        (root / "frontend").mkdir(parents=True, exist_ok=True)
+        for folder in folders:
+            (root / folder).mkdir(parents=True, exist_ok=True)
 
         readme = root / "README.md"
         readme.write_text(
@@ -80,7 +82,16 @@ def create_project(project_name: str) -> str:
         gitignore.write_text(_DEFAULT_GITIGNORE, encoding="utf-8")
 
         logger.info("Project scaffolded: %s", root)
-        return f"Project '{root.name}' created at {root}"
+        return CommandResult(
+            success=True,
+            message=f"Project '{root.name}' created at {root}",
+            data={"path": str(root), "folders": folders},
+            command_type="create_project",
+        )
     except OSError as exc:
         logger.error("Failed to scaffold project '%s': %s", project_name, exc)
-        return f"Error creating project: {exc}"
+        return CommandResult(
+            success=False,
+            message=f"Error creating project: {exc}",
+            command_type="create_project",
+        )

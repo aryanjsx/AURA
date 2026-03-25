@@ -6,11 +6,10 @@ using ``subprocess`` and ``psutil``.
 
 Security note
 -------------
-``run_shell_command`` deliberately avoids ``shell=True`` by splitting
-the command string.  Commands that require shell features (pipes,
-redirects) should be refactored into explicit Python logic where
-possible; ``shell=True`` is used only as a controlled fallback with
-clear logging.
+``run_shell_command`` validates every command against a blocked-pattern
+list before execution.  On non-Windows platforms the command string is
+split with ``shlex.split`` and executed **without** ``shell=True``.
+On Windows ``shell=True`` is unavoidable for built-in commands.
 """
 
 from __future__ import annotations
@@ -18,16 +17,73 @@ from __future__ import annotations
 import shlex
 import subprocess
 import sys
-from typing import Any, Dict, List
+from typing import Any
 
 import psutil
 
 from command_engine.logger import get_logger
+from core.config_loader import get as get_config
+from core.result import CommandResult
 
 logger = get_logger("aura.process_manager")
 
+# ---------------------------------------------------------------------------
+# Shell-safety: patterns that must never be executed
+# ---------------------------------------------------------------------------
 
-def run_shell_command(command: str, timeout: int = 120) -> Dict[str, Any]:
+_BLOCKED_EXACT: frozenset[str] = frozenset({
+    "rm -rf /",
+    "rm -rf /*",
+    "rm -rf ~",
+    "rm -rf ~/*",
+    "halt",
+    "poweroff",
+    "init 0",
+    "init 6",
+})
+
+_BLOCKED_SUBSTRINGS: tuple[str, ...] = (
+    "mkfs.",
+    "mkfs ",
+    ":(){",
+    "dd if=/dev/zero",
+    "dd if=/dev/random",
+    "dd if=/dev/urandom",
+    "> /dev/sd",
+    "format c:",
+    "format d:",
+    "del /s /q c:\\",
+    "del /s /q c:/",
+    "rd /s /q c:\\",
+    "rd /s /q c:/",
+)
+
+
+def _is_command_blocked(command: str) -> str | None:
+    """Return a warning message if *command* matches a blocked pattern."""
+    lower = command.lower().strip()
+
+    if lower in _BLOCKED_EXACT:
+        return f"Blocked: '{command}' is a destructive command."
+
+    for pattern in _BLOCKED_SUBSTRINGS:
+        if pattern in lower:
+            return (
+                f"Blocked: command contains dangerous pattern ('{pattern}'). "
+                f"Run it directly in your terminal if this is intentional."
+            )
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def run_shell_command(
+    command: str,
+    timeout: int | None = None,
+) -> CommandResult:
     """Execute a shell command and capture its output.
 
     Parameters
@@ -36,16 +92,26 @@ def run_shell_command(command: str, timeout: int = 120) -> Dict[str, Any]:
         The command string to execute.
     timeout:
         Maximum seconds to wait before killing the process.
+        Defaults to the ``shell.timeout`` config value (120 s).
 
     Returns
     -------
-    dict
-        ``{"stdout": str, "stderr": str, "returncode": int}``
+    CommandResult
+        Contains stdout, stderr, and return code in *data*.
     """
+    blocked = _is_command_blocked(command)
+    if blocked:
+        logger.warning(blocked)
+        return CommandResult(success=False, message=blocked, command_type="shell")
+
+    if timeout is None:
+        timeout = int(get_config("shell.timeout", 120))
+
     logger.info("Running command: %s", command)
+
     try:
         if sys.platform == "win32":
-            args = command
+            args: str | list[str] = command
             use_shell = True
         else:
             args = shlex.split(command)
@@ -58,35 +124,62 @@ def run_shell_command(command: str, timeout: int = 120) -> Dict[str, Any]:
             timeout=timeout,
             shell=use_shell,
         )
-        logger.info(
-            "Command finished (exit %d): %s", result.returncode, command
+
+        out = result.stdout.strip()
+        err = result.stderr.strip()
+        code = result.returncode
+
+        sections: list[str] = []
+        if out:
+            sections.append(out)
+        if err:
+            sections.append(f"[stderr] {err}")
+        sections.append(f"(exit code {code})")
+        message = "\n".join(sections)
+
+        logger.info("Command finished (exit %d): %s", code, command)
+        return CommandResult(
+            success=code == 0,
+            message=message,
+            data={"stdout": out, "stderr": err, "returncode": code},
+            command_type="shell",
         )
-        return {
-            "stdout": result.stdout.strip(),
-            "stderr": result.stderr.strip(),
-            "returncode": result.returncode,
-        }
+
     except subprocess.TimeoutExpired:
         logger.error("Command timed out after %ds: %s", timeout, command)
-        return {"stdout": "", "stderr": "Command timed out", "returncode": -1}
+        return CommandResult(
+            success=False,
+            message=f"Command timed out after {timeout}s",
+            data={"stdout": "", "stderr": "Command timed out", "returncode": -1},
+            command_type="shell",
+        )
     except FileNotFoundError as exc:
         logger.error("Command not found: %s (%s)", command, exc)
-        return {"stdout": "", "stderr": str(exc), "returncode": -1}
+        return CommandResult(
+            success=False,
+            message=f"Command not found: {exc}",
+            data={"stdout": "", "stderr": str(exc), "returncode": -1},
+            command_type="shell",
+        )
     except Exception as exc:
         logger.error("Unexpected error running '%s': %s", command, exc)
-        return {"stdout": "", "stderr": str(exc), "returncode": -1}
+        return CommandResult(
+            success=False,
+            message=f"Error: {exc}",
+            data={"stdout": "", "stderr": str(exc), "returncode": -1},
+            command_type="shell",
+        )
 
 
-def list_running_processes(limit: int = 25) -> List[Dict[str, Any]]:
+def list_running_processes(limit: int = 25) -> CommandResult:
     """Return a snapshot of the top *limit* processes sorted by memory.
 
     Returns
     -------
-    list[dict]
-        Each dict contains ``pid``, ``name``, ``cpu_percent``,
-        ``memory_mb``.
+    CommandResult
+        ``data["processes"]`` contains the list of process dicts.
     """
-    processes: List[Dict[str, Any]] = []
+    processes: list[dict[str, Any]] = []
     for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_info"]):
         try:
             info = proc.info
@@ -104,22 +197,38 @@ def list_running_processes(limit: int = 25) -> List[Dict[str, Any]]:
             continue
 
     processes.sort(key=lambda p: p["memory_mb"], reverse=True)
+    top = processes[:limit]
+
+    lines = [
+        f"  {p['pid']:>7}  {p['name']:<25} "
+        f"CPU {p['cpu_percent']:>5}%  MEM {p['memory_mb']:>8} MB"
+        for p in top
+    ]
+    message = "Top processes:\n" + "\n".join(lines)
+
     logger.info("Listed top %d processes", limit)
-    return processes[:limit]
+    return CommandResult(
+        success=True,
+        message=message,
+        data={"processes": top},
+        command_type="list_processes",
+    )
 
 
-def kill_process(process_name: str) -> str:
+def kill_process(process_name: str) -> CommandResult:
     """Terminate all processes matching *process_name* (case-insensitive).
 
     Returns
     -------
-    str
-        Human-readable result message.
+    CommandResult
     """
     killed = 0
     for proc in psutil.process_iter(["name"]):
         try:
-            if proc.info["name"] and proc.info["name"].lower() == process_name.lower():
+            if (
+                proc.info["name"]
+                and proc.info["name"].lower() == process_name.lower()
+            ):
                 proc.terminate()
                 killed += 1
         except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -127,7 +236,18 @@ def kill_process(process_name: str) -> str:
 
     if killed:
         logger.info("Killed %d process(es) named '%s'", killed, process_name)
-        return f"Terminated {killed} process(es) named '{process_name}'"
+        return CommandResult(
+            success=True,
+            message=f"Terminated {killed} process(es) named '{process_name}'",
+            data={"killed": killed, "name": process_name},
+            command_type="kill_process",
+        )
+
     msg = f"No running process found with name '{process_name}'"
     logger.warning(msg)
-    return msg
+    return CommandResult(
+        success=False,
+        message=msg,
+        data={"killed": 0, "name": process_name},
+        command_type="kill_process",
+    )

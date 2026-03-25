@@ -8,6 +8,11 @@ All path arguments are forwarded as-is to the handler functions, which
 internally call :func:`~command_engine.path_utils.resolve_path` for
 safe, absolute resolution (``~``, smart keywords, cross-platform).
 
+Every handler returns a :class:`~core.result.CommandResult`; the
+dispatcher passes it through unchanged so that callers (CLI, GUI,
+LLM layer) can inspect both the human-readable message and the
+structured data.
+
 Routing table
 -------------
 ====================================  ==============================
@@ -29,8 +34,6 @@ Pattern                               Handler
 
 from __future__ import annotations
 
-from typing import Any
-
 from command_engine.file_manager import (
     create_file,
     delete_file,
@@ -39,19 +42,21 @@ from command_engine.file_manager import (
     search_files,
 )
 from command_engine.logger import get_logger
+from command_engine.path_utils import SMART_LOCATIONS
 from command_engine.process_manager import (
     kill_process,
     list_running_processes,
     run_shell_command,
 )
 from command_engine.system_check import check_system_health
+from core.result import CommandResult
 from modules.log_reader import read_last_lines
 from modules.project_scaffolder import create_project
 
 logger = get_logger("aura.dispatcher")
 
 
-def dispatch(command: str) -> str:
+def dispatch(command: str) -> CommandResult:
     """Parse *command* and delegate to the matching handler.
 
     Parameters
@@ -61,12 +66,13 @@ def dispatch(command: str) -> str:
 
     Returns
     -------
-    str
-        A human-readable response string.
+    CommandResult
+        Structured result containing a human-readable message and
+        optional data payload.
     """
     raw = command.strip()
     if not raw:
-        return "No command entered."
+        return CommandResult(success=False, message="No command entered.")
 
     parts = raw.split()
     keyword = parts[0].lower()
@@ -75,10 +81,10 @@ def dispatch(command: str) -> str:
         return _route(parts, keyword, raw)
     except Exception as exc:
         logger.error("Dispatch error for '%s': %s", raw, exc)
-        return f"Error: {exc}"
+        return CommandResult(success=False, message=f"Error: {exc}")
 
 
-def _route(parts: list[str], keyword: str, raw: str) -> str:
+def _route(parts: list[str], keyword: str, raw: str) -> CommandResult:
     """Internal routing logic — keeps ``dispatch`` concise."""
 
     # ── file operations ──────────────────────────────────────────────
@@ -86,31 +92,37 @@ def _route(parts: list[str], keyword: str, raw: str) -> str:
     if keyword == "create" and _word(parts, 1) == "file":
         path = _rest(parts, 2)
         if not path:
-            return "Usage: create file <path>"
+            return CommandResult(success=False, message="Usage: create file <path>")
         return create_file(path)
 
     if keyword == "delete" and _word(parts, 1) == "file":
         path = _rest(parts, 2)
         if not path:
-            return "Usage: delete file <path>"
+            return CommandResult(success=False, message="Usage: delete file <path>")
         return delete_file(path)
 
     if keyword == "rename" and _word(parts, 1) == "file":
         if len(parts) < 4:
-            return "Usage: rename file <old_path> <new_name>"
+            return CommandResult(
+                success=False, message="Usage: rename file <old_path> <new_name>"
+            )
         new_name = parts[-1]
         old_path = " ".join(parts[2:-1])
         return rename_file(old_path, new_name)
 
     if keyword == "move" and _word(parts, 1) == "file":
         if len(parts) < 4:
-            return "Usage: move file <source> <destination>"
+            return CommandResult(
+                success=False, message="Usage: move file <source> <destination>"
+            )
         src, dst = _split_two_paths(parts[2:])
         return move_file(src, dst)
 
     if keyword == "search" and _word(parts, 1) == "files":
         if len(parts) < 4:
-            return "Usage: search files <directory> <pattern>"
+            return CommandResult(
+                success=False, message="Usage: search files <directory> <pattern>"
+            )
         pattern = parts[-1]
         directory = " ".join(parts[2:-1])
         return search_files(directory, pattern)
@@ -120,59 +132,61 @@ def _route(parts: list[str], keyword: str, raw: str) -> str:
     if keyword == "run" and _word(parts, 1) == "command":
         cmd = _rest(parts, 2)
         if not cmd:
-            return "Usage: run command <shell_command>"
-        result = run_shell_command(cmd)
-        return _format_shell_result(result)
+            return CommandResult(
+                success=False, message="Usage: run command <shell_command>"
+            )
+        return run_shell_command(cmd)
 
     if keyword == "list" and _word(parts, 1) == "processes":
-        procs = list_running_processes()
-        lines = [
-            f"  {p['pid']:>7}  {p['name']:<25} "
-            f"CPU {p['cpu_percent']:>5}%  MEM {p['memory_mb']:>8} MB"
-            for p in procs
-        ]
-        return "Top processes:\n" + "\n".join(lines)
+        return list_running_processes()
 
     if keyword == "kill" and _word(parts, 1) == "process":
         name = _rest(parts, 2)
         if not name:
-            return "Usage: kill process <name>"
+            return CommandResult(
+                success=False, message="Usage: kill process <name>"
+            )
         return kill_process(name)
 
     # ── system health ────────────────────────────────────────────────
 
     if raw.lower().startswith("check system health"):
-        report = check_system_health()
-        return _format_health(report)
+        return check_system_health()
 
     # ── project scaffolding ──────────────────────────────────────────
 
     if keyword == "create" and _word(parts, 1) == "project":
         name = _rest(parts, 2)
         if not name:
-            return "Usage: create project <name|path>"
+            return CommandResult(
+                success=False, message="Usage: create project <name|path>"
+            )
         return create_project(name)
 
     # ── log reading ──────────────────────────────────────────────────
 
     if keyword == "show" and _word(parts, 1) == "logs":
         if len(parts) < 3:
-            return "Usage: show logs <file_path> [lines]"
+            return CommandResult(
+                success=False, message="Usage: show logs <file_path> [lines]"
+            )
         if len(parts) > 3 and parts[-1].isdigit():
             n = int(parts[-1])
             file_path = " ".join(parts[2:-1])
         else:
             n = 20
             file_path = _rest(parts, 2)
-        lines = read_last_lines(file_path, n)
-        return "\n".join(lines)
+        return read_last_lines(file_path, n)
 
     # ── fallback ─────────────────────────────────────────────────────
 
     logger.warning("Unrecognised command: %s", raw)
-    return (
-        f"Unknown command: '{raw}'\n"
-        "Type 'help' for a list of available commands."
+    return CommandResult(
+        success=False,
+        message=(
+            f"Unknown command: '{raw}'\n"
+            "Type 'help' for a list of available commands."
+        ),
     )
 
 
@@ -200,8 +214,6 @@ def _split_two_paths(tokens: list[str]) -> tuple[str, str]:
 
     Falls back to splitting at the midpoint if no boundary is detected.
     """
-    from command_engine.path_utils import SMART_LOCATIONS
-
     for i in range(1, len(tokens)):
         t = tokens[i]
         lower = t.lower().rstrip("/\\")
@@ -214,26 +226,3 @@ def _split_two_paths(tokens: list[str]) -> tuple[str, str]:
             return " ".join(tokens[:i]), " ".join(tokens[i:])
 
     return tokens[0], " ".join(tokens[1:])
-
-
-def _format_shell_result(result: dict[str, Any]) -> str:
-    out = result.get("stdout", "")
-    err = result.get("stderr", "")
-    code = result.get("returncode", -1)
-    sections = []
-    if out:
-        sections.append(out)
-    if err:
-        sections.append(f"[stderr] {err}")
-    sections.append(f"(exit code {code})")
-    return "\n".join(sections)
-
-
-def _format_health(report: dict[str, str]) -> str:
-    lines = []
-    for tool, version in report.items():
-        if version == "not installed":
-            lines.append(f"  {tool:<10} : NOT INSTALLED")
-        else:
-            lines.append(f"  {tool:<10} : {version}")
-    return "System Health:\n" + "\n".join(lines)

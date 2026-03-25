@@ -10,15 +10,18 @@ against protected system directories before any destructive action.
 from __future__ import annotations
 
 import shutil
-from typing import List
+from pathlib import PurePath
 
 from command_engine.logger import get_logger
 from command_engine.path_utils import resolve_path, validate_not_protected
+from core.result import CommandResult
 
 logger = get_logger("aura.file_manager")
 
+_SEARCH_LIMIT_DEFAULT = 200
 
-def create_file(path: str) -> str:
+
+def create_file(path: str) -> CommandResult:
     """Create an empty file (and parent directories if needed).
 
     Parameters
@@ -28,86 +31,133 @@ def create_file(path: str) -> str:
 
     Returns
     -------
-    str
-        Human-readable result message.
+    CommandResult
     """
     try:
         target = resolve_path(path, create_parents=True)
     except (ValueError, OSError) as exc:
-        return f"Invalid path or permission denied: {exc}"
+        return CommandResult(
+            success=False,
+            message=f"Invalid path or permission denied: {exc}",
+            command_type="create_file",
+        )
+
+    blocked = validate_not_protected(target)
+    if blocked:
+        return CommandResult(success=False, message=blocked, command_type="create_file")
 
     try:
         target.touch(exist_ok=True)
         logger.info("File created: %s", target)
-        return f"File created: {target}"
+        return CommandResult(
+            success=True,
+            message=f"File created: {target}",
+            data={"path": str(target)},
+            command_type="create_file",
+        )
     except OSError as exc:
         logger.error("Failed to create file %s: %s", target, exc)
-        return f"Error creating file: {exc}"
+        return CommandResult(
+            success=False,
+            message=f"Error creating file: {exc}",
+            command_type="create_file",
+        )
 
 
-def delete_file(path: str) -> str:
+def delete_file(path: str) -> CommandResult:
     """Delete a file if it exists.
 
     Protected system paths are blocked automatically.
 
     Returns
     -------
-    str
-        Human-readable result message.
+    CommandResult
     """
     try:
         target = resolve_path(path)
     except (ValueError, OSError) as exc:
-        return f"Invalid path or permission denied: {exc}"
+        return CommandResult(
+            success=False,
+            message=f"Invalid path or permission denied: {exc}",
+            command_type="delete_file",
+        )
 
     blocked = validate_not_protected(target)
     if blocked:
-        return blocked
+        return CommandResult(success=False, message=blocked, command_type="delete_file")
 
     if not target.exists():
         msg = f"File not found: {target}"
         logger.warning(msg)
-        return msg
+        return CommandResult(success=False, message=msg, command_type="delete_file")
 
     try:
         target.unlink()
         logger.info("File deleted: %s", target)
-        return f"File deleted: {target}"
+        return CommandResult(
+            success=True,
+            message=f"File deleted: {target}",
+            data={"path": str(target)},
+            command_type="delete_file",
+        )
     except OSError as exc:
         logger.error("Failed to delete file %s: %s", target, exc)
-        return f"Error deleting file: {exc}"
+        return CommandResult(
+            success=False,
+            message=f"Error deleting file: {exc}",
+            command_type="delete_file",
+        )
 
 
-def rename_file(old_name: str, new_name: str) -> str:
-    """Rename a file.  *new_name* is placed in the same directory as *old_name*.
+def rename_file(old_name: str, new_name: str) -> CommandResult:
+    """Rename a file.  *new_name* must be a plain filename (no directories).
 
     Returns
     -------
-    str
-        Human-readable result message.
+    CommandResult
     """
+    if str(PurePath(new_name).parent) != ".":
+        return CommandResult(
+            success=False,
+            message="Error: new name must be a filename, not a path.",
+            command_type="rename_file",
+        )
+
     try:
         source = resolve_path(old_name)
     except (ValueError, OSError) as exc:
-        return f"Invalid source path: {exc}"
+        return CommandResult(
+            success=False,
+            message=f"Invalid source path: {exc}",
+            command_type="rename_file",
+        )
 
     if not source.exists():
         msg = f"Source file not found: {source}"
         logger.warning(msg)
-        return msg
+        return CommandResult(success=False, message=msg, command_type="rename_file")
 
     destination = source.parent / new_name
 
     try:
         source.rename(destination)
         logger.info("Renamed %s -> %s", source, destination)
-        return f"Renamed: {source.name} -> {destination.name}"
+        return CommandResult(
+            success=True,
+            message=f"Renamed: {source.name} -> {destination.name}",
+            data={"old": str(source), "new": str(destination)},
+            command_type="rename_file",
+        )
     except OSError as exc:
         logger.error("Failed to rename %s: %s", source, exc)
-        return f"Error renaming file: {exc}"
+        return CommandResult(
+            success=False,
+            message=f"Error renaming file: {exc}",
+            command_type="rename_file",
+        )
 
 
-def move_file(source: str, destination: str) -> str:
+def move_file(source: str, destination: str) -> CommandResult:
     """Move a file to a new location.
 
     If *destination* resolves to a directory, the file is moved inside it
@@ -115,23 +165,30 @@ def move_file(source: str, destination: str) -> str:
 
     Returns
     -------
-    str
-        Human-readable result message.
+    CommandResult
     """
     try:
         src = resolve_path(source)
     except (ValueError, OSError) as exc:
-        return f"Invalid source path: {exc}"
+        return CommandResult(
+            success=False,
+            message=f"Invalid source path: {exc}",
+            command_type="move_file",
+        )
 
     try:
         dst = resolve_path(destination, create_parents=True)
     except (ValueError, OSError) as exc:
-        return f"Invalid destination path: {exc}"
+        return CommandResult(
+            success=False,
+            message=f"Invalid destination path: {exc}",
+            command_type="move_file",
+        )
 
     if not src.exists():
         msg = f"Source file not found: {src}"
         logger.warning(msg)
-        return msg
+        return CommandResult(success=False, message=msg, command_type="move_file")
 
     if dst.is_dir():
         dst = dst / src.name
@@ -139,32 +196,74 @@ def move_file(source: str, destination: str) -> str:
     try:
         shutil.move(str(src), str(dst))
         logger.info("Moved %s -> %s", src, dst)
-        return f"Moved: {src} -> {dst}"
+        return CommandResult(
+            success=True,
+            message=f"Moved: {src} -> {dst}",
+            data={"source": str(src), "destination": str(dst)},
+            command_type="move_file",
+        )
     except OSError as exc:
         logger.error("Failed to move %s: %s", src, exc)
-        return f"Error moving file: {exc}"
+        return CommandResult(
+            success=False,
+            message=f"Error moving file: {exc}",
+            command_type="move_file",
+        )
 
 
-def search_files(directory: str, pattern: str) -> List[str]:
+def search_files(
+    directory: str,
+    pattern: str,
+    limit: int = _SEARCH_LIMIT_DEFAULT,
+) -> CommandResult:
     """Recursively search *directory* for files matching a glob *pattern*.
 
     Returns
     -------
-    list[str]
-        List of matching file paths (as strings).
+    CommandResult
+        ``data["matches"]`` contains the list of matching paths.
     """
     try:
         root = resolve_path(directory)
     except (ValueError, OSError) as exc:
         logger.warning("Invalid search directory: %s", exc)
-        return []
+        return CommandResult(
+            success=False,
+            message=f"Invalid search directory: {exc}",
+            command_type="search_files",
+        )
 
     if not root.is_dir():
         logger.warning("Directory not found: %s", root)
-        return []
+        return CommandResult(
+            success=False,
+            message=f"Directory not found: {root}",
+            command_type="search_files",
+        )
 
-    matches = [str(p) for p in root.rglob(pattern)]
+    matches: list[str] = []
+    for i, p in enumerate(root.rglob(pattern)):
+        if i >= limit:
+            break
+        matches.append(str(p))
+
     logger.info(
         "Search in %s for '%s': %d result(s)", root, pattern, len(matches)
     )
-    return matches
+
+    if not matches:
+        return CommandResult(
+            success=True,
+            message="No files found.",
+            data={"matches": []},
+            command_type="search_files",
+        )
+
+    truncated = f" (limited to {limit})" if len(matches) >= limit else ""
+    message = f"Found {len(matches)} file(s){truncated}:\n" + "\n".join(matches)
+    return CommandResult(
+        success=True,
+        message=message,
+        data={"matches": matches},
+        command_type="search_files",
+    )

@@ -23,9 +23,10 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import FrozenSet, Optional
+from typing import Optional
 
 from command_engine.logger import get_logger
+from core.config_loader import get as get_config
 
 logger = get_logger("aura.path_utils")
 
@@ -38,13 +39,9 @@ SMART_LOCATIONS: dict[str, Path] = {
     "home": _HOME,
 }
 
-_PROTECTED_ROOTS: FrozenSet[Path] = frozenset({
-    Path("C:/") if sys.platform == "win32" else Path("/"),
-    Path("C:/Windows") if sys.platform == "win32" else Path("/bin"),
-    Path("C:/Windows/System32") if sys.platform == "win32" else Path("/usr"),
-    Path("C:/Program Files") if sys.platform == "win32" else Path("/etc"),
-    Path("C:/Program Files (x86)") if sys.platform == "win32" else Path("/sbin"),
-})
+_PROTECTED_ROOTS: frozenset[Path] = frozenset(
+    Path(p) for p in get_config("paths.protected", [])
+)
 
 
 def resolve_path(raw: str, create_parents: bool = False) -> Path:
@@ -99,19 +96,32 @@ def validate_not_protected(path: Path) -> Optional[str]:
     """Return an error message if *path* is a protected system location.
 
     Returns ``None`` when the path is safe to operate on.
+
+    Protection uses full ancestry checking — anything *inside* a protected
+    directory is blocked, not just its direct children.  Filesystem roots
+    (``/`` on Unix, drive roots on Windows) are blocked unconditionally.
     """
     resolved = path.resolve()
 
+    if resolved.parent == resolved:
+        msg = (
+            f"Blocked: '{resolved}' is a filesystem root. "
+            f"Operation aborted for safety."
+        )
+        logger.warning(msg)
+        return msg
+
     for root in _PROTECTED_ROOTS:
         try:
-            if resolved == root.resolve() or resolved.parent == root.resolve():
+            root_resolved = root.resolve()
+            if resolved == root_resolved or resolved.is_relative_to(root_resolved):
                 msg = (
                     f"Blocked: '{resolved}' is inside a protected system "
                     f"directory ({root}). Operation aborted for safety."
                 )
                 logger.warning(msg)
                 return msg
-        except OSError:
+        except (OSError, ValueError):
             continue
 
     return None

@@ -12,7 +12,8 @@ aura:
   mode: "offline"
 
 # Directories that must never be deleted or overwritten.
-# Add any machine-specific paths you want to protect.
+# Full ancestry is checked — anything *inside* these dirs is blocked too.
+# Do NOT add bare filesystem roots (/ or C:/) — they are blocked separately.
 paths:
   protected:
     # Windows
@@ -21,11 +22,11 @@ paths:
     - "C:/Program Files"
     - "C:/Program Files (x86)"
     # Linux / macOS
-    - "/"
     - "/bin"
     - "/usr"
     - "/etc"
     - "/sbin"
+    - "/boot"
 
 # Default folders created by "create project <name>"
 project_scaffold:
@@ -53,3 +54,7 @@ system_check:
     - "git"
     - "node"
     - "docker"
+
+# Shell execution settings
+shell:
+  timeout: 120            # seconds before a command is killed

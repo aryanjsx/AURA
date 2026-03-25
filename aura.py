@@ -5,6 +5,11 @@ Phase 1 CLI entry-point.  Starts an interactive loop that accepts
 text commands, routes them through the dispatcher, prints results,
 and logs every action.
 
+The loop is built on :class:`~core.io.InputSource` /
+:class:`~core.io.OutputSink` abstractions so that Phase 2 can
+substitute a microphone listener and TTS synthesizer without
+modifying the dispatch or executor layers.
+
 Run::
 
     python aura.py
@@ -12,10 +17,9 @@ Run::
 
 from __future__ import annotations
 
-import sys
-
 from command_engine.dispatcher import dispatch
 from command_engine.logger import get_logger
+from core.io import InputSource, OutputSink, StdinInput, StdoutOutput
 
 logger = get_logger("aura.cli")
 
@@ -53,16 +57,30 @@ Available commands:
 """
 
 
-def main() -> None:
-    """Run the interactive CLI loop."""
-    print(BANNER)
+def main(
+    input_source: InputSource | None = None,
+    output_sink: OutputSink | None = None,
+) -> None:
+    """Run the interactive CLI loop.
+
+    Parameters
+    ----------
+    input_source:
+        Where to read commands from.  Defaults to :class:`StdinInput`.
+    output_sink:
+        Where to send results.  Defaults to :class:`StdoutOutput`.
+    """
+    source = input_source or StdinInput()
+    sink = output_sink or StdoutOutput()
+
+    sink.send(BANNER)
     logger.info("AURA CLI started")
 
     while True:
-        try:
-            user_input = input("\n> ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nExiting AURA.")
+        user_input = source.get_command()
+
+        if user_input is None:
+            sink.send("\nExiting AURA.")
             logger.info("AURA CLI terminated by user (interrupt)")
             break
 
@@ -72,18 +90,18 @@ def main() -> None:
         lower = user_input.lower()
 
         if lower in ("exit", "quit"):
-            print("Goodbye.")
+            sink.send("Goodbye.")
             logger.info("AURA CLI exited cleanly")
             break
 
         if lower == "help":
-            print(HELP_TEXT)
+            sink.send(HELP_TEXT)
             continue
 
         logger.info("Command received: %s", user_input)
         result = dispatch(user_input)
-        print(result)
-        logger.info("Result: %s", result.replace("\n", " | "))
+        sink.send(result.message)
+        logger.info("Result: %s", result.message.replace("\n", " | "))
 
 
 if __name__ == "__main__":

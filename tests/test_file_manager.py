@@ -11,7 +11,9 @@ from command_engine.file_manager import (
     create_file,
     delete_file,
     move_file,
+    rename_file,
 )
+from core.result import CommandResult
 
 
 class TestCreateFile:
@@ -21,21 +23,24 @@ class TestCreateFile:
         target = tmp_path / "hello.txt"
         result = create_file(str(target))
 
-        assert "File created" in result
+        assert isinstance(result, CommandResult)
+        assert result.success is True
+        assert "File created" in result.message
         assert target.exists()
 
     def test_create_file_nested_dirs(self, tmp_path: Path) -> None:
         target = tmp_path / "a" / "b" / "c" / "deep.txt"
         result = create_file(str(target))
 
-        assert "File created" in result
+        assert result.success is True
+        assert "File created" in result.message
         assert target.exists()
 
     def test_create_file_in_protected_path(self) -> None:
         """Attempting to create a file inside a protected root should not
-        crash.  The function returns a result string regardless."""
+        crash.  The function returns a CommandResult regardless."""
         result = create_file("C:/Windows/aura_test_junk.xyz")
-        assert isinstance(result, str)
+        assert isinstance(result, CommandResult)
 
 
 class TestDeleteFile:
@@ -48,14 +53,16 @@ class TestDeleteFile:
 
         result = delete_file(str(target))
 
-        assert "deleted" in result.lower()
+        assert result.success is True
+        assert "deleted" in result.message.lower()
         assert not target.exists()
 
     def test_delete_nonexistent_file(self, tmp_path: Path) -> None:
         target = tmp_path / "ghost.txt"
         result = delete_file(str(target))
 
-        assert "not found" in result.lower()
+        assert result.success is False
+        assert "not found" in result.message.lower()
 
     def test_delete_protected_path_blocked(self) -> None:
         with patch(
@@ -64,7 +71,18 @@ class TestDeleteFile:
         ):
             result = delete_file("/some/fake/path.txt")
 
-        assert "Blocked" in result
+        assert "Blocked" in result.message
+
+
+class TestRenameFile:
+    """Tests for rename_file()."""
+
+    def test_rename_rejects_path_traversal(self, tmp_path: Path) -> None:
+        src = tmp_path / "original.txt"
+        src.touch()
+        result = rename_file(str(src), "../../etc/evil.txt")
+        assert result.success is False
+        assert "filename" in result.message.lower()
 
 
 class TestMoveFile:
@@ -80,7 +98,8 @@ class TestMoveFile:
 
         result = move_file(str(src), str(dst_dir))
 
-        assert "Moved" in result
+        assert result.success is True
+        assert "Moved" in result.message
         assert dst.exists()
         assert not src.exists()
 
@@ -90,4 +109,5 @@ class TestMoveFile:
 
         result = move_file(str(src), str(dst))
 
-        assert "not found" in result.lower()
+        assert result.success is False
+        assert "not found" in result.message.lower()
