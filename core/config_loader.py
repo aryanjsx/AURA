@@ -6,6 +6,12 @@ fallback to ``config.example.yaml`` (tracked template).  If neither
 file exists or PyYAML is not installed, built-in defaults are used so
 that every module has a guaranteed baseline.
 
+Environment variables (optional overrides after YAML merge):
+
+- ``AURA_LOG_PATH`` — overrides ``logging.file``
+- ``AURA_SHELL_TIMEOUT`` — overrides ``shell.timeout`` (integer seconds)
+- ``AURA_PROTECTED_PATHS`` — comma-separated list overriding ``paths.protected``
+
 Usage::
 
     from core.config_loader import get as get_config
@@ -17,8 +23,13 @@ Usage::
 
 from __future__ import annotations
 
+import copy
+import logging
+import os
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger("aura.config")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -82,6 +93,33 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     return merged
 
 
+def _apply_env_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Apply ``AURA_*`` environment variable overrides to *cfg*."""
+    merged = copy.deepcopy(cfg)
+
+    log_path = os.environ.get("AURA_LOG_PATH")
+    if log_path and log_path.strip():
+        merged.setdefault("logging", {})["file"] = log_path.strip()
+
+    timeout_raw = os.environ.get("AURA_SHELL_TIMEOUT")
+    if timeout_raw and timeout_raw.strip():
+        try:
+            merged.setdefault("shell", {})["timeout"] = int(timeout_raw.strip())
+        except ValueError:
+            logger.warning(
+                "Invalid AURA_SHELL_TIMEOUT ignored (expected integer): %s",
+                timeout_raw,
+            )
+
+    protected_raw = os.environ.get("AURA_PROTECTED_PATHS")
+    if protected_raw and protected_raw.strip():
+        paths = [p.strip() for p in protected_raw.split(",") if p.strip()]
+        if paths:
+            merged.setdefault("paths", {})["protected"] = paths
+
+    return merged
+
+
 def load_config() -> dict[str, Any]:
     """Load and cache the merged configuration dictionary."""
     global _cache
@@ -98,11 +136,14 @@ def load_config() -> dict[str, Any]:
             with path.open("r", encoding="utf-8") as fh:
                 raw = yaml.safe_load(fh) or {}
         except ImportError:
-            print("[WARNING] PyYAML not installed — using built-in defaults.")
+            logger.warning(
+                "PyYAML not installed — using built-in defaults only.",
+            )
         except Exception as exc:
-            print(f"[WARNING] Failed to parse {path.name}: {exc}")
+            logger.warning("Failed to parse %s: %s", path.name, exc)
 
-    _cache = _deep_merge(_DEFAULTS, raw)
+    merged = _deep_merge(_DEFAULTS, raw)
+    _cache = _apply_env_overrides(merged)
     return _cache
 
 

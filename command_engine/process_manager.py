@@ -7,29 +7,121 @@ using ``subprocess`` and ``psutil``.
 Security note
 -------------
 ``run_shell_command`` validates every command against the centralized
-:class:`~core.policy.CommandPolicy` before execution.  On non-Windows
-platforms the command string is split with ``shlex.split`` and executed
-**without** ``shell=True``.  On Windows ``shell=True`` is unavoidable
-for built-in commands.
+:class:`~core.policy.CommandPolicy` before execution.  Commands are
+split into argv with :func:`~core.policy.split_command_string` and run
+**without** ``shell=True`` to avoid shell injection.
 """
 
 from __future__ import annotations
 
-import shlex
 import subprocess
-import sys
+from pathlib import Path
 from typing import Any
 
 import psutil
 
 from command_engine.logger import get_logger
 from core.config_loader import get as get_config
-from core.policy import get_policy
+from core.policy import get_policy, split_command_string
 from core.result import CommandResult
 
 logger = get_logger("aura.process_manager")
 
 _policy = get_policy()
+
+
+def safe_run_command(
+    cmd: list[str],
+    cwd: Path | None = None,
+    timeout: int | None = None,
+    command_type: str = "process.shell",
+) -> CommandResult:
+    """Execute *cmd* as argv (no shell) and capture stdout/stderr.
+
+    Parameters
+    ----------
+    cmd:
+        Executable path or name followed by arguments.
+    cwd:
+        Optional working directory for the child process.
+    timeout:
+        Seconds before the process is killed; defaults to ``shell.timeout``.
+    command_type:
+        Label stored on the returned :class:`~core.result.CommandResult`.
+
+    Returns
+    -------
+    CommandResult
+        Contains stdout, stderr, and return code in *data*.
+    """
+    if not cmd:
+        return CommandResult(
+            success=False,
+            message="Error: empty command list.",
+            data={"stdout": "", "stderr": "", "returncode": -1},
+            command_type=command_type,
+        )
+
+    if timeout is None:
+        timeout = int(get_config("shell.timeout", 120))
+
+    display = " ".join(cmd)
+    logger.info("Running argv command: %s", display)
+
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            shell=False,
+        )
+
+        out = result.stdout.strip()
+        err = result.stderr.strip()
+        code = result.returncode
+
+        sections: list[str] = []
+        if out:
+            sections.append(out)
+        if err:
+            sections.append(f"[stderr] {err}")
+        sections.append(f"(exit code {code})")
+        message = "\n".join(sections)
+
+        logger.info("Command finished (exit %d): %s", code, display)
+        return CommandResult(
+            success=code == 0,
+            message=message,
+            data={"stdout": out, "stderr": err, "returncode": code},
+            command_type=command_type,
+        )
+
+    except subprocess.TimeoutExpired:
+        logger.error("Command timed out after %ds: %s", timeout, display)
+        return CommandResult(
+            success=False,
+            message=f"Command timed out after {timeout}s",
+            data={"stdout": "", "stderr": "Command timed out", "returncode": -1},
+            command_type=command_type,
+        )
+    except FileNotFoundError as exc:
+        logger.error("Command not found: %s (%s)", display, exc)
+        return CommandResult(
+            success=False,
+            message=f"Command not found: {exc}",
+            data={"stdout": "", "stderr": str(exc), "returncode": -1},
+            command_type=command_type,
+        )
+    except Exception as exc:
+        logger.error("Unexpected error running '%s': %s", display, exc)
+        return CommandResult(
+            success=False,
+            message=f"Error: {exc}",
+            data={"stdout": "", "stderr": str(exc), "returncode": -1},
+            command_type=command_type,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -45,7 +137,7 @@ def run_shell_command(
     Parameters
     ----------
     command:
-        The command string to execute.
+        The command string to execute (parsed into argv; no shell).
     timeout:
         Maximum seconds to wait before killing the process.
         Defaults to the ``shell.timeout`` config value (120 s).
@@ -55,7 +147,15 @@ def run_shell_command(
     CommandResult
         Contains stdout, stderr, and return code in *data*.
     """
-    blocked = _policy.check_shell_command(command)
+    argv = split_command_string(command)
+    if not argv:
+        return CommandResult(
+            success=False,
+            message="Blocked: empty command.",
+            command_type="process.shell",
+        )
+
+    blocked = _policy.check_shell_argv(argv, command)
     if blocked:
         logger.warning(blocked)
         return CommandResult(
@@ -65,68 +165,42 @@ def run_shell_command(
     if timeout is None:
         timeout = int(get_config("shell.timeout", 120))
 
-    logger.info("Running command: %s", command)
+    return safe_run_command(argv, cwd=None, timeout=timeout, command_type="process.shell")
 
-    try:
-        if sys.platform == "win32":
-            args: str | list[str] = command
-            use_shell = True
-        else:
-            args = shlex.split(command)
-            use_shell = False
 
-        result = subprocess.run(
-            args,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            shell=use_shell,
-        )
+def get_cpu_usage() -> CommandResult:
+    """Report current aggregate CPU utilisation (percent)."""
+    pct = psutil.cpu_percent(interval=0.1)
+    message = f"CPU usage: {pct}%"
+    logger.info("CPU usage snapshot: %s%%", pct)
+    return CommandResult(
+        success=True,
+        message=message,
+        data={"cpu_percent": pct},
+        command_type="get_cpu_usage",
+    )
 
-        out = result.stdout.strip()
-        err = result.stderr.strip()
-        code = result.returncode
 
-        sections: list[str] = []
-        if out:
-            sections.append(out)
-        if err:
-            sections.append(f"[stderr] {err}")
-        sections.append(f"(exit code {code})")
-        message = "\n".join(sections)
-
-        logger.info("Command finished (exit %d): %s", code, command)
-        return CommandResult(
-            success=code == 0,
-            message=message,
-            data={"stdout": out, "stderr": err, "returncode": code},
-            command_type="process.shell",
-        )
-
-    except subprocess.TimeoutExpired:
-        logger.error("Command timed out after %ds: %s", timeout, command)
-        return CommandResult(
-            success=False,
-            message=f"Command timed out after {timeout}s",
-            data={"stdout": "", "stderr": "Command timed out", "returncode": -1},
-            command_type="process.shell",
-        )
-    except FileNotFoundError as exc:
-        logger.error("Command not found: %s (%s)", command, exc)
-        return CommandResult(
-            success=False,
-            message=f"Command not found: {exc}",
-            data={"stdout": "", "stderr": str(exc), "returncode": -1},
-            command_type="process.shell",
-        )
-    except Exception as exc:
-        logger.error("Unexpected error running '%s': %s", command, exc)
-        return CommandResult(
-            success=False,
-            message=f"Error: {exc}",
-            data={"stdout": "", "stderr": str(exc), "returncode": -1},
-            command_type="process.shell",
-        )
+def get_ram_usage() -> CommandResult:
+    """Report virtual memory (RAM) usage."""
+    vm = psutil.virtual_memory()
+    used_gb = vm.used / (1024**3)
+    total_gb = vm.total / (1024**3)
+    message = (
+        f"Memory usage: {vm.percent}% "
+        f"({used_gb:.2f} GiB used / {total_gb:.2f} GiB total)"
+    )
+    logger.info("RAM usage snapshot: %s%%", vm.percent)
+    return CommandResult(
+        success=True,
+        message=message,
+        data={
+            "percent": vm.percent,
+            "used_bytes": vm.used,
+            "total_bytes": vm.total,
+        },
+        command_type="get_ram_usage",
+    )
 
 
 def list_running_processes(limit: int = 25) -> CommandResult:

@@ -13,6 +13,8 @@ modifying the dispatch or executor layers.
 Run::
 
     python aura.py
+    python aura.py "cpu"
+    python aura.py "npm install"
 """
 
 from __future__ import annotations
@@ -43,7 +45,9 @@ Available commands:
   move file <source> <dest>       Move a file
   search files <dir> <pattern>    Search for files by glob pattern
 
-  run command <shell_command>     Execute a shell command
+  run command <shell_command>     Execute an allowed shell command (argv, no shell)
+  npm install [path]              Run npm install in a project directory
+  npm run <script> [path]         Run an npm script (e.g. npm run build)
   list processes                  Show top running processes
   kill process <name>             Terminate processes by name
 
@@ -105,4 +109,12 @@ def main(
 
 
 if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) > 1:
+        text = " ".join(sys.argv[1:])
+        logger.info("Command received: %s", text)
+        result = dispatch(text)
+        print(result.message)
+        sys.exit(0 if result.success else 1)
     main()

@@ -25,9 +25,11 @@
 
 AURA is in active development. The repository is public from Day 1 so contributors can follow the build, propose ideas, and prepare to contribute as each phase completes.
 
+**Phase-0 (execution backbone)** — secure dispatch, argv-based subprocess (`shell=False`), command policy (allowlist + denylist), path safety, npm executor, and structured `CommandResult` — is implemented and exercised through the Phase 1 CLI.
+
 | Phase | Description | Status | ETA |
 |-------|-------------|--------|-----|
-| Phase 1 — Python Automation Core | Command engine, file ops, process control | ✅ Complete | — |
+| Phase 1 — Python Automation Core | Command engine, file ops, process control, npm, monitoring phrases | ✅ Complete | — |
 | Phase 2 — Voice Pipeline | Whisper STT + Ollama LLM + Piper TTS | ⏳ Planned | Week 9 |
 | Phase 3 — Dev Tools | Git & Docker automation | ⏳ Planned | Week 13 |
 | Phase 4 — GUI Dashboard | PyQt6 desktop interface | ⏳ Planned | Week 16 |
@@ -39,17 +41,20 @@ AURA is in active development. The repository is public from Day 1 so contributo
 
 ### Phase 1 — Available Now
 
-- **Command Execution Engine** — dispatch natural-language text commands to file, process, and system handlers
+- **Command Execution Engine** — dispatch natural-language text commands to file, process, npm, system, and monitor handlers
 - **Structured Results** — every handler returns a `CommandResult` with `success`, `message`, and typed `data` payload, ready for programmatic consumers (LLM, GUI)
 - **Smart Path Resolution** — `~`, `desktop/`, `downloads/`, `documents/` keywords are automatically expanded to real absolute paths across all modules
 - **File Operations** — create, delete, rename, move, and glob-search files anywhere on your machine
-- **Path Safety** — protected system directories (`C:\Windows`, `/usr`, etc.) are blocked using full ancestry checking, with path-traversal protection on renames
-- **Shell Safety** — dangerous commands (`rm -rf /`, `format c:`, `dd`, etc.) are blocked before they reach `subprocess`
-- **Process Management** — run shell commands, inspect running processes, kill by name
-- **System Health Checks** — instantly verify Python, Git, Node, and Docker availability (configurable tool list)
-- **Project Scaffolding** — spin up a new project skeleton anywhere (`create project ~/Desktop/my_app`) with configurable folder layout
+- **Path Safety** — protected system directories (`C:\Windows`, `/usr`, etc.) are blocked using full ancestry checking, with path-traversal protection on renames; optional **`AURA_PROTECTED_PATHS`** env override
+- **Shell Safety** — user commands are split into argv and run with **`subprocess`…`shell=False`**; **`CommandPolicy`** applies a **denylist** (destructive patterns) and an **allowlist** of executable names before any generic `run command` reaches the process layer
+- **npm** — dedicated executor resolves **`npm`** or **`npm.cmd`** via **`shutil.which`**, validates project directory through **`path_utils`**, runs **`npm install`** / **`npm run <script>`** as argv lists (never a shell string)
+- **System Monitoring** — short phrases (`cpu`, `ram`, `memory usage`, `processes`, `show processes`, and more) map to CPU/RAM snapshots and process lists via **psutil**
+- **Process Management** — run allowed shell commands, inspect running processes, kill by name
+- **System Health Checks** — verify Python, Git, Node, and Docker availability (configurable tool list) using argv-based probes
+- **Project Scaffolding** — spin up a new project skeleton anywhere (`create project ~/Desktop/my_app`) with configurable folders and files from config
 - **Log Inspection** — tail any log file without leaving the assistant
-- **Config-Driven** — all settings (protected paths, log levels, tool lists, timeouts) loaded from `config.yaml` with safe fallback defaults
+- **Built-in Help** — `help` / `--help` via the dispatcher returns a Phase-0 command summary; interactive REPL also has a static help banner
+- **Config-Driven** — settings (protected paths, log levels, tool lists, timeouts) from `config.yaml` with safe defaults; optional env overrides: **`AURA_LOG_PATH`**, **`AURA_SHELL_TIMEOUT`**, **`AURA_PROTECTED_PATHS`**
 - **Structured Logging** — every action, result, and error timestamped to `logs/aura.log` with automatic log rotation
 - **I/O Abstraction** — pluggable `InputSource` / `OutputSink` interfaces so Phase 2 can swap in voice input and TTS output with zero changes to the engine
 - **Intent System** — structured `Intent` dataclass decouples text parsing from command execution, enabling LLM-generated actions in Phase 2
@@ -70,18 +75,18 @@ AURA is in active development. The repository is public from Day 1 so contributo
 
 ## 🏗️ Architecture
 
-AURA is built as a 6-layer pipeline where each layer is a standalone module with zero cross-dependencies:
+AURA is built as a layered pipeline where each layer is a standalone module with clear boundaries. Full detail lives in **[docs/architecture.md](docs/architecture.md)**.
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │                     INPUT LAYER                     │
-│           CLI (Phase 1) · Voice (Phase 2)           │
+│     CLI interactive · one-shot `python aura.py "…"` · Voice (Phase 2)   │
 ├─────────────────────────────────────────────────────┤
 │                  REASONING LAYER                    │
 │        Command Dispatcher · Ollama LLM (Phase 2)    │
 ├─────────────────────────────────────────────────────┤
 │                  EXECUTION LAYER                    │
-│     File Manager · Process Manager · System Check   │
+│  File Manager · Process Manager · npm · System Check │
 ├─────────────────────────────────────────────────────┤
 │                  DEV TOOLS LAYER                    │
 │        GitPython (Phase 3) · Docker SDK (Phase 3)   │
@@ -98,14 +103,14 @@ AURA is built as a 6-layer pipeline where each layer is a standalone module with
 
 ```
 AURA/
-├── aura.py                        # CLI entry-point (uses I/O abstraction)
+├── aura.py                        # CLI: interactive REPL or one-shot (argv → dispatch)
 ├── config.example.yaml            # Configuration template (copy to config.yaml)
 │
 ├── core/                          # System layer — types, config, abstractions
 │   ├── intent.py                  # Intent dataclass (text/LLM → structured action)
-│   ├── policy.py                  # CommandPolicy safety gate
+│   ├── policy.py                  # CommandPolicy (allowlist + denylist for shell)
 │   ├── context.py                 # AppContext (config + policy + session state)
-│   ├── config_loader.py           # YAML config with fallback defaults
+│   ├── config_loader.py           # YAML + env overrides (AURA_*)
 │   ├── io.py                      # InputSource / OutputSink abstractions
 │   ├── result.py                  # CommandResult structured return type
 │   └── backends/                  # LLM provider abstraction
@@ -114,10 +119,11 @@ AURA/
 │       └── factory.py             # Backend factory
 │
 ├── command_engine/                # Automation backbone
-│   ├── dispatcher.py              # Intent-based command router + registry
+│   ├── dispatcher.py            # Intent-based router + registry + phrase parsing
 │   ├── path_utils.py              # Centralized path resolution + safety
 │   ├── file_manager.py            # File CRUD (pathlib + shutil)
-│   ├── process_manager.py         # subprocess + psutil wrappers + shell safety
+│   ├── process_manager.py         # safe_run_command (argv, shell=False) + psutil
+│   ├── npm_executor.py            # npm install / npm run (which npm | npm.cmd)
 │   ├── system_check.py            # Developer tool version probes
 │   └── logger.py                  # Config-driven rotating file + console logger
 │
@@ -126,9 +132,6 @@ AURA/
 │   └── log_reader.py              # Efficient log file tail reader
 │
 ├── tests/                         # Unit tests (pytest)
-│   ├── test_file_manager.py
-│   ├── test_process_manager.py
-│   └── test_system_check.py
 │
 ├── logs/                          # Runtime log output (auto-created, rotated)
 ├── docs/                          # Architecture and design documents
@@ -148,10 +151,10 @@ AURA/
 | Layer | Technology | Status |
 |---|---|---|
 | Language | Python 3.10+ | ✅ Active |
-| Configuration | PyYAML (`config.yaml` with fallback defaults) | ✅ Active |
+| Configuration | PyYAML (`config.yaml` with fallback defaults + env overrides) | ✅ Active |
 | Path Resolution | `pathlib` (centralized via `path_utils`) | ✅ Active |
 | File I/O | `pathlib`, `shutil` | ✅ Active |
-| Process Control | `subprocess`, `psutil` | ✅ Active |
+| Process Control | `subprocess` (argv, `shell=False`), `psutil` | ✅ Active |
 | Logging | `logging` (stdlib, `RotatingFileHandler`) | ✅ Active |
 | Speech-to-Text | Whisper | ⏳ Phase 2 |
 | Local LLM | Ollama (Llama 3) | ⏳ Phase 2 |
@@ -183,12 +186,24 @@ pip install -r requirements.txt
 cp config.example.yaml config.yaml
 ```
 
-Edit `config.yaml` to customize protected paths, logging levels, shell timeouts, system-check tools, and project scaffolding folders. If you skip this step, AURA uses sensible defaults from `config.example.yaml`.
+Edit `config.yaml` to customize protected paths, logging levels, shell timeouts, system-check tools, and project scaffolding. If you skip this step, AURA uses sensible defaults from `config.example.yaml`.
+
+Optional environment overrides (see `config_loader` docstring): `AURA_LOG_PATH`, `AURA_SHELL_TIMEOUT`, `AURA_PROTECTED_PATHS`.
 
 ### Run
 
+**Interactive REPL**
+
 ```bash
 python aura.py
+```
+
+**One-shot command** (runs a single dispatch and exits)
+
+```bash
+python aura.py "cpu"
+python aura.py "help"
+python aura.py "npm install"
 ```
 
 ```
@@ -221,7 +236,7 @@ System Health:
 Project 'my-app' created at C:\Users\You\Desktop\my-app
 
 > help
-(full command reference)
+(full command reference from static HELP_TEXT in aura.py)
 
 > exit
 Goodbye.
@@ -231,18 +246,20 @@ Goodbye.
 
 | Command | Description |
 |---|---|
+| **Monitoring** | `cpu`, `cpu usage`, `get cpu usage`, `ram`, `memory`, `memory usage`, `processes`, `show processes`, `running processes` |
+| **npm** | `npm install [path]`, `npm run <script> [path]` |
 | `create file <path>` | Create an empty file |
 | `delete file <path>` | Delete a file |
 | `rename file <old> <new>` | Rename a file |
 | `move file <src> <dst>` | Move a file |
 | `search files <dir> <pattern>` | Glob-search for files |
-| `run command <cmd>` | Execute a shell command |
-| `list processes` | Show top processes by memory |
+| `run command <cmd>` | Execute an allowed command (argv; see policy allowlist) |
+| `list processes` | Show top processes by memory (same handler as short `processes` phrases) |
 | `kill process <name>` | Terminate processes by name |
 | `check system health` | Check Python, Git, Node, Docker |
 | `create project <name\|path>` | Scaffold a new project |
 | `show logs <file> [n]` | Tail a log file (default 20 lines) |
-| `help` | Show in-app help |
+| `help` / `--help` | Phase-0 help via dispatcher (one-shot); interactive `help` shows REPL banner help |
 | `exit` / `quit` | Exit the CLI |
 
 > All paths support `~` (home directory), smart keywords (`desktop/`, `downloads/`, `documents/`), and absolute paths. Files are always created at the correct location, not inside the AURA project folder.
@@ -257,7 +274,7 @@ See [ROADMAP.md](ROADMAP.md) for the detailed phase breakdown.
 
 | Phase | What Ships | Key Tech |
 |---|---|---|
-| **1** ✅ | Command Execution Engine + CLI | Python, subprocess, psutil, PyYAML |
+| **1** ✅ | Command Execution Engine + CLI (Phase-0 backbone inside) | Python, subprocess (argv), psutil, PyYAML |
 | **2** ⏳ | Offline Voice Pipeline — hear, think, speak | Whisper, Ollama, Piper |
 | **3** ⏳ | Developer Tools — Git & Docker automation | GitPython, Docker SDK |
 | **4** ⏳ | Desktop GUI — visual dashboard | PyQt6 |
@@ -268,7 +285,7 @@ See [ROADMAP.md](ROADMAP.md) for the detailed phase breakdown.
 ## 🙋 Where We Need Help
 
 ### Currently Open (Phase 1)
-- Additional test coverage (dispatcher, path_utils, scaffolder, log_reader)
+- Additional test coverage (npm executor, scaffolder edge cases)
 - Custom `InputSource` / `OutputSink` implementations for new frontends
 - Documentation improvements
 - Config schema validation and documentation

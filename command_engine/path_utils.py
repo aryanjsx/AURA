@@ -38,9 +38,10 @@ SMART_LOCATIONS: dict[str, Path] = {
     "home": _HOME,
 }
 
-_PROTECTED_ROOTS: frozenset[Path] = frozenset(
-    Path(p) for p in get_config("paths.protected", [])
-)
+
+def _protected_roots() -> list[Path]:
+    """Read protected path roots from config (supports env overrides)."""
+    return [Path(p) for p in get_config("paths.protected", [])]
 
 
 def resolve_path(raw: str, create_parents: bool = False) -> Path:
@@ -110,7 +111,7 @@ def validate_not_protected(path: Path) -> str | None:
         logger.warning(msg)
         return msg
 
-    for root in _PROTECTED_ROOTS:
+    for root in _protected_roots():
         try:
             root_resolved = root.resolve()
             if resolved == root_resolved or resolved.is_relative_to(root_resolved):

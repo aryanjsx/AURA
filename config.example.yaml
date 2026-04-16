@@ -2,6 +2,11 @@
 # AURA Configuration — copy this file to config.yaml
 #   cp config.example.yaml config.yaml
 # config.yaml is gitignored; edit it freely for your machine.
+#
+# Optional environment overrides (take precedence over YAML):
+#   AURA_LOG_PATH          — logging.file (path to aura.log or absolute)
+#   AURA_SHELL_TIMEOUT     — shell.timeout (integer seconds)
+#   AURA_PROTECTED_PATHS   — comma-separated list replacing paths.protected
 # ──────────────────────────────────────────────────────────
 
 aura:

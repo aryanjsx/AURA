@@ -84,10 +84,12 @@ class TestValidateNotProtected:
 
     def test_nested_protected_path_blocked(self) -> None:
         """Anything inside a protected directory should be blocked."""
-        with patch(
-            "command_engine.path_utils._PROTECTED_ROOTS",
-            frozenset({Path("/fake_protected")}),
-        ):
+        def _fake_get(key: str, default=None):
+            if key == "paths.protected":
+                return ["/fake_protected"]
+            return default
+
+        with patch("command_engine.path_utils.get_config", side_effect=_fake_get):
             nested = Path("/fake_protected/deep/inside/file.txt")
             result = validate_not_protected(nested)
             if sys.platform != "win32":
@@ -95,10 +97,12 @@ class TestValidateNotProtected:
                 assert "Blocked" in result
 
     def test_unrelated_path_not_blocked(self) -> None:
-        with patch(
-            "command_engine.path_utils._PROTECTED_ROOTS",
-            frozenset({Path("/fake_protected")}),
-        ):
+        def _fake_get(key: str, default=None):
+            if key == "paths.protected":
+                return ["/fake_protected"]
+            return default
+
+        with patch("command_engine.path_utils.get_config", side_effect=_fake_get):
             unrelated = Path("/totally/different/path.txt")
             result = validate_not_protected(unrelated)
             if sys.platform != "win32":

@@ -28,8 +28,11 @@ from command_engine.file_manager import (
     search_files,
 )
 from command_engine.logger import get_logger
+from command_engine.npm_executor import run_npm_install, run_npm_script
 from command_engine.path_utils import SMART_LOCATIONS
 from command_engine.process_manager import (
+    get_cpu_usage,
+    get_ram_usage,
     kill_process,
     list_running_processes,
     run_shell_command,
@@ -45,10 +48,45 @@ logger = get_logger("aura.dispatcher")
 
 _policy = get_policy()
 
+_PHASE0_HELP_TEXT = """\
+AURA - Phase-0 commands
+
+System Monitoring:
+  cpu
+  cpu usage
+  ram
+  memory usage
+  processes
+  show processes
+
+Node:
+  npm install [path]
+  npm run <script> [path]
+
+Files:
+  create file <path>
+  delete file <path>
+
+General:
+  help
+"""
+
+
+def show_help() -> CommandResult:
+    """Return built-in help for Phase-0 CLI commands."""
+    logger.info("show_help invoked")
+    return CommandResult(
+        success=True,
+        message=_PHASE0_HELP_TEXT,
+        data={"help": "phase0"},
+        command_type="show_help",
+    )
+
 
 # ── Command Registry ────────────────────────────────────────────────
 
 COMMAND_REGISTRY: dict[str, Callable[..., CommandResult]] = {
+    "show_help": show_help,
     "file.create": create_file,
     "file.delete": delete_file,
     "file.rename": rename_file,
@@ -56,7 +94,12 @@ COMMAND_REGISTRY: dict[str, Callable[..., CommandResult]] = {
     "file.search": search_files,
     "process.shell": run_shell_command,
     "process.list": list_running_processes,
+    "get_cpu_usage": get_cpu_usage,
+    "get_ram_usage": get_ram_usage,
+    "list_processes": list_running_processes,
     "process.kill": kill_process,
+    "npm.install": run_npm_install,
+    "npm.run": run_npm_script,
     "system.health": check_system_health,
     "project.create": create_project,
     "logs.show": read_last_lines,
@@ -70,10 +113,16 @@ _COMMAND_DESCRIPTIONS: dict[str, str] = {
     "file.search": "Search for files by glob pattern",
     "process.shell": "Execute a shell command",
     "process.list": "List top running processes by memory",
+    "get_cpu_usage": "Show current CPU utilisation",
+    "get_ram_usage": "Show current memory (RAM) utilisation",
+    "list_processes": "List top running processes by memory",
     "process.kill": "Terminate processes by name",
+    "npm.install": "Run npm install in a project directory",
+    "npm.run": "Run an npm script from package.json",
     "system.health": "Check installed developer tools",
     "project.create": "Scaffold a new project directory",
     "logs.show": "Show last N lines of a log file",
+    "show_help": "Show Phase-0 command help",
 }
 
 
@@ -189,11 +238,53 @@ def execute_intent(intent: Intent) -> CommandResult:
 def parse_intent(command: str) -> Intent | CommandResult:
     """Convert raw CLI text into a structured Intent.
 
+    Recognises file/process/npm/system commands as before, plus common
+    phrases for CPU usage, RAM usage, and process listing (e.g. ``cpu``,
+    ``get cpu usage``, ``memory usage``, ``show processes``).
+
     Returns an :class:`Intent` on success, or a :class:`CommandResult`
     with a usage hint when required arguments are missing.
     """
+    norm = command.strip().lower()
+    if norm == "help" or norm == "--help":
+        return Intent(action="show_help", args={}, raw_text=command)
+
     parts = command.split()
     keyword = parts[0].lower()
+
+    # ── npm (dedicated argv executor) ────────────────────────────
+
+    if keyword == "npm":
+        if len(parts) < 2:
+            return CommandResult(
+                success=False,
+                message="Usage: npm install [path] | npm run <script> [path]",
+            )
+        sub = parts[1].lower()
+        if sub == "install":
+            cwd = _rest(parts, 2) or "."
+            return Intent(
+                action="npm.install",
+                args={"cwd": cwd},
+                raw_text=command,
+            )
+        if sub == "run":
+            if len(parts) < 3:
+                return CommandResult(
+                    success=False,
+                    message="Usage: npm run <script> [project_path]",
+                )
+            script = parts[2]
+            cwd = _rest(parts, 3) or "."
+            return Intent(
+                action="npm.run",
+                args={"script": script, "cwd": cwd},
+                raw_text=command,
+            )
+        return CommandResult(
+            success=False,
+            message="Usage: npm install [path] | npm run <script> [path]",
+        )
 
     # ── file operations ──────────────────────────────────────────
 
@@ -312,10 +403,59 @@ def parse_intent(command: str) -> Intent | CommandResult:
             raw_text=command,
         )
 
+    # ── system monitor (keyword / natural phrases) ─────────────────
+
+    monitor_intent = _parse_system_monitor_phrase(command)
+    if monitor_intent is not None:
+        return monitor_intent
+
     # ── fallback ─────────────────────────────────────────────────
 
     logger.warning("Unrecognised command: %s", command)
     return Intent(action="unknown", args={}, raw_text=command)
+
+
+# ── System monitor phrase sets (normalised whitespace, lower case) ───────
+
+_CPU_USAGE_PHRASES: frozenset[str] = frozenset({
+    "cpu",
+    "cpu usage",
+    "get cpu",
+    "get cpu usage",
+    "what is cpu usage",
+})
+
+_RAM_USAGE_PHRASES: frozenset[str] = frozenset({
+    "ram",
+    "memory",
+    "ram usage",
+    "memory usage",
+    "get ram",
+    "get memory",
+})
+
+_LIST_PROCESSES_PHRASES: frozenset[str] = frozenset({
+    "processes",
+    "show processes",
+    "running processes",
+})
+
+
+def _normalise_monitor_phrase(text: str) -> str:
+    """Collapse whitespace and lower-case for phrase matching."""
+    return " ".join(text.strip().lower().split())
+
+
+def _parse_system_monitor_phrase(command: str) -> Intent | None:
+    """Map common CPU / RAM / process phrases to monitor intents."""
+    norm = _normalise_monitor_phrase(command)
+    if norm in _CPU_USAGE_PHRASES:
+        return Intent(action="get_cpu_usage", args={}, raw_text=command)
+    if norm in _RAM_USAGE_PHRASES:
+        return Intent(action="get_ram_usage", args={}, raw_text=command)
+    if norm in _LIST_PROCESSES_PHRASES:
+        return Intent(action="list_processes", args={}, raw_text=command)
+    return None
 
 
 # ── Helpers ──────────────────────────────────────────────────────────

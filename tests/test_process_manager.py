@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import sys
+from subprocess import list2cmdline
 
 from command_engine.process_manager import (
     list_running_processes,
@@ -17,7 +18,10 @@ class TestRunShellCommand:
     """Tests for run_shell_command()."""
 
     def test_echo_hello(self) -> None:
-        result = run_shell_command("echo hello")
+        # Use list2cmdline so paths with spaces round-trip through shlex.split.
+        result = run_shell_command(
+            list2cmdline([sys.executable, "-c", "print('hello')"]),
+        )
 
         assert isinstance(result, CommandResult)
         assert result.success is True

@@ -9,10 +9,10 @@ The list of tools to check is loaded from config.
 from __future__ import annotations
 
 import shlex
-import subprocess
 import sys
 
 from command_engine.logger import get_logger
+from command_engine.process_manager import safe_run_command
 from core.config_loader import get as get_config
 from core.result import CommandResult
 
@@ -31,27 +31,36 @@ def _build_tool_commands() -> dict[str, str]:
     return commands
 
 
+def _split_probe_command(command: str) -> list[str]:
+    """Split a probe command string into argv without ``shell=True``."""
+    if sys.platform == "win32":
+        return shlex.split(command, posix=False)
+    return shlex.split(command)
+
+
 def _probe_tool(command: str) -> str:
     """Run *command* and return its trimmed stdout, or ``"not installed"``."""
-    try:
-        if sys.platform == "win32":
-            args: str | list[str] = command
-            use_shell = True
-        else:
-            args = shlex.split(command)
-            use_shell = False
-
-        result = subprocess.run(
-            args,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            shell=use_shell,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
+    argv = _split_probe_command(command)
+    if not argv:
         return "not installed"
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+
+    try:
+        result = safe_run_command(
+            argv,
+            cwd=None,
+            timeout=10,
+            command_type="system.health",
+        )
+        if (
+            result.success
+            and result.data is not None
+            and result.data.get("returncode") == 0
+        ):
+            out = str(result.data.get("stdout", "")).strip()
+            if out:
+                return out
+        return "not installed"
+    except (OSError, ValueError):
         return "not installed"
 
 

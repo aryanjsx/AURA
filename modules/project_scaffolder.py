@@ -10,6 +10,8 @@ The target location is resolved through
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from command_engine.logger import get_logger
 from command_engine.path_utils import resolve_path
 from core.config_loader import get as get_config
@@ -32,6 +34,20 @@ dist/
 .vscode/
 .idea/
 """
+
+
+def _write_scaffold_file(root_name: str, filename: str, root: Path) -> None:
+    """Create *filename* under *root* using templates where applicable."""
+    path = root / filename
+    if filename.lower() == "readme.md":
+        path.write_text(
+            f"# {root_name}\n\nProject scaffolded by AURA.\n",
+            encoding="utf-8",
+        )
+    elif filename == ".gitignore":
+        path.write_text(_DEFAULT_GITIGNORE, encoding="utf-8")
+    else:
+        path.write_text("", encoding="utf-8")
 
 
 def create_project(project_name: str) -> CommandResult:
@@ -67,25 +83,22 @@ def create_project(project_name: str) -> CommandResult:
     folders: list[str] = get_config(
         "project_scaffold.folders", ["src", "tests", "docs", "logs"]
     )
+    files: list[str] = get_config(
+        "project_scaffold.files", ["README.md", ".gitignore"]
+    )
 
     try:
         for folder in folders:
             (root / folder).mkdir(parents=True, exist_ok=True)
 
-        readme = root / "README.md"
-        readme.write_text(
-            f"# {root.name}\n\nProject scaffolded by AURA.\n",
-            encoding="utf-8",
-        )
-
-        gitignore = root / ".gitignore"
-        gitignore.write_text(_DEFAULT_GITIGNORE, encoding="utf-8")
+        for filename in files:
+            _write_scaffold_file(root.name, filename, root)
 
         logger.info("Project scaffolded: %s", root)
         return CommandResult(
             success=True,
             message=f"Project '{root.name}' created at {root}",
-            data={"path": str(root), "folders": folders},
+            data={"path": str(root), "folders": folders, "files": files},
             command_type="project.create",
         )
     except OSError as exc:

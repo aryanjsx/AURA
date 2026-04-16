@@ -14,6 +14,13 @@ from core.result import CommandResult
 class TestParseIntent:
     """Tests for parse_intent()."""
 
+    def test_help_intent(self) -> None:
+        for phrase in ("help", "  help  ", "--help"):
+            result = parse_intent(phrase)
+            assert isinstance(result, Intent), phrase
+            assert result.action == "show_help", phrase
+            assert result.args == {}, phrase
+
     def test_create_file_intent(self) -> None:
         result = parse_intent("create file hello.txt")
         assert isinstance(result, Intent)
@@ -77,6 +84,56 @@ class TestParseIntent:
         assert isinstance(result, Intent)
         assert result.action == "file.search"
         assert result.args["pattern"] == "*.py"
+
+    def test_npm_install_intent(self) -> None:
+        result = parse_intent("npm install")
+        assert isinstance(result, Intent)
+        assert result.action == "npm.install"
+        assert result.args["cwd"] == "."
+
+    def test_npm_install_with_path_intent(self) -> None:
+        result = parse_intent("npm install desktop/myapp")
+        assert isinstance(result, Intent)
+        assert result.action == "npm.install"
+        assert "myapp" in result.args["cwd"]
+
+    def test_npm_run_intent(self) -> None:
+        result = parse_intent("npm run build")
+        assert isinstance(result, Intent)
+        assert result.action == "npm.run"
+        assert result.args["script"] == "build"
+        assert result.args["cwd"] == "."
+
+    def test_cpu_phrases_intent(self) -> None:
+        for phrase in (
+            "cpu",
+            "cpu usage",
+            "get cpu",
+            "get cpu usage",
+            "what is cpu usage",
+        ):
+            result = parse_intent(phrase)
+            assert isinstance(result, Intent), phrase
+            assert result.action == "get_cpu_usage", phrase
+
+    def test_ram_phrases_intent(self) -> None:
+        for phrase in (
+            "ram",
+            "memory",
+            "ram usage",
+            "memory usage",
+            "get ram",
+            "get memory",
+        ):
+            result = parse_intent(phrase)
+            assert isinstance(result, Intent), phrase
+            assert result.action == "get_ram_usage", phrase
+
+    def test_process_list_phrases_intent(self) -> None:
+        for phrase in ("processes", "show processes", "running processes"):
+            result = parse_intent(phrase)
+            assert isinstance(result, Intent), phrase
+            assert result.action == "list_processes", phrase
 
     def test_rename_file_intent(self) -> None:
         result = parse_intent("rename file old.txt new.txt")
@@ -153,6 +210,13 @@ class TestDispatch:
         result = dispatch("")
         assert result.success is False
         assert "No command" in result.message
+
+    def test_dispatch_help(self) -> None:
+        result = dispatch("help")
+        assert result.success is True
+        assert "Phase-0 commands" in result.message
+        assert "npm install" in result.message
+        assert result.command_type == "show_help"
 
     def test_whitespace_only(self) -> None:
         result = dispatch("   ")
