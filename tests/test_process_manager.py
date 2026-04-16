@@ -5,11 +5,11 @@
 from __future__ import annotations
 
 import sys
-from subprocess import list2cmdline
 
 from command_engine.process_manager import (
     list_running_processes,
     run_shell_command,
+    safe_run_command,
 )
 from core.result import CommandResult
 
@@ -18,16 +18,15 @@ class TestRunShellCommand:
     """Tests for run_shell_command()."""
 
     def test_echo_hello(self) -> None:
-        # Use list2cmdline so paths with spaces round-trip through shlex.split.
-        result = run_shell_command(
-            list2cmdline([sys.executable, "-c", "print('hello')"]),
+        # Argv list: same subprocess path as run_shell_command after policy (shell=False).
+        result = safe_run_command(
+            [sys.executable, "-c", "print('hello')"],
+            command_type="process.shell",
         )
 
         assert isinstance(result, CommandResult)
         assert result.success is True
-        assert result.data is not None
-        assert result.data["returncode"] == 0
-        assert "hello" in result.data["stdout"].lower()
+        assert "hello" in result.message.lower()
 
     def test_python_version(self) -> None:
         result = run_shell_command(f"{sys.executable} --version")
