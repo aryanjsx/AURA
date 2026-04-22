@@ -54,6 +54,36 @@ from aura.core.event_bus import EventBus
 _GENESIS_HASH = "0" * 64
 
 
+class _AuraRotatingFileHandler(logging.handlers.RotatingFileHandler):
+    """``RotatingFileHandler`` that refuses to rotate an empty file.
+
+    Back-ports the Python 3.12 behaviour of `gh-116263`_ to earlier
+    interpreters (the CI matrix still includes 3.11).  Without this
+    guard, the *very first* audit record — which carries a 64-char
+    ``prev_hash`` of all zeros plus a 64-char ``hash`` — can exceed the
+    configured ``maxBytes`` all on its own.  3.11's stock handler would
+    then rotate the still-empty ``audit.log`` to ``audit.log.1`` before
+    writing, propagating empty segments up the rotation stack on every
+    subsequent emit and polluting the tamper-evident chain with blank
+    files that break cross-segment verification.
+
+    .. _gh-116263: https://github.com/python/cpython/pull/116263
+    """
+
+    def shouldRollover(self, record: logging.LogRecord) -> int:  # noqa: N802
+        if self.stream is None:
+            self.stream = self._open()
+        if self.maxBytes > 0:
+            self.stream.seek(0, 2)
+            pos = self.stream.tell()
+            if not pos:
+                return 0
+            msg = "%s\n" % self.format(record)
+            if pos + len(msg) >= self.maxBytes:
+                return 1
+        return 0
+
+
 def _canonical(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
 
@@ -193,7 +223,7 @@ class AuditLogger:
                 self._logger.removeHandler(old)
 
         initial_hash = _last_hash_in(target)
-        handler = logging.handlers.RotatingFileHandler(
+        handler = _AuraRotatingFileHandler(
             target,
             maxBytes=self._max_bytes,
             backupCount=self._backup_count,

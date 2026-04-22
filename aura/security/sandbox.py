@@ -30,8 +30,7 @@ configuration and is auto-created on first use.
 from __future__ import annotations
 
 import threading
-from pathlib import Path, PurePath, PurePosixPath, PureWindowsPath
-import sys
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Iterable
 
 from aura.core.config_loader import get as get_config
@@ -67,15 +66,20 @@ def reset_base_dir_cache() -> None:
         _cached_base = None
 
 
-def _raw_parts(raw: str) -> tuple[str, ...]:
-    if sys.platform == "win32":
-        return PureWindowsPath(raw).parts
-    return PurePosixPath(raw).parts
-
-
 def _contains_traversal(raw: str) -> bool:
-    parts = _raw_parts(raw)
-    return ".." in parts
+    # Check traversal using BOTH POSIX and Windows separator semantics so
+    # a hostile caller cannot smuggle a traversal past the host by using
+    # the "foreign" separator.  On Linux, ``..\\..\\etc\\passwd`` is a
+    # single filename to PurePosixPath (backslash is legal in POSIX file
+    # names) and would otherwise sneak through.  PureWindowsPath treats
+    # both ``\`` and ``/`` as separators, so this check also catches
+    # forward-slash traversal on Windows — the two views combined form a
+    # superset of every viable traversal encoding.
+    if ".." in PureWindowsPath(raw).parts:
+        return True
+    if ".." in PurePosixPath(raw).parts:
+        return True
+    return False
 
 
 def _protected_roots() -> list[Path]:
