@@ -54,9 +54,9 @@ Real developer workflow automation — Git and Docker from voice or text.
 
 | Deliverable | Tech | Module |
 |---|---|---|
-| Git automation (commit, push, branch, status) | GitPython | `aura-devtools/` |
-| AI-generated commit messages | Ollama | `aura-devtools/` |
-| Docker container lifecycle (build, run, stop, logs) | Docker SDK | `aura-devtools/` |
+| Git automation (commit, push, branch, status) | GitPython | `plugins/git/` |
+| AI-generated commit messages | Ollama | `plugins/ai_commit/` |
+| Docker container lifecycle (build, run, stop, logs) | Docker SDK | `plugins/docker/` |
 
 ---
 
@@ -68,10 +68,10 @@ A desktop interface that makes AURA visual.
 
 | Deliverable | Tech | Module |
 |---|---|---|
-| Main dashboard window | PyQt6 | `aura-gui/` |
-| Live command log panel | PyQt6 | `aura-gui/` |
-| System health widget | PyQt6 | `aura-gui/` |
-| Voice input toggle + waveform display | PyQt6 | `aura-gui/` |
+| Main dashboard window | PyQt6 | `aura/gui/` |
+| Live command log panel | PyQt6 | `aura/gui/` |
+| System health widget | PyQt6 | `aura/gui/` |
+| Voice input toggle + waveform display | PyQt6 | `aura/gui/` |
 
 ---
 
@@ -83,12 +83,12 @@ AURA remembers. Persistent semantic context across sessions.
 
 | Deliverable | Tech | Module |
 |---|---|---|
-| ChromaDB vector store setup | ChromaDB | `aura-memory/` |
-| Project context indexer | ChromaDB | `aura-memory/` |
-| Semantic codebase search | ChromaDB | `aura-memory/` |
-| Conversation history persistence | ChromaDB | `aura-memory/` |
+| ChromaDB vector store setup | ChromaDB | `aura/memory/` |
+| Project context indexer | ChromaDB | `aura/memory/` |
+| Semantic codebase search | ChromaDB | `aura/memory/` |
+| Conversation history persistence | ChromaDB | `aura/memory/` |
 
-> **Note:** Folders like `aura-devtools/`, `aura-gui/`, and `aura-memory/` are expansion placeholders. The final module structure for each phase will be determined when implementation begins and may follow the `core/` + `modules/` pattern established in Phase 2.
+> Phase 2–5 code lands inside the existing `aura/` / `plugins/` tree (e.g. `aura/voice/`, `plugins/git/`, `aura/gui/`, `aura/memory/`).  Final per-file layout is locked in when each phase opens — see [`docs/phases.md`](docs/phases.md) for the current plan.
 
 ---
 

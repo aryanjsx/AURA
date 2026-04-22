@@ -25,21 +25,21 @@ from __future__ import annotations
 
 import pytest
 
-from aura.core.command_registry import CommandRegistry
+from aura.runtime.command_registry import CommandRegistry
 from aura.core.errors import RegistryError, SchemaError
 from aura.core.event_bus import EventBus
-from aura.core.execution_engine import ExecutionEngine
+from aura.runtime.execution_engine import ExecutionEngine
 from aura.core.intent import Intent
-from aura.core.permissions import PermissionLevel
-from aura.core.plugin_manifest import (
+from aura.security.permissions import PermissionLevel
+from aura.security.plugin_manifest import (
     ManifestEntry,
     PluginManifest,
     PluginManifestError,
 )
 from aura.core.result import CommandResult
-from aura.core.router import Router
+from aura.runtime.router import Router
 from aura.core.schema import CommandSpec
-from aura.core.worker_client import WorkerClient
+from aura.runtime.worker_client import WorkerClient
 
 
 # ---------------------------------------------------------------------------
@@ -391,7 +391,7 @@ def test_reflection_reaches_mangled_but_no_supported_api_does():
 def test_bootstrap_signature_does_not_return_worker():
     import inspect
 
-    from main import bootstrap
+    from aura.cli import bootstrap
 
     sig = inspect.signature(bootstrap)
     # Return annotation should mention Router + CommandRegistry only —

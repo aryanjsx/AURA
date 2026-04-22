@@ -80,7 +80,7 @@ AURA is built as a layered pipeline where each layer is a standalone module with
 ```
 ┌─────────────────────────────────────────────────────┐
 │                     INPUT LAYER                     │
-│     CLI interactive · one-shot `python aura.py "…"` · Voice (Phase 2)   │
+│     CLI interactive · one-shot `python -m aura "…"` · Voice (Phase 2)   │
 ├─────────────────────────────────────────────────────┤
 │                  REASONING LAYER                    │
 │        Command Dispatcher · Ollama LLM (Phase 2)    │
@@ -103,11 +103,12 @@ AURA is built as a layered pipeline where each layer is a standalone module with
 
 ```
 AURA/
-├── main.py                        # CLI entry point (bootstrap + REPL / one-shot)
 ├── plugins_manifest.yaml          # Authoritative plugin safety manifest
 ├── config.example.yaml            # Configuration template (copy to config.yaml)
 │
 ├── aura/                          # Main-process package — core, runtime, IPC client
+│   ├── __main__.py                # ``python -m aura`` entry point
+│   ├── cli.py                     # CLI bootstrap + REPL / one-shot
 │   ├── core/                      # Infrastructure + security primitives
 │   │   ├── command_registry.py    # Sole authorized execution entry point
 │   │   ├── router.py              # Text → Intent → registry pipeline
@@ -150,17 +151,14 @@ AURA/
 │       └── executor.py            # File / process / npm / monitor executors
 │
 ├── tests/                         # pytest suite (214 tests incl. lockdown probes)
-├── docs/                          # Architecture + design documents
+├── docs/                          # Architecture, phase plans, design docs
+│   ├── architecture.md
+│   └── phases.md                  # Planned layouts for Phase 2–5
 ├── public/                        # GitHub Pages site (deployed via pages.yml)
-├── logs/                          # Runtime log output (auto-created, rotated)
-│
-├── aura-core/                     # [Phase 2 placeholder] Whisper STT + Piper TTS
-├── aura-devtools/                 # [Phase 3 placeholder] Git & Docker automation
-├── aura-gui/                      # [Phase 4 placeholder] PyQt6 dashboard
-└── aura-memory/                   # [Phase 5 placeholder] ChromaDB memory layer
+└── logs/                          # Runtime log output (auto-created, rotated)
 ```
 
-> Active code lives under `aura/` and `plugins/`.  Folders prefixed with `aura-` are intentional expansion placeholders (see [ROADMAP.md](ROADMAP.md)) and contain a README only until their phase begins.
+> Active code lives under `aura/` and `plugins/`.  Future phases (voice, devtools, GUI, memory) will land inside the same `aura/` / `plugins/` tree — see [`docs/phases.md`](docs/phases.md) for the planned layout of each.
 
 ---
 
@@ -213,14 +211,14 @@ Optional environment overrides (see `config_loader` docstring): `AURA_LOG_PATH`,
 **Interactive REPL**
 
 ```bash
-python main.py
+python -m aura
 ```
 
 **One-shot command** (runs a single dispatch and exits)
 
 ```bash
-python main.py "cpu"
-python main.py "npm install"
+python -m aura "cpu"
+python -m aura "npm install"
 ```
 
 ```
@@ -253,7 +251,7 @@ System Health:
 Project 'my-app' created at C:\Users\You\Desktop\my-app
 
 > help
-(full command reference from static HELP_TEXT in aura.py)
+(full command reference from aura.cli._build_help)
 
 > exit
 Goodbye.

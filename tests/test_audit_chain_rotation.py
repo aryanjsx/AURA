@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from aura.core.audit_log import AuditLogger, verify_chain, verify_chain_dir
+from aura.security.audit_log import AuditLogger, verify_chain, verify_chain_dir
 from aura.core.event_bus import EventBus
 
 

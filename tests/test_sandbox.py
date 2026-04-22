@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from aura.core.errors import SandboxError
-from aura.core.sandbox import get_base_dir, resolve_safe_path
+from aura.security.sandbox import get_base_dir, resolve_safe_path
 
 
 def test_relative_path_resolves_inside_base():
@@ -146,7 +146,7 @@ def test_dangling_symlink_inside_sandbox_is_refused(tmp_path):
 # _check_symlink_chain with monkey-patched Path objects.
 # ---------------------------------------------------------------------------
 def test_check_symlink_chain_rejects_external_target(tmp_path, monkeypatch):
-    from aura.core import sandbox as sandbox_mod
+    from aura.security import sandbox as sandbox_mod
 
     base = tmp_path / "sandbox"
     base.mkdir()
@@ -178,7 +178,7 @@ def test_check_symlink_chain_rejects_external_target(tmp_path, monkeypatch):
 
 
 def test_check_symlink_chain_rejects_unresolvable_link(tmp_path, monkeypatch):
-    from aura.core import sandbox as sandbox_mod
+    from aura.security import sandbox as sandbox_mod
 
     base = tmp_path / "sandbox"
     base.mkdir()
@@ -208,7 +208,7 @@ def test_check_symlink_chain_rejects_unresolvable_link(tmp_path, monkeypatch):
 
 def test_check_symlink_chain_accepts_internal_link(tmp_path, monkeypatch):
     """A symlink whose target stays inside the sandbox must be allowed."""
-    from aura.core import sandbox as sandbox_mod
+    from aura.security import sandbox as sandbox_mod
 
     base = tmp_path / "sandbox"
     base.mkdir()
@@ -240,7 +240,7 @@ def test_check_symlink_chain_rejects_parent_escape(tmp_path, monkeypatch):
     """When a mid-chain component is a symlink escaping the sandbox,
     the deeper candidate must be refused even if the candidate itself
     is not a symlink."""
-    from aura.core import sandbox as sandbox_mod
+    from aura.security import sandbox as sandbox_mod
 
     base = tmp_path / "sandbox"
     base.mkdir()
@@ -273,7 +273,7 @@ def test_resolve_safe_path_refuses_symlink_when_os_privileged(tmp_path, monkeypa
     """Simulate the real resolve_safe_path by patching Path.resolve so
     the candidate *would* escape even though we never touched the
     filesystem with a real symlink."""
-    from aura.core import sandbox as sandbox_mod
+    from aura.security import sandbox as sandbox_mod
 
     # Point the sandbox at a fresh tmp dir for this single test.
     sandbox_mod.reset_base_dir_cache()

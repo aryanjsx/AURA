@@ -2,7 +2,7 @@
 AURA — Execution Engine (locked down).
 
 The engine owns the only callable references to executors and is the
-in-process counterpart of :class:`~aura.core.worker_client.WorkerClient`.
+in-process counterpart of :class:`~aura.runtime.worker_client.WorkerClient`.
 
 After Phase-2 lockdown, **no public dispatch method exists**.  The engine
 exports its dispatch capability exactly once, via a one-shot

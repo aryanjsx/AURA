@@ -1,7 +1,7 @@
 """
 AURA — Strict Command Schema.
 
-Every command that enters :class:`~aura.core.command_registry.CommandRegistry`
+Every command that enters :class:`~aura.runtime.command_registry.CommandRegistry`
 must be shaped like::
 
     {

@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import pytest
 
-from aura.core.command_registry import CommandRegistry
+from aura.runtime.command_registry import CommandRegistry
 from aura.core.errors import EngineError, RegistryError, SchemaError
 from aura.core.event_bus import EventBus
-from aura.core.execution_engine import ExecutionEngine
-from aura.core.permissions import PermissionLevel
-from aura.core.plugin_manifest import PluginManifest
+from aura.runtime.execution_engine import ExecutionEngine
+from aura.security.permissions import PermissionLevel
+from aura.security.plugin_manifest import PluginManifest
 from aura.core.result import CommandResult
 from aura.core.schema import CommandSpec
 

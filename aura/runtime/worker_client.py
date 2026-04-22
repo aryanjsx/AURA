@@ -7,7 +7,7 @@ Main-process proxy that talks to the isolated execution worker
 Lockdown model
 --------------
 The client exposes a :meth:`_seal` one-shot capability (consumed by
-:class:`~aura.core.command_registry.CommandRegistry`) and NO public
+:class:`~aura.runtime.command_registry.CommandRegistry`) and NO public
 ``dispatch`` method.  The actual dispatch is name-mangled
 (``_WorkerClient__dispatch``); after the registry has sealed the
 client, no supported API returns the dispatcher — not ``bootstrap``,
@@ -37,7 +37,7 @@ from typing import Callable
 from aura.core.errors import EngineError, ExecutionError
 from aura.core.event_bus import EventBus
 from aura.core.logger import get_logger
-from aura.core.plugin_manifest import manifest_sha256, default_manifest_path
+from aura.security.plugin_manifest import manifest_sha256, default_manifest_path
 from aura.core.result import CommandResult
 from aura.core.tracing import current_trace_id
 

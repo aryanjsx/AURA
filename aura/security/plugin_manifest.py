@@ -25,7 +25,7 @@ from typing import Any, Iterable
 import yaml
 
 from aura.core.errors import AuraError
-from aura.core.permissions import PermissionLevel
+from aura.security.permissions import PermissionLevel
 
 
 class PluginManifestError(AuraError):

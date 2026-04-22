@@ -6,10 +6,10 @@ from __future__ import annotations
 
 import pytest
 
-from aura.core.command_registry import CommandRegistry
+from aura.runtime.command_registry import CommandRegistry
 from aura.core.errors import SchemaError
 from aura.core.event_bus import EventBus
-from aura.core.execution_engine import ExecutionEngine
+from aura.runtime.execution_engine import ExecutionEngine
 from aura.core.param_schema import (
     MAX_PARAM_STRING_LEN,
     MAX_PARAMS_KEYS,
@@ -17,8 +17,8 @@ from aura.core.param_schema import (
     enforce_param_size,
     validate_params,
 )
-from aura.core.permissions import PermissionLevel
-from aura.core.plugin_manifest import PluginManifest
+from aura.security.permissions import PermissionLevel
+from aura.security.plugin_manifest import PluginManifest
 from aura.core.result import CommandResult
 from aura.core.schema import CommandSpec
 

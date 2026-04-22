@@ -2,13 +2,6 @@
 requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-# Top-level ``main.py`` hosts the CLI entry point referenced by
-# ``[project.scripts]`` below.  It is a single module (not a package),
-# so it has to be declared explicitly or setuptools will drop it from
-# the built wheel and break the ``aura`` console script.
-py-modules = ["main"]
-
 [tool.setuptools.packages.find]
 include = ["aura*", "plugins*"]
 
@@ -65,8 +58,7 @@ dev = [
 ]
 
 [project.scripts]
-# ``main.py`` exposes ``main()`` as the CLI entry point.
-aura = "main:main"
+aura = "aura.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/aryanjsx/AURA"

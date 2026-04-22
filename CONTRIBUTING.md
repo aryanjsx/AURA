@@ -39,11 +39,11 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/).
 
 ```
 feat(core): add LLM backend abstraction
-fix(command_engine): resolve path traversal edge case
+fix(runtime): resolve path traversal edge case in the router
 docs(readme): update architecture diagram
 chore(.github): add PR template
 test(modules): add unit tests for LLM brain
-refactor(command_engine): simplify dispatcher routing
+refactor(runtime): simplify dispatcher routing
 ```
 
 **Types:** `feat` · `fix` · `docs` · `chore` · `test` · `refactor` · `style`
@@ -76,11 +76,13 @@ Each module has a clear home in the codebase:
 | Module | Directory | Description |
 |---|---|---|
 | System Layer | `core/` | Intent, policy, config, I/O abstractions, LLM backend |
-| Execution Layer | `command_engine/` | Dispatcher + registry, file ops, process control, system checks |
-| Feature Modules | `modules/` | LLM brain, project scaffolder, log reader |
-| Dev Tools | `aura-devtools/` | *(Phase 3 — placeholder)* GitPython, Docker SDK |
-| GUI | `aura-gui/` | *(Phase 4 — placeholder)* PyQt6 dashboard |
-| Memory | `aura-memory/` | *(Phase 5 — placeholder)* ChromaDB vector store |
+| Runtime | `aura/runtime/` | Router, registry, engine, worker client, planner |
+| Security | `aura/security/` | Sandbox, policy, safety gate, audit chain, manifest |
+| Worker | `aura/worker/` | Isolated execution subprocess |
+| Plugins | `plugins/` | Worker-only executors (file, process, npm, monitor) |
+| Dev Tools | `plugins/git/`, `plugins/docker/` | *(Phase 3 — planned)* GitPython, Docker SDK |
+| GUI | `aura/gui/` | *(Phase 4 — planned)* PyQt6 dashboard |
+| Memory | `aura/memory/` | *(Phase 5 — planned)* ChromaDB vector store |
 | Documentation | `docs/` | Architecture docs, guides |
 
 ### Currently Accepting Contributions

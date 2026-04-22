@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from aura.core.audit_events import (
+from aura.security.audit_events import (
     AuditCoverageError,
     AuditEventRegistry,
     get_audit_event_registry,

@@ -3,7 +3,7 @@ AURA — Router (narrative layer).
 
 With Phase-2 hardening, the **entire safety pipeline** (rate limit,
 permission, schema+size validation, safety gate, lifecycle emission)
-lives inside :class:`~aura.core.command_registry.CommandRegistry`.
+lives inside :class:`~aura.runtime.command_registry.CommandRegistry`.
 
 The router is now a thin narrative wrapper:
 
@@ -26,17 +26,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from aura.core.command_registry import CommandRegistry
+from aura.runtime.command_registry import CommandRegistry
 from aura.core.error_handler import handle_error
 from aura.core.errors import RegistryError, SchemaError
 from aura.core.event_bus import EventBus
 from aura.core.intent import Intent
 from aura.core.logger import benchmark, get_logger, trace
-from aura.core.permissions import PermissionValidator
+from aura.security.permissions import PermissionValidator
 from aura.core.plugin_base import IntentParser
-from aura.core.rate_limiter import RateLimiter
+from aura.security.rate_limiter import RateLimiter
 from aura.core.result import CommandResult
-from aura.core.safety_gate import AutoConfirmGate, SafetyGate
+from aura.security.safety_gate import AutoConfirmGate, SafetyGate
 from aura.core.schema import CommandSpec, intent_to_spec, validate_command
 from aura.core.tracing import TraceScope, current_trace_id
 

@@ -41,11 +41,11 @@ from aura.core.errors import (
 )
 from aura.core.event_bus import EventBus
 from aura.core.param_schema import validate_params
-from aura.core.permissions import PermissionLevel, PermissionValidator
-from aura.core.plugin_manifest import PluginManifest, PluginManifestError
-from aura.core.rate_limiter import RateLimiter
+from aura.security.permissions import PermissionLevel, PermissionValidator
+from aura.security.plugin_manifest import PluginManifest, PluginManifestError
+from aura.security.rate_limiter import RateLimiter
 from aura.core.result import CommandResult
-from aura.core.safety_gate import AutoConfirmGate, SafetyGate
+from aura.security.safety_gate import AutoConfirmGate, SafetyGate
 from aura.core.schema import CommandSpec, validate_command
 from aura.core.tracing import current_trace_id
 
@@ -53,8 +53,8 @@ from aura.core.tracing import current_trace_id
 class Sealable(Protocol):
     """Protocol for a dispatch backend that can be sealed exactly once.
 
-    Both :class:`~aura.core.execution_engine.ExecutionEngine` and
-    :class:`~aura.core.worker_client.WorkerClient` satisfy this protocol.
+    Both :class:`~aura.runtime.execution_engine.ExecutionEngine` and
+    :class:`~aura.runtime.worker_client.WorkerClient` satisfy this protocol.
     """
 
     def _seal(self) -> Callable[[str, dict[str, Any]], CommandResult]: ...

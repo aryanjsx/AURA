@@ -14,7 +14,7 @@ Boot sequence (HARDENED):
 7. Create the router with per-source rate limiter, permission
    validator, non-blocking safety gate, and the in-process intent
    parsers (:mod:`aura.intents`).
-8. Run either a one-shot command (``python main.py "cpu"``) or the REPL.
+8. Run either a one-shot command (``python -m aura "cpu"``) or the REPL.
 
 Isolation invariants
 --------------------
@@ -32,9 +32,9 @@ from pathlib import Path
 
 import os
 
-from aura.core.audit_events import get_audit_event_registry
-from aura.core.audit_log import AuditLogger
-from aura.core.command_registry import CommandRegistry
+from aura.security.audit_events import get_audit_event_registry
+from aura.security.audit_log import AuditLogger
+from aura.runtime.command_registry import CommandRegistry
 from aura.core.config_loader import get as get_config
 from aura.core.config_loader import load_config
 from aura.core.error_handler import handle_error, install_default_subscribers
@@ -42,19 +42,19 @@ from aura.core.errors import AuraError
 from aura.core.event_bus import get_event_bus
 from aura.core.io import InputSource, OutputSink, StdinInput, StdoutOutput
 from aura.core.logger import attach_event_bus_logger, get_logger
-from aura.core.permissions import PermissionLevel, PermissionValidator
-from aura.core.plugin_manifest import (
+from aura.security.permissions import PermissionLevel, PermissionValidator
+from aura.security.plugin_manifest import (
     PluginManifest,
     default_manifest_path,
     manifest_sha256,
 )
-from aura.core.rate_limiter import RateLimiter
-from aura.core.router import Router
-from aura.core.safety_gate import AutoConfirmGate, SafetyGate
-from aura.core.worker_client import WorkerClient
+from aura.security.rate_limiter import RateLimiter
+from aura.runtime.router import Router
+from aura.security.safety_gate import AutoConfirmGate, SafetyGate
+from aura.runtime.worker_client import WorkerClient
 from aura.intents import default_intent_parsers
 
-_PROJECT_ROOT = Path(__file__).resolve().parent
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 BANNER = r"""
     ___   __  ______  ___

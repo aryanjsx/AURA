@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from aura.core.errors import RateLimitError
-from aura.core.rate_limiter import RateLimiter
+from aura.security.rate_limiter import RateLimiter
 
 
 def test_sources_have_independent_quotas() -> None:

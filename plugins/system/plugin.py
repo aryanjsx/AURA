@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from aura.core.event_bus import EventBus
-from aura.core.permissions import PermissionLevel
+from aura.security.permissions import PermissionLevel
 from aura.core.plugin_base import IntentParser, Plugin as PluginBase
 
 from plugins.system.executor import SystemExecutor

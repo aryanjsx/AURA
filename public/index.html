@@ -518,16 +518,17 @@
             <span class="code-block__name">aura/</span>
           </div>
           <pre><code>AURA/
-├── aura-core/           # Immutable runtime: events, state, plugin loader
-├── aura-devtools/       # Git, shell, project scaffolding
-├── aura-gui/            # Desktop overlay & status UI
-├── aura-memory/         # Vector store & long-term context
-├── command_engine/      # Intent parsing & dispatch
-├── core/                # Config, logging, lifecycle
-├── modules/             # Feature plugins (voice, vision, browser…)
-├── docs/                # Architecture & guides
-├── tests/               # Unit + integration tests
-└── aura.py              # Entry point</code></pre>
+├── aura/
+│   ├── cli.py           # CLI entry (python -m aura)
+│   ├── core/            # Primitives: event bus, config, intent, schema
+│   ├── runtime/         # Router, registry, engine, worker client, planner
+│   ├── security/        # Sandbox, policy, safety gate, audit, manifest
+│   ├── worker/          # Isolated execution subprocess
+│   └── intents/         # Main-process text → Intent parsers
+├── plugins/             # Worker-only plugin executors
+├── docs/                # Architecture + phase plans
+├── tests/               # pytest suite (214 tests)
+└── plugins_manifest.yaml  # Authoritative plugin safety manifest</code></pre>
         </div>
       </div>
     </section>

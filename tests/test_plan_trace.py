@@ -1,16 +1,16 @@
 """TaskExecutor must give every step in a plan the SAME trace_id."""
 from __future__ import annotations
 
-from aura.core.command_registry import CommandRegistry
+from aura.runtime.command_registry import CommandRegistry
 from aura.core.event_bus import EventBus
-from aura.core.execution_engine import ExecutionEngine
-from aura.core.permissions import PermissionLevel
-from aura.core.planner import TaskExecutor, TaskPlan, TaskStep
-from aura.core.plugin_manifest import PluginManifest
-from aura.core.rate_limiter import RateLimiter
+from aura.runtime.execution_engine import ExecutionEngine
+from aura.security.permissions import PermissionLevel
+from aura.runtime.planner import TaskExecutor, TaskPlan, TaskStep
+from aura.security.plugin_manifest import PluginManifest
+from aura.security.rate_limiter import RateLimiter
 from aura.core.result import CommandResult
-from aura.core.router import Router
-from aura.core.safety_gate import AutoConfirmGate
+from aura.runtime.router import Router
+from aura.security.safety_gate import AutoConfirmGate
 
 
 def _build_router():

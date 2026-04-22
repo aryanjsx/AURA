@@ -47,7 +47,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from aura.core.audit_events import AuditEventRegistry, get_audit_event_registry
+from aura.security.audit_events import AuditEventRegistry, get_audit_event_registry
 from aura.core.config_loader import get as get_config
 from aura.core.event_bus import EventBus
 

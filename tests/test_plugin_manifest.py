@@ -11,14 +11,14 @@ from pathlib import Path
 
 import pytest
 
-from aura.core.audit_events import AuditEventRegistry
-from aura.core.command_registry import CommandRegistry
+from aura.security.audit_events import AuditEventRegistry
+from aura.runtime.command_registry import CommandRegistry
 from aura.core.errors import PluginError
 from aura.core.event_bus import EventBus
-from aura.core.execution_engine import ExecutionEngine
-from aura.core.permissions import PermissionLevel
+from aura.runtime.execution_engine import ExecutionEngine
+from aura.security.permissions import PermissionLevel
 from aura.core.plugin_loader import PluginLoader
-from aura.core.plugin_manifest import (
+from aura.security.plugin_manifest import (
     ManifestEntry,
     PluginManifest,
     PluginManifestError,
@@ -226,7 +226,7 @@ def test_loader_rejects_plugin_declaring_unknown_action(loader_env, tmp_path):
         """
         from aura.core.plugin_base import Plugin
         from aura.core.result import CommandResult
-        from aura.core.permissions import PermissionLevel
+        from aura.security.permissions import PermissionLevel
 
         class Plugin(Plugin):
             def register_commands(self):
@@ -258,7 +258,7 @@ def test_loader_rejects_plugin_lying_about_permission_level(
         """
         from aura.core.plugin_base import Plugin
         from aura.core.result import CommandResult
-        from aura.core.permissions import PermissionLevel
+        from aura.security.permissions import PermissionLevel
 
         class Plugin(Plugin):
             def register_commands(self):
@@ -299,7 +299,7 @@ def test_loader_rejects_plugin_lying_about_destructive_flag(
         """
         from aura.core.plugin_base import Plugin
         from aura.core.result import CommandResult
-        from aura.core.permissions import PermissionLevel
+        from aura.security.permissions import PermissionLevel
 
         class Plugin(Plugin):
             def register_commands(self):

@@ -25,16 +25,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-from aura.core.audit_events import (
+from aura.security.audit_events import (
     AuditEventRegistry,
     get_audit_event_registry,
 )
 from aura.core.errors import PluginError
 from aura.core.event_bus import EventBus
-from aura.core.execution_engine import ExecutionEngine
-from aura.core.permissions import PermissionLevel
+from aura.runtime.execution_engine import ExecutionEngine
+from aura.security.permissions import PermissionLevel
 from aura.core.plugin_base import IntentParser, Plugin
-from aura.core.plugin_manifest import (
+from aura.security.plugin_manifest import (
     PluginManifest,
     PluginManifestError,
     default_manifest_path,
@@ -159,7 +159,7 @@ class PluginLoader:
             if manifest_entry.destructive:
                 # Belt-and-braces: manifest.load() already enforces this,
                 # but a future defensive refactor should not lose the rule.
-                from aura.core.audit_events import AuditCoverageError
+                from aura.security.audit_events import AuditCoverageError
                 try:
                     self._audit_events.require_coverage(action)
                 except AuditCoverageError as exc:

@@ -10,7 +10,7 @@ to import a plugin from a non-worker process is refused at import
 time.
 
 The sentinel is :envvar:`AURA_WORKER` (set by
-:class:`aura.core.worker_client.WorkerClient` before spawning).  An
+:class:`aura.runtime.worker_client.WorkerClient` before spawning).  An
 attacker who already has Python-code execution in the main process
 could forge the variable, so this is defence-in-depth, not a bright
 line — the actual security boundary is the subprocess itself and the

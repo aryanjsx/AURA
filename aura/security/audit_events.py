@@ -12,7 +12,7 @@ Design constraints
 * Append-only: events cannot be unregistered — removal would create
   silent gaps in the tamper-evident log.
 * Global singleton available via :func:`get_audit_event_registry` so
-  the :class:`~aura.core.audit_log.AuditLogger` and the plugin loader
+  the :class:`~aura.security.audit_log.AuditLogger` and the plugin loader
   see the same view.
 """
 

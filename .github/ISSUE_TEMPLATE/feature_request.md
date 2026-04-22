@@ -24,12 +24,12 @@ Any alternative approaches you've thought about.
 
 ## Which Module Does This Affect?
 
-- [ ] `core/` — System layer (intent, policy, config, backends)
-- [ ] `command_engine/` — Execution layer (dispatcher, file/process ops)
-- [ ] `modules/` — Feature modules (LLM brain, scaffolder, log reader)
-- [ ] `aura-devtools/` — Git / Docker (Phase 3)
-- [ ] `aura-gui/` — GUI dashboard (Phase 4)
-- [ ] `aura-memory/` — Memory layer (Phase 5)
+- [ ] `aura/core/` — Primitives (event bus, logger, config, intent, schema)
+- [ ] `aura/runtime/` — Execution pipeline (router, registry, engine, worker client, planner)
+- [ ] `aura/security/` — Enforcement (sandbox, policy, safety gate, audit, manifest)
+- [ ] `aura/worker/` — Isolated execution subprocess
+- [ ] `aura/intents/` — Main-process text → Intent parsers
+- [ ] `plugins/` — Worker-side plugin executors
 - [ ] Other / New module
 
 ## Additional Context

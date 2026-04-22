@@ -22,18 +22,18 @@ from pathlib import Path
 
 import pytest
 
-from aura.core.command_registry import CommandRegistry
+from aura.runtime.command_registry import CommandRegistry
 from aura.core.errors import PolicyError, RegistryError, SandboxError
 from aura.core.event_bus import EventBus
-from aura.core.permissions import PermissionLevel, PermissionValidator
-from aura.core.plugin_manifest import (
+from aura.security.permissions import PermissionLevel, PermissionValidator
+from aura.security.plugin_manifest import (
     PluginManifest,
     default_manifest_path,
     manifest_sha256,
 )
-from aura.core.rate_limiter import RateLimiter
+from aura.security.rate_limiter import RateLimiter
 from aura.core.schema import CommandSpec
-from aura.core.worker_client import WorkerClient
+from aura.runtime.worker_client import WorkerClient
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]

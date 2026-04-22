@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from aura.core.errors import PermissionDenied
-from aura.core.permissions import PermissionLevel, PermissionValidator
+from aura.security.permissions import PermissionLevel, PermissionValidator
 
 
 def test_cli_can_run_critical():

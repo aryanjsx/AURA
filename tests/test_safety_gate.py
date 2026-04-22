@@ -7,7 +7,7 @@ import pytest
 
 from aura.core.errors import ConfirmationDenied, ConfirmationTimeout
 from aura.core.event_bus import EventBus
-from aura.core.safety_gate import SafetyGate
+from aura.security.safety_gate import SafetyGate
 
 
 def _gate(responses: list[str], timeout: float = 1.0) -> tuple[SafetyGate, EventBus]:

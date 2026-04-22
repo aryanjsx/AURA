@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from aura.core.errors import PolicyError
-from aura.core.policy import CommandPolicy, get_policy, split_command_string
+from aura.security.policy import CommandPolicy, get_policy, split_command_string
 
 
 def test_denylist_blocks_rm_rf_root():

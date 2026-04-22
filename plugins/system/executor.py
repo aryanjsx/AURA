@@ -30,9 +30,9 @@ from aura.core.config_loader import get as get_config
 from aura.core.errors import ExecutionError, PolicyError, SandboxError
 from aura.core.event_bus import EventBus
 from aura.core.logger import benchmark, get_logger
-from aura.core.policy import get_policy, split_command_string
+from aura.security.policy import get_policy, split_command_string
 from aura.core.result import CommandResult
-from aura.core.sandbox import resolve_safe_path
+from aura.security.sandbox import resolve_safe_path
 from aura.core.tracing import current_trace_id
 
 _ALLOWED_SCRIPT_CHARS: frozenset[str] = frozenset(

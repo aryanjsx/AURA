@@ -12,7 +12,7 @@ A clear and concise description of what the bug is.
 
 ## Steps to Reproduce
 
-1. Run `python aura.py`
+1. Run `python -m aura`
 2. Enter command `...`
 3. See error
 

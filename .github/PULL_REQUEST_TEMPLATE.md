@@ -4,12 +4,14 @@
 
 ## Which module does it affect?
 
-- [ ] `core/` — System layer (intent, policy, config, backends)
-- [ ] `command_engine/` — Execution layer (dispatcher, file/process ops)
-- [ ] `modules/` — Feature modules (LLM brain, scaffolder, log reader)
-- [ ] `aura-devtools/` — Git / Docker (Phase 3)
-- [ ] `aura-gui/` — GUI dashboard (Phase 4)
-- [ ] `aura-memory/` — Memory layer (Phase 5)
+- [ ] `aura/core/` — Primitives (event bus, logger, config, intent, schema, plugin base)
+- [ ] `aura/runtime/` — Execution pipeline (router, registry, engine, worker client, planner)
+- [ ] `aura/security/` — Enforcement (sandbox, policy, safety gate, audit, manifest)
+- [ ] `aura/worker/` — Isolated execution subprocess
+- [ ] `aura/intents/` — Main-process text → Intent parsers
+- [ ] `aura/cli.py` — CLI entry point
+- [ ] `plugins/` — Worker-side plugin executors
+- [ ] `tests/` — Test suite
 - [ ] `docs/` — Documentation
 - [ ] `.github/` — CI / templates
 

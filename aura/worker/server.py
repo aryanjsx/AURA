@@ -117,7 +117,7 @@ class _MetadataSink:
         destructive: bool = False,
         permission_level: Any = None,
     ) -> None:
-        from aura.core.permissions import PermissionLevel  # noqa: WPS433
+        from aura.security.permissions import PermissionLevel  # noqa: WPS433
 
         level = PermissionLevel.parse(permission_level)
         self._entries.append({
@@ -140,7 +140,7 @@ def _verify_manifest_hash() -> None:
     and bails out hard on mismatch — a swapped manifest file in the
     worker's filesystem view cannot loosen the trust boundary.
     """
-    from aura.core.plugin_manifest import (  # noqa: WPS433
+    from aura.security.plugin_manifest import (  # noqa: WPS433
         default_manifest_path,
         manifest_sha256,
         PluginManifestError,
@@ -169,9 +169,9 @@ def _build_engine_and_sink():
     """Lazy-import AURA internals AFTER env restriction."""
     from aura.core.config_loader import load_config
     from aura.core.event_bus import get_event_bus
-    from aura.core.execution_engine import ExecutionEngine
+    from aura.runtime.execution_engine import ExecutionEngine
     from aura.core.plugin_loader import PluginLoader
-    from aura.core.plugin_manifest import PluginManifest, default_manifest_path
+    from aura.security.plugin_manifest import PluginManifest, default_manifest_path
     from aura.core.tracing import set_trace_id
 
     load_config()
