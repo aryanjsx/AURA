@@ -1,0 +1,127 @@
+# AURA — Plugin Safety Manifest (SOURCE OF TRUTH).
+#
+# Every action exposed by any plugin MUST appear in this file.  The
+# plugin loader refuses to register an action that is either:
+#
+#   * missing from this manifest, or
+#   * declares a permission_level / destructive flag that differs from
+#     the value the plugin is self-declaring in register_commands().
+#
+# Destructive actions additionally MUST list at least one audit event
+# name in `audit_events` — if no entry covers a destructive action the
+# loader raises AuditCoverageError and AURA refuses to start.
+#
+# IMPORTANT: self-declared trust is NOT allowed.  Do not "fix" a
+# mismatch by tweaking the plugin's declaration — update this file with
+# intent, review it, commit it.
+
+version: 1
+
+plugins:
+  system:
+    actions:
+      file.create:
+        permission_level: MEDIUM
+        destructive: false
+        audit_events:
+          - command.executing
+          - command.completed
+
+      file.delete:
+        permission_level: HIGH
+        destructive: true
+        audit_events:
+          - command.destructive
+          - command.executing
+          - command.completed
+          - command.error
+
+      file.rename:
+        permission_level: MEDIUM
+        destructive: true
+        audit_events:
+          - command.destructive
+          - command.executing
+          - command.completed
+          - command.error
+
+      file.move:
+        permission_level: MEDIUM
+        destructive: true
+        audit_events:
+          - command.destructive
+          - command.executing
+          - command.completed
+          - command.error
+
+      file.search:
+        permission_level: LOW
+        destructive: false
+        audit_events:
+          - command.executing
+          - command.completed
+
+      process.shell:
+        permission_level: CRITICAL
+        destructive: true
+        audit_events:
+          - command.destructive
+          - command.executing
+          - command.completed
+          - command.error
+          - policy.blocked
+
+      process.list:
+        permission_level: LOW
+        destructive: false
+        audit_events:
+          - command.executing
+          - command.completed
+
+      process.kill:
+        permission_level: HIGH
+        destructive: true
+        audit_events:
+          - command.destructive
+          - command.executing
+          - command.completed
+          - command.error
+
+      system.cpu:
+        permission_level: LOW
+        destructive: false
+        audit_events:
+          - command.executing
+          - command.completed
+
+      system.ram:
+        permission_level: LOW
+        destructive: false
+        audit_events:
+          - command.executing
+          - command.completed
+
+      system.health:
+        permission_level: LOW
+        destructive: false
+        audit_events:
+          - command.executing
+          - command.completed
+
+      npm.install:
+        permission_level: HIGH
+        destructive: true
+        audit_events:
+          - command.destructive
+          - command.executing
+          - command.completed
+          - command.error
+
+      npm.run:
+        permission_level: HIGH
+        destructive: true
+        audit_events:
+          - command.destructive
+          - command.executing
+          - command.completed
+          - command.error

@@ -1,72 +1,99 @@
 # ──────────────────────────────────────────────────────────
-# AURA Configuration — copy this file to config.yaml
+# AURA Configuration — copy this file to config.yaml:
 #   cp config.example.yaml config.yaml
-# config.yaml is gitignored; edit it freely for your machine.
 #
-# Optional environment overrides (take precedence over YAML):
-#   AURA_LOG_PATH          — logging.file (path to aura.log or absolute)
-#   AURA_SHELL_TIMEOUT     — shell.timeout (integer seconds)
-#   AURA_PROTECTED_PATHS   — comma-separated list replacing paths.protected
+# The loader FAILS HARD if any required key below is missing
+# or empty.  Do not comment keys out; edit their values instead.
+#
+# Optional environment overrides:
+#   AURA_LOG_PATH         — logging.file
+#   AURA_SHELL_TIMEOUT    — shell.timeout (integer seconds)
+#   AURA_PROTECTED_PATHS  — comma-separated list replacing paths.protected
+#   AURA_SANDBOX_DIR      — overrides sandbox.base_dir
 # ──────────────────────────────────────────────────────────
 
+# [REQUIRED]
 aura:
   name: "AURA"
-  version: "0.1.0"
-  # offline = fully local, no network calls
-  # api     = reserved for future external integrations
-  mode: "offline"
+  version: "0.2.0"
+  mode: "offline"           # offline | api
 
-# Directories that must never be deleted or overwritten.
-# Full ancestry is checked — anything *inside* these dirs is blocked too.
-# Do NOT add bare filesystem roots (/ or C:/) — they are blocked separately.
+# [REQUIRED] Filesystem sandbox root. All file operations must stay
+# inside this directory. Relative paths in commands resolve against it.
+sandbox:
+  base_dir: "~/AURA_SANDBOX"
+
+# [REQUIRED] System directories that are always blocked even if the
+# sandbox would otherwise permit them.
 paths:
   protected:
-    # Windows
     - "C:/Windows"
     - "C:/Windows/System32"
     - "C:/Program Files"
     - "C:/Program Files (x86)"
-    # Linux / macOS
     - "/bin"
     - "/usr"
     - "/etc"
     - "/sbin"
     - "/boot"
 
-# Default folders created by "create project <name>"
-project_scaffold:
-  folders:
-    - "src"
-    - "tests"
-    - "docs"
-    - "logs"
-  # Files generated in the project root
-  files:
-    - "README.md"
-    - ".gitignore"
-
-# Logging configuration
+# [REQUIRED]
 logging:
   file: "logs/aura.log"
-  level: "INFO"           # DEBUG, INFO, WARNING, ERROR, CRITICAL
-  max_bytes: 5242880      # 5 MB per log file before rotation
-  backup_count: 3         # keep 3 rotated backups
+  level: "INFO"              # TRACE | DEBUG | INFO | WARNING | ERROR
+  format: "json"             # json | text
+  max_bytes: 5242880
+  backup_count: 3
+  benchmark: false           # emit latency_ms events around each step
+  trace: false               # enable TRACE-level pipeline step events
 
-# Tools probed by "check system health"
+# [REQUIRED] Shell execution policy.
+# NOTE: interpreters (python, node, pip, sh, bash, cmd, powershell) are
+# intentionally excluded. They enable arbitrary-code execution via -c/-e
+# flags. If you add them, the policy will still block those flags.
+shell:
+  timeout: 120
+  allowed_commands:
+    - "git"
+    - "npm"
+    - "docker"
+    - "echo"
+
+# Optional: dev-tool probe list for 'check system health'.
 system_check:
   tools:
-    - "python"
     - "git"
     - "node"
     - "docker"
+    - "npm"
 
-# Shell execution settings
-shell:
-  timeout: 120            # seconds before a command is killed
+# [REQUIRED] Permission caps per input source.  If a command's level
+# exceeds the cap of its source, it is rejected before execution.
+permissions:
+  source_limits:
+    cli: "CRITICAL"
+    llm: "MEDIUM"
+    planner: "HIGH"
+    auto: "LOW"
 
-# LLM integration (Phase 2)
-llm:
-  mode: "offline"         # offline = stub, api = cloud provider
-  provider: "ollama"      # ollama (local), openai, anthropic, etc.
-  model: "llama3"         # model name passed to the provider
-  host: "http://localhost:11434"  # Ollama server address
+# [REQUIRED] Rate limiting / loop protection (per-source buckets).
+rate_limit:
+  max_per_minute: 60          # default hard cap for a 60-second window
+  repeat_threshold: 10        # same (action+params) N times in a row → abort
+  # Optional per-source overrides.  Sources without an override inherit
+  # the defaults above.
+  sources:
+    cli:     {max_per_minute: 120, repeat_threshold: 20}
+    llm:     {max_per_minute: 30,  repeat_threshold: 5}
+    planner: {max_per_minute: 240, repeat_threshold: 30}
+
+# [REQUIRED] Interactive safety gate.
+safety:
+  confirm_timeout: 8          # seconds to wait for user confirmation
+  auto_confirm: false         # NEVER set to true in production
+
+# [REQUIRED] Audit log path (security-relevant events only).
+audit:
+  file: "logs/audit.log"
+  max_bytes: 5242880          # rotate at 5 MB
+  backup_count: 5

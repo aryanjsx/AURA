@@ -103,46 +103,64 @@ AURA is built as a layered pipeline where each layer is a standalone module with
 
 ```
 AURA/
-├── aura.py                        # CLI: interactive REPL or one-shot (argv → dispatch)
+├── main.py                        # CLI entry point (bootstrap + REPL / one-shot)
+├── plugins_manifest.yaml          # Authoritative plugin safety manifest
 ├── config.example.yaml            # Configuration template (copy to config.yaml)
 │
-├── core/                          # System layer — types, config, abstractions
-│   ├── intent.py                  # Intent dataclass (text/LLM → structured action)
-│   ├── policy.py                  # CommandPolicy (allowlist + denylist for shell)
-│   ├── context.py                 # AppContext (config + policy + session state)
-│   ├── config_loader.py           # YAML + env overrides (AURA_*)
-│   ├── io.py                      # InputSource / OutputSink abstractions
-│   ├── result.py                  # CommandResult structured return type
-│   └── backends/                  # LLM provider abstraction
-│       ├── base.py                # LLMBackend ABC
-│       ├── ollama_backend.py      # Ollama stub (Phase 2)
-│       └── factory.py             # Backend factory
+├── aura/                          # Main-process package — core, runtime, IPC client
+│   ├── core/                      # Infrastructure + security primitives
+│   │   ├── command_registry.py    # Sole authorized execution entry point
+│   │   ├── router.py              # Text → Intent → registry pipeline
+│   │   ├── execution_engine.py    # In-process dispatch (sealed, private)
+│   │   ├── worker_client.py       # IPC proxy to the isolated worker (sealed)
+│   │   ├── planner.py             # Multi-step TaskPlan execution + rollback
+│   │   ├── plugin_loader.py       # Plugin discovery and registration
+│   │   ├── plugin_manifest.py     # Cross-process manifest + SHA-256 binding
+│   │   ├── plugin_base.py         # Plugin / IntentParser contracts
+│   │   ├── safety_gate.py         # Non-blocking confirmation prompt
+│   │   ├── sandbox.py             # Filesystem sandbox + symlink escape block
+│   │   ├── policy.py              # Shell argv allowlist / denylist
+│   │   ├── permissions.py         # PermissionLevel validator
+│   │   ├── rate_limiter.py        # Per-source sliding-window limiter
+│   │   ├── audit_log.py           # Tamper-evident hash-chained audit log
+│   │   ├── audit_events.py        # Dynamic audit event registry
+│   │   ├── event_bus.py           # Pub/sub event bus
+│   │   ├── logger.py              # Structured JSON logger
+│   │   ├── config_loader.py       # YAML + env override loader (strict validation)
+│   │   ├── error_handler.py       # Centralized error-to-message translator
+│   │   ├── errors.py              # Typed error hierarchy (AuraError, …)
+│   │   ├── intent.py              # Intent dataclass (no caller-trusted source)
+│   │   ├── schema.py              # CommandSpec + action-name validation
+│   │   ├── param_schema.py        # Per-command parameter schema + size caps
+│   │   ├── tracing.py             # Trace-ID context var
+│   │   ├── result.py              # CommandResult return type
+│   │   └── io.py                  # Input / output abstractions
+│   │
+│   ├── worker/                    # Isolated execution subprocess
+│   │   ├── server.py              # JSON-line IPC server + manifest hash verify
+│   │   ├── __main__.py            # ``python -m aura.worker`` entry point
+│   │   └── __init__.py
+│   │
+│   └── intents/                   # Main-process text → Intent parsers
+│       └── system_intents.py
 │
-├── command_engine/                # Automation backbone
-│   ├── dispatcher.py            # Intent-based router + registry + phrase parsing
-│   ├── path_utils.py              # Centralized path resolution + safety
-│   ├── file_manager.py            # File CRUD (pathlib + shutil)
-│   ├── process_manager.py         # safe_run_command (argv, shell=False) + psutil
-│   ├── npm_executor.py            # npm install / npm run (which npm | npm.cmd)
-│   ├── system_check.py            # Developer tool version probes
-│   └── logger.py                  # Config-driven rotating file + console logger
+├── plugins/                       # Worker-only plugin code (import-guarded)
+│   └── system/                    # Built-in system plugin
+│       ├── plugin.py              # Plugin registration surface
+│       └── executor.py            # File / process / npm / monitor executors
 │
-├── modules/                       # Higher-level utilities
-│   ├── project_scaffolder.py      # Config-driven project directory generator
-│   └── log_reader.py              # Efficient log file tail reader
-│
-├── tests/                         # Unit tests (pytest)
-│
+├── tests/                         # pytest suite (214 tests incl. lockdown probes)
+├── docs/                          # Architecture + design documents
+├── public/                        # GitHub Pages site (deployed via pages.yml)
 ├── logs/                          # Runtime log output (auto-created, rotated)
-├── docs/                          # Architecture and design documents
 │
-├── aura-core/                     # [Future] Whisper STT + Piper TTS voice I/O
-├── aura-devtools/                 # [Future] Git & Docker automation
-├── aura-gui/                      # [Future] PyQt6 dashboard
-└── aura-memory/                   # [Future] ChromaDB memory layer
+├── aura-core/                     # [Phase 2 placeholder] Whisper STT + Piper TTS
+├── aura-devtools/                 # [Phase 3 placeholder] Git & Docker automation
+├── aura-gui/                      # [Phase 4 placeholder] PyQt6 dashboard
+└── aura-memory/                   # [Phase 5 placeholder] ChromaDB memory layer
 ```
 
-> Active development happens in `core/`, `command_engine/`, and `modules/`. Folders prefixed with `aura-` are expansion placeholders for future phases and do not contain implementation code yet.
+> Active code lives under `aura/` and `plugins/`.  Folders prefixed with `aura-` are intentional expansion placeholders (see [ROADMAP.md](ROADMAP.md)) and contain a README only until their phase begins.
 
 ---
 
@@ -195,15 +213,14 @@ Optional environment overrides (see `config_loader` docstring): `AURA_LOG_PATH`,
 **Interactive REPL**
 
 ```bash
-python aura.py
+python main.py
 ```
 
 **One-shot command** (runs a single dispatch and exits)
 
 ```bash
-python aura.py "cpu"
-python aura.py "help"
-python aura.py "npm install"
+python main.py "cpu"
+python main.py "npm install"
 ```
 
 ```
