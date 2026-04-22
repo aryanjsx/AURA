@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="AURA — Autonomous Unified Response Architecture. A fully offline, zero-cost, local AI assistant. Your real-life JARVIS."
+    />
+    <meta name="theme-color" content="#0b0f19" />
+    <title>AURA — Your Real-Life JARVIS</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Background ambient gradients -->
+    <div class="bg-glow bg-glow--one" aria-hidden="true"></div>
+    <div class="bg-glow bg-glow--two" aria-hidden="true"></div>
+    <div class="grid-overlay" aria-hidden="true"></div>
+
+    <!-- NAVBAR -->
+    <header class="nav">
+      <div class="container nav__inner">
+        <a href="#hero" class="nav__brand">
+          <span class="nav__logo" aria-hidden="true">
+            <span class="nav__logo-core"></span>
+          </span>
+          <span class="nav__brand-text">AURA</span>
+        </a>
+
+        <nav class="nav__links" aria-label="Primary">
+          <a href="#about">About</a>
+          <a href="#pipeline">How It Works</a>
+          <a href="#features">Features</a>
+          <a href="#timeline">Roadmap</a>
+          <a href="#architecture">Architecture</a>
+        </nav>
+
+        <a
+          href="https://github.com/aryanjsx/AURA"
+          target="_blank"
+          rel="noopener"
+          class="btn btn--ghost nav__cta"
+          >GitHub</a
+        >
+
+        <button
+          class="nav__toggle"
+          id="navToggle"
+          aria-label="Toggle menu"
+          aria-expanded="false"
+        >
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- HERO -->
+    <section id="hero" class="hero">
+      <div class="container hero__inner">
+        <div class="hero__badge reveal">
+          <span class="dot"></span> Autonomous Unified Response Architecture
+        </div>
+
+        <h1 class="hero__title reveal">
+          AURA — Your
+          <span class="gradient-text">Real-Life JARVIS</span>
+        </h1>
+
+        <p class="hero__subtitle reveal">
+          Fully Offline. Zero Cost. No API Keys.
+        </p>
+
+        <p class="hero__desc reveal">
+          A modular, local-first AI assistant that listens, thinks, and acts on
+          your PC — without ever sending a byte to the cloud.
+        </p>
+
+        <div class="hero__cta reveal">
+          <a
+            href="https://github.com/aryanjsx/AURA"
+            target="_blank"
+            rel="noopener"
+            class="btn btn--primary"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 .5C5.73.5.67 5.56.67 11.83c0 5.02 3.24 9.26 7.75 10.76.57.1.78-.25.78-.55v-2c-3.15.68-3.82-1.35-3.82-1.35-.52-1.3-1.27-1.65-1.27-1.65-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.74 2.68 1.24 3.34.95.1-.74.4-1.24.72-1.53-2.52-.29-5.17-1.26-5.17-5.6 0-1.24.44-2.25 1.16-3.04-.12-.29-.5-1.44.11-3 0 0 .95-.3 3.1 1.16.9-.25 1.87-.37 2.83-.38.96.01 1.93.13 2.83.38 2.15-1.46 3.1-1.16 3.1-1.16.61 1.56.23 2.71.11 3 .72.79 1.16 1.8 1.16 3.04 0 4.35-2.66 5.31-5.19 5.59.41.35.78 1.05.78 2.12v3.14c0 .3.21.66.79.55 4.51-1.5 7.74-5.74 7.74-10.76C23.33 5.56 18.27.5 12 .5z"
+              />
+            </svg>
+            View on GitHub
+          </a>
+
+          <a href="#architecture" class="btn btn--ghost">
+            Explore Architecture
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14M13 5l7 7-7 7" />
+            </svg>
+          </a>
+        </div>
+
+        <div class="hero__meta reveal">
+          <div><strong>100%</strong><span>Offline</span></div>
+          <div><strong>$0</strong><span>Cost</span></div>
+          <div><strong>0</strong><span>API Keys</span></div>
+          <div><strong>∞</strong><span>Privacy</span></div>
+        </div>
+      </div>
+
+      <div class="hero__orb" aria-hidden="true">
+        <div class="orb"></div>
+        <div class="orb-ring orb-ring--a"></div>
+        <div class="orb-ring orb-ring--b"></div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section id="about" class="section">
+      <div class="container">
+        <div class="section__head reveal">
+          <span class="eyebrow">The Story</span>
+          <h2 class="section__title">
+            Modern AI is powerful — but it's
+            <span class="gradient-text">rented</span>.
+          </h2>
+          <p class="section__lead">
+            Every query goes to someone else's server. Every feature comes with
+            a subscription. Your data — your context — is never truly yours.
+            AURA is a rebellion against that.
+          </p>
+        </div>
+
+        <div class="about-grid">
+          <article class="about-card reveal">
+            <div class="about-card__icon">⚠️</div>
+            <h3>The Problem</h3>
+            <p>
+              AI assistants depend on the cloud, paid APIs, and constant
+              internet. You lose privacy, control, and money — every single
+              day.
+            </p>
+          </article>
+
+          <article class="about-card reveal">
+            <div class="about-card__icon">⚡</div>
+            <h3>The Solution</h3>
+            <p>
+              AURA runs entirely on your machine. A local LLM brain, a voice
+              interface, and a plugin system that can automate your entire
+              workflow — no internet required.
+            </p>
+          </article>
+
+          <article class="about-card reveal">
+            <div class="about-card__icon">🌌</div>
+            <h3>The Vision</h3>
+            <p>
+              A personal AI like JARVIS — always-on, fully private, endlessly
+              extensible. An operating system for your own intelligence.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- PIPELINE -->
+    <section id="pipeline" class="section section--alt">
+      <div class="container">
+        <div class="section__head reveal">
+          <span class="eyebrow">How It Works</span>
+          <h2 class="section__title">
+            From voice to action —
+            <span class="gradient-text">in milliseconds</span>.
+          </h2>
+          <p class="section__lead">
+            A clean, deterministic pipeline routes your intent through the
+            local brain and out to real actions on your system.
+          </p>
+        </div>
+
+        <ol class="pipeline">
+          <li class="pipeline__step reveal">
+            <span class="pipeline__num">01</span>
+            <div class="pipeline__icon">🧑</div>
+            <h3>You</h3>
+            <p>Speak or type a command in natural language.</p>
+          </li>
+          <li class="pipeline__arrow" aria-hidden="true">→</li>
+
+          <li class="pipeline__step reveal">
+            <span class="pipeline__num">02</span>
+            <div class="pipeline__icon">🎙️</div>
+            <h3>Voice</h3>
+            <p>Local STT converts your speech to text instantly.</p>
+          </li>
+          <li class="pipeline__arrow" aria-hidden="true">→</li>
+
+          <li class="pipeline__step reveal">
+            <span class="pipeline__num">03</span>
+            <div class="pipeline__icon">🧭</div>
+            <h3>Router</h3>
+            <p>Intent is classified and dispatched to the right module.</p>
+          </li>
+          <li class="pipeline__arrow" aria-hidden="true">→</li>
+
+          <li class="pipeline__step reveal">
+            <span class="pipeline__num">04</span>
+            <div class="pipeline__icon">🧠</div>
+            <h3>LLM</h3>
+            <p>A local model reasons, plans, and generates responses.</p>
+          </li>
+          <li class="pipeline__arrow" aria-hidden="true">→</li>
+
+          <li class="pipeline__step reveal">
+            <span class="pipeline__num">05</span>
+            <div class="pipeline__icon">⚙️</div>
+            <h3>Execution</h3>
+            <p>Plugins control apps, files, browser, and the OS.</p>
+          </li>
+          <li class="pipeline__arrow" aria-hidden="true">→</li>
+
+          <li class="pipeline__step reveal">
+            <span class="pipeline__num">06</span>
+            <div class="pipeline__icon">🔊</div>
+            <h3>Response</h3>
+            <p>AURA speaks and shows results back to you.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features" class="section">
+      <div class="container">
+        <div class="section__head reveal">
+          <span class="eyebrow">Capabilities</span>
+          <h2 class="section__title">
+            Every layer of a
+            <span class="gradient-text">real assistant</span>.
+          </h2>
+          <p class="section__lead">
+            Built as modular plugins around an immutable core. Extend anything,
+            break nothing.
+          </p>
+        </div>
+
+        <div class="features-grid">
+          <article class="feature reveal">
+            <div class="feature__icon">🎙️</div>
+            <h3>Voice Interaction</h3>
+            <p>
+              Natural wake-word, streaming STT, and expressive TTS — all
+              running locally with zero latency overhead.
+            </p>
+          </article>
+
+          <article class="feature reveal">
+            <div class="feature__icon">🧠</div>
+            <h3>Local LLM Brain</h3>
+            <p>
+              Pluggable open-weight models. Think, plan, summarize, and reason
+              without a single API call.
+            </p>
+          </article>
+
+          <article class="feature reveal">
+            <div class="feature__icon">🖥️</div>
+            <h3>PC Automation</h3>
+            <p>
+              Open apps, move files, run scripts, control windows — AURA
+              speaks fluent operating system.
+            </p>
+          </article>
+
+          <article class="feature reveal">
+            <div class="feature__icon">👁️</div>
+            <h3>Screen Vision</h3>
+            <p>
+              Local OCR + vision models let AURA understand what's on your
+              screen and act on it.
+            </p>
+          </article>
+
+          <article class="feature reveal">
+            <div class="feature__icon">💾</div>
+            <h3>Memory System</h3>
+            <p>
+              Long-term vector memory + session context so AURA remembers your
+              habits, files, and preferences.
+            </p>
+          </article>
+
+          <article class="feature reveal">
+            <div class="feature__icon">🛠️</div>
+            <h3>Developer Tools</h3>
+            <p>
+              Git, shell, project scaffolding, and code awareness — your
+              terminal co-pilot, without the cloud.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- TIMELINE / PHASES -->
+    <section id="timeline" class="section section--alt">
+      <div class="container">
+        <div class="section__head reveal">
+          <span class="eyebrow">Roadmap</span>
+          <h2 class="section__title">
+            Built in
+            <span class="gradient-text">phases</span>, not promises.
+          </h2>
+          <p class="section__lead">
+            A deliberate, phase-wise build — each phase shippable, auditable,
+            and real.
+          </p>
+        </div>
+
+        <ol class="timeline">
+          <li class="timeline__item reveal">
+            <span class="timeline__dot"></span>
+            <div class="timeline__card">
+              <div class="timeline__head">
+                <h3>Phase 0 — Core Infrastructure</h3>
+                <span class="badge badge--live">In Progress</span>
+              </div>
+              <p>
+                Repo, config, logging, plugin loader, and the immutable core
+                runtime.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline__item reveal">
+            <span class="timeline__dot"></span>
+            <div class="timeline__card">
+              <div class="timeline__head">
+                <h3>Phase 1 — Foundation</h3>
+                <span class="badge badge--live">In Progress</span>
+              </div>
+              <p>
+                Command engine, module system, and the first end-to-end
+                "hello, AURA" flow.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline__item reveal">
+            <span class="timeline__dot"></span>
+            <div class="timeline__card">
+              <div class="timeline__head">
+                <h3>Phase 2 — Voice + Router</h3>
+                <span class="badge">Planned</span>
+              </div>
+              <p>
+                Local STT/TTS, wake-word, and an intent router that dispatches
+                to plugins.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline__item reveal">
+            <span class="timeline__dot"></span>
+            <div class="timeline__card">
+              <div class="timeline__head">
+                <h3>Phase 3 — Dev Tools</h3>
+                <span class="badge">Planned</span>
+              </div>
+              <p>
+                Git automation, shell control, project scaffolding, and code
+                navigation.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline__item reveal">
+            <span class="timeline__dot"></span>
+            <div class="timeline__card">
+              <div class="timeline__head">
+                <h3>Phase 4 — Vision</h3>
+                <span class="badge">Planned</span>
+              </div>
+              <p>
+                Screen capture, local OCR, and visual reasoning for
+                "what's on my screen?" style queries.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline__item reveal">
+            <span class="timeline__dot"></span>
+            <div class="timeline__card">
+              <div class="timeline__head">
+                <h3>Phase 5 — GUI</h3>
+                <span class="badge">Planned</span>
+              </div>
+              <p>
+                A beautiful desktop overlay: transcript, status, and quick
+                actions.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline__item reveal">
+            <span class="timeline__dot"></span>
+            <div class="timeline__card">
+              <div class="timeline__head">
+                <h3>Phase 6 — Memory</h3>
+                <span class="badge">Planned</span>
+              </div>
+              <p>
+                Vector memory, preferences, and long-term context that evolves
+                with you.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline__item reveal">
+            <span class="timeline__dot"></span>
+            <div class="timeline__card">
+              <div class="timeline__head">
+                <h3>Phase 7 — Browser</h3>
+                <span class="badge">Planned</span>
+              </div>
+              <p>
+                Controlled web automation: research, forms, bookmarks — local
+                and sandboxed.
+              </p>
+            </div>
+          </li>
+
+          <li class="timeline__item reveal">
+            <span class="timeline__dot"></span>
+            <div class="timeline__card">
+              <div class="timeline__head">
+                <h3>Phase 8 — Integrations</h3>
+                <span class="badge">Planned</span>
+              </div>
+              <p>
+                Optional bridges to services you trust — entirely opt-in, never
+                default.
+              </p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <section id="architecture" class="section">
+      <div class="container architecture">
+        <div class="section__head reveal">
+          <span class="eyebrow">Architecture</span>
+          <h2 class="section__title">
+            An
+            <span class="gradient-text">immutable core</span>. Infinite
+            plugins.
+          </h2>
+          <p class="section__lead">
+            The core never changes. Every capability — voice, vision, memory,
+            automation — is a plugin that hot-loads around it.
+          </p>
+        </div>
+
+        <div class="architecture__grid">
+          <div class="arch-card reveal">
+            <h3>🧬 Modular Core + Plugin System</h3>
+            <p>
+              A tiny, battle-tested runtime orchestrates events, state, and the
+              plugin lifecycle.
+            </p>
+          </div>
+          <div class="arch-card reveal">
+            <h3>🔒 Core Is Immutable</h3>
+            <p>
+              Plugins cannot patch the core. Guarantees stability, security,
+              and predictable upgrades.
+            </p>
+          </div>
+          <div class="arch-card reveal">
+            <h3>🧩 Plugins Add Features</h3>
+            <p>
+              Drop a folder, register a manifest, ship a capability. Voice,
+              vision, dev tools — all plugins.
+            </p>
+          </div>
+        </div>
+
+        <div class="code-block reveal">
+          <div class="code-block__bar">
+            <span class="dotc red"></span>
+            <span class="dotc yellow"></span>
+            <span class="dotc green"></span>
+            <span class="code-block__name">aura/</span>
+          </div>
+          <pre><code>AURA/
+├── aura-core/           # Immutable runtime: events, state, plugin loader
+├── aura-devtools/       # Git, shell, project scaffolding
+├── aura-gui/            # Desktop overlay & status UI
+├── aura-memory/         # Vector store & long-term context
+├── command_engine/      # Intent parsing & dispatch
+├── core/                # Config, logging, lifecycle
+├── modules/             # Feature plugins (voice, vision, browser…)
+├── docs/                # Architecture & guides
+├── tests/               # Unit + integration tests
+└── aura.py              # Entry point</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- DEMO / COMMANDS -->
+    <section class="section section--alt">
+      <div class="container">
+        <div class="section__head reveal">
+          <span class="eyebrow">Try It</span>
+          <h2 class="section__title">
+            Real commands.
+            <span class="gradient-text">Real actions.</span>
+          </h2>
+          <p class="section__lead">
+            Talk to AURA like you'd talk to a teammate. It opens apps, ships
+            code, and sees your screen.
+          </p>
+        </div>
+
+        <div class="terminal reveal">
+          <div class="terminal__bar">
+            <span class="dotc red"></span>
+            <span class="dotc yellow"></span>
+            <span class="dotc green"></span>
+            <span class="terminal__title">aura — live session</span>
+          </div>
+          <div class="terminal__body">
+            <p><span class="prompt">you &gt;</span> Open Chrome</p>
+            <p class="out">
+              <span class="ok">✓</span> Launching Chrome… window focused.
+            </p>
+
+            <p><span class="prompt">you &gt;</span> Push code to GitHub</p>
+            <p class="out">
+              <span class="ok">✓</span> Staged 4 files · commit "feat: landing
+              page" · pushed to <em>main</em>.
+            </p>
+
+            <p><span class="prompt">you &gt;</span> What's on my screen?</p>
+            <p class="out">
+              <span class="ok">✓</span> VS Code · <em>index.html</em> ·
+              cursor on line 212. Want me to summarize the section?
+            </p>
+
+            <p>
+              <span class="prompt">you &gt;</span>
+              <span class="caret">▌</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- USP / WHY AURA -->
+    <section class="section">
+      <div class="container">
+        <div class="section__head reveal">
+          <span class="eyebrow">Why AURA</span>
+          <h2 class="section__title">
+            Everything the cloud can't
+            <span class="gradient-text">give you</span>.
+          </h2>
+        </div>
+
+        <div class="usp-grid">
+          <div class="usp reveal">
+            <div class="usp__icon">🛰️</div>
+            <h3>100% Offline</h3>
+            <p>Works without internet. Your machine is the whole stack.</p>
+          </div>
+          <div class="usp reveal">
+            <div class="usp__icon">🔑</div>
+            <h3>No API Keys</h3>
+            <p>No signups, no tokens, no rate limits. Ever.</p>
+          </div>
+          <div class="usp reveal">
+            <div class="usp__icon">💸</div>
+            <h3>$0 Cost</h3>
+            <p>Free forever. Open source. No hidden tiers.</p>
+          </div>
+          <div class="usp reveal">
+            <div class="usp__icon">🛡️</div>
+            <h3>Full Privacy</h3>
+            <p>Your voice, screen, and data never leave your device.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-banner">
+      <div class="container cta-banner__inner reveal">
+        <h2>
+          Build your own
+          <span class="gradient-text">JARVIS</span>.
+        </h2>
+        <p>Clone the repo, load a model, and say hello.</p>
+        <div class="cta-banner__actions">
+          <a
+            class="btn btn--primary"
+            href="https://github.com/aryanjsx/AURA"
+            target="_blank"
+            rel="noopener"
+            >Get Started on GitHub</a
+          >
+          <a class="btn btn--ghost" href="#timeline">See the Roadmap</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div class="container footer__inner">
+        <div class="footer__brand">
+          <span class="nav__logo" aria-hidden="true">
+            <span class="nav__logo-core"></span>
+          </span>
+          <span class="nav__brand-text">AURA</span>
+          <span class="footer__divider" aria-hidden="true"></span>
+          <span class="footer__tag">
+            Fully offline. Zero cost. No API keys.
+          </span>
+        </div>
+
+        <div class="footer__meta">
+          <span>© <span id="year"></span> Built by Aryan Kumar</span>
+          <a
+            href="https://github.com/aryanjsx/AURA"
+            target="_blank"
+            rel="noopener"
+            class="footer__link"
+            aria-label="GitHub repository"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 .5C5.73.5.67 5.56.67 11.83c0 5.02 3.24 9.26 7.75 10.76.57.1.78-.25.78-.55v-2c-3.15.68-3.82-1.35-3.82-1.35-.52-1.3-1.27-1.65-1.27-1.65-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.74 2.68 1.24 3.34.95.1-.74.4-1.24.72-1.53-2.52-.29-5.17-1.26-5.17-5.6 0-1.24.44-2.25 1.16-3.04-.12-.29-.5-1.44.11-3 0 0 .95-.3 3.1 1.16.9-.25 1.87-.37 2.83-.38.96.01 1.93.13 2.83.38 2.15-1.46 3.1-1.16 3.1-1.16.61 1.56.23 2.71.11 3 .72.79 1.16 1.8 1.16 3.04 0 4.35-2.66 5.31-5.19 5.59.41.35.78 1.05.78 2.12v3.14c0 .3.21.66.79.55 4.51-1.5 7.74-5.74 7.74-10.76C23.33 5.56 18.27.5 12 .5z"
+              />
+            </svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
