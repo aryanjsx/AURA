@@ -14,12 +14,15 @@ from aura.security.rate_limiter import RateLimiter
 from aura.core.result import CommandResult
 from aura.runtime.router import Router
 from aura.security.safety_gate import AutoConfirmGate
+from tests._inprocess_port import InProcessWorkerPort
 
 
 def _build_router(handlers: dict[str, tuple]) -> Router:
     bus = EventBus()
     engine = ExecutionEngine(bus)
-    registry = CommandRegistry(bus, engine, manifest=PluginManifest.permissive())
+    registry = CommandRegistry(
+        bus, InProcessWorkerPort(engine), manifest=PluginManifest.permissive()
+    )
 
     class _Owner:
         pass

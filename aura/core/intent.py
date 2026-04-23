@@ -1,9 +1,10 @@
 """
 AURA — Structured Intent.
 
-Produced by the router's text parser (Phase 1) or, in Phase 2, by the
-LLM adapter.  Consumed only through the command registry — no module
-should call a handler directly with an Intent.
+Produced by the router's text parser (Phase 1 — COMPLETED) or by the
+LLM adapter (Phase 2 — IN PROGRESS).  Consumed only through the
+command registry — no module should call a handler directly with an
+Intent.
 
 Trust model (LOCKDOWN)
 ----------------------

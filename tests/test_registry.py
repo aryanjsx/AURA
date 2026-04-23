@@ -11,6 +11,7 @@ from aura.security.permissions import PermissionLevel
 from aura.security.plugin_manifest import PluginManifest
 from aura.core.result import CommandResult
 from aura.core.schema import CommandSpec
+from tests._inprocess_port import InProcessWorkerPort
 
 
 def _echo(**kwargs) -> CommandResult:
@@ -20,7 +21,9 @@ def _echo(**kwargs) -> CommandResult:
 def _build() -> tuple[CommandRegistry, ExecutionEngine, EventBus, object]:
     bus = EventBus()
     engine = ExecutionEngine(bus)
-    registry = CommandRegistry(bus, engine, manifest=PluginManifest.permissive())
+    registry = CommandRegistry(
+        bus, InProcessWorkerPort(engine), manifest=PluginManifest.permissive()
+    )
 
     class _Owner:  # sentinel plugin instance
         pass
@@ -87,8 +90,10 @@ def test_registry_holds_no_handler_reference():
 def test_engine_hides_executor_dict():
     registry, engine, _, owner = _build()
     engine.register("echo", _echo, plugin_instance=owner)
-    # Name-mangled — not reachable by the obvious name.
+    # The engine instance is held only by bootstrap code and never
+    # leaks to the registry, so the exact attribute name no longer
+    # matters for the security model — but the public/short-form
+    # alias must still be absent.
     assert not hasattr(engine, "executors")
-    assert not hasattr(engine, "_executors")
     assert engine.has("echo") is True
     assert engine._size() == 1

@@ -12,13 +12,13 @@ from aura.security.rate_limiter import RateLimiter
 from aura.core.result import CommandResult
 from aura.runtime.router import Router
 from aura.security.safety_gate import AutoConfirmGate, SafetyGate
+from tests._inprocess_port import InProcessWorkerPort
 
 
 def _build(auto_confirm=True, rate_limiter=None, permission_validator=None,
            safety_gate=None):
     bus = EventBus()
     engine = ExecutionEngine(bus)
-    registry = CommandRegistry(bus, engine, manifest=PluginManifest.permissive())
 
     class _Owner:
         pass
@@ -33,6 +33,18 @@ def _build(auto_confirm=True, rate_limiter=None, permission_validator=None,
 
     engine.register("system.cpu", _cpu, plugin_instance=owner)
     engine.register("file.delete", _delete, plugin_instance=owner)
+
+    # Security policy is fixed at construction after the lockdown.
+    registry = CommandRegistry(
+        bus, InProcessWorkerPort(engine),
+        manifest=PluginManifest.permissive(),
+        auto_confirm=auto_confirm,
+        rate_limiter=rate_limiter or RateLimiter(
+            max_per_minute=1000, repeat_threshold=1000,
+        ),
+        permission_validator=permission_validator or PermissionValidator(),
+        safety_gate=safety_gate or AutoConfirmGate(bus),
+    )
     registry.register_metadata(
         "system.cpu", plugin="t", permission_level=PermissionLevel.LOW,
     )

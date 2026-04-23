@@ -1,24 +1,30 @@
 """
-AURA — Execution Engine (locked down).
+AURA - Execution Engine (worker-side only).
 
-The engine owns the only callable references to executors and is the
-in-process counterpart of :class:`~aura.runtime.worker_client.WorkerClient`.
+Post Phase-3 lockdown invariants
+--------------------------------
+* The engine is instantiated **only inside the worker subprocess**.
+  The main process never imports plugins and never owns an
+  :class:`ExecutionEngine` - it talks to the worker exclusively via
+  :class:`~aura.runtime.worker_client.WorkerClient` / the
+  :class:`WorkerPort` protocol.
+* There is no capability token, no ``_acquire_capability``, no
+  ``_engine_dispatch`` closure, no "one-shot" exposure of a raw
+  dispatcher function.  Inside the trusted worker, the IPC loop simply
+  calls :meth:`dispatch` directly.
+* A closure walk on the main-process registry can no longer find any
+  function that reaches an executor, because executors live only here,
+  and this module is only imported by the worker.
 
-After Phase-2 lockdown, **no public dispatch method exists**.  The engine
-exports its dispatch capability exactly once, via a one-shot
-:meth:`_seal` method that :class:`CommandRegistry` consumes during its
-own construction.  After sealing:
-
-* the engine's dispatch is reachable only via Python's name-mangling
-  (``_ExecutionEngine__dispatch``) — no attribute, method, or protocol
-  surface exposes it.
-* a second ``_seal()`` call raises :class:`RuntimeError` so an attacker
-  cannot re-export the capability.
-
-The registry keeps the captured callable in its own name-mangled slot
-and never stores a reference to the engine object itself.
+Security model
+--------------
+The engine is NOT a security boundary.  It is the worker's executor
+dispatcher.  All security (validation, permission, rate-limit, safety
+gate, audit) is enforced by the :class:`CommandRegistry`'s
+``_execute_safe`` pipeline in the **main** process BEFORE the worker
+ever sees the request.  The worker additionally re-validates param
+schema + sandbox + policy as defence in depth (see ``aura/worker/server.py``).
 """
-
 from __future__ import annotations
 
 import threading
@@ -36,16 +42,24 @@ _logger = get_logger("aura.engine")
 
 
 class ExecutionEngine:
-    """Private-by-construction executor dispatcher."""
+    """Plugin executor table + dispatch entry point (worker-side only)."""
+
+    __slots__ = (
+        "_bus",
+        "_executors",
+        "_plugin_refs",
+        "_lock",
+    )
 
     def __init__(self, bus: EventBus) -> None:
         self._bus = bus
-        self.__executors: dict[str, Executor] = {}
-        self.__plugin_refs: dict[str, Any] = {}
-        self.__lock = threading.RLock()
-        self.__sealed: bool = False
+        self._executors: dict[str, Executor] = {}
+        self._plugin_refs: dict[str, Any] = {}
+        self._lock = threading.RLock()
 
-    # -- registration is only done by the plugin loader during bootstrap.
+    # ------------------------------------------------------------------
+    # Plugin registration (called by the worker's plugin loader).
+    # ------------------------------------------------------------------
     def register(
         self,
         action: str,
@@ -57,31 +71,36 @@ class ExecutionEngine:
             raise EngineError("action must be a non-empty string")
         if not callable(executor):
             raise EngineError(f"executor for {action!r} must be callable")
-        with self.__lock:
-            if action in self.__executors:
+        with self._lock:
+            if action in self._executors:
                 raise EngineError(
                     f"Duplicate executor registration for {action!r}"
                 )
-            self.__executors[action] = executor
-            self.__plugin_refs[action] = plugin_instance
+            self._executors[action] = executor
+            self._plugin_refs[action] = plugin_instance
 
     def has(self, action: str) -> bool:
-        with self.__lock:
-            return action in self.__executors
+        with self._lock:
+            return action in self._executors
 
     def actions(self) -> list[str]:
-        with self.__lock:
-            return sorted(self.__executors.keys())
+        with self._lock:
+            return sorted(self._executors.keys())
 
     # ------------------------------------------------------------------
-    # Private dispatch — NEVER accessed directly from outside this class.
+    # Dispatch.  This is called by the worker IPC loop (in-process,
+    # inside the trusted worker subprocess).  It is NEVER called from
+    # the main process.
     # ------------------------------------------------------------------
-    def __dispatch(self, action: str, params: dict[str, Any]) -> CommandResult:
-        with self.__lock:
-            executor = self.__executors.get(action)
+    def dispatch(
+        self, action: str, params: dict[str, Any]
+    ) -> CommandResult:
+        with self._lock:
+            executor = self._executors.get(action)
         if executor is None:
-            raise RegistryError(f"No executor registered for action: {action!r}")
-
+            raise RegistryError(
+                f"No executor registered for action: {action!r}"
+            )
         trace_id = current_trace_id()
         with benchmark(
             _logger,
@@ -90,7 +109,6 @@ class ExecutionEngine:
             trace_id=trace_id,
         ):
             result = executor(**params)
-
         if not isinstance(result, CommandResult):
             raise EngineError(
                 f"Executor for {action!r} must return CommandResult, "
@@ -98,28 +116,7 @@ class ExecutionEngine:
             )
         return result
 
-    # ------------------------------------------------------------------
-    # One-shot capability export — consumed by CommandRegistry.__init__
-    # ------------------------------------------------------------------
-    def _seal(self) -> Callable[[str, dict[str, Any]], CommandResult]:
-        """Hand the dispatch capability to the CommandRegistry.
-
-        After the first call, further attempts raise ``RuntimeError``.
-        The returned bound method is the ONLY reachable path to
-        ``__dispatch`` from outside this class.
-        """
-        if self.__sealed:
-            raise RuntimeError(
-                "ExecutionEngine has already been sealed; dispatch is private."
-            )
-        self.__sealed = True
-        return self.__dispatch  # bound method — captures self
-
-    @property
-    def sealed(self) -> bool:
-        return self.__sealed
-
-    # -- Internal inspection hook for tests; not part of the public API.
+    # Tests-only.
     def _size(self) -> int:
-        with self.__lock:
-            return len(self.__executors)
+        with self._lock:
+            return len(self._executors)

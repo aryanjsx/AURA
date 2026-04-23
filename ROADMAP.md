@@ -4,35 +4,78 @@
 
 ---
 
-## Phase 1 — Python Automation Core ✅
+## Progress at a Glance
 
-**Status:** Complete
-
-The foundation. A modular command-execution engine accessible through a CLI.
-
-| Deliverable | Module | Status |
-|---|---|---|
-| Command dispatcher (text → action router) | `command_engine/dispatcher.py` | ✅ Done |
-| Centralized path resolution (`~`, smart keywords, safety) | `command_engine/path_utils.py` | ✅ Done |
-| File operations (create, delete, rename, move, search) | `command_engine/file_manager.py` | ✅ Done |
-| Process management (run, list, kill) | `command_engine/process_manager.py` | ✅ Done |
-| System health checker (Python, Git, Node, Docker) | `command_engine/system_check.py` | ✅ Done |
-| Centralized structured logging | `command_engine/logger.py` | ✅ Done |
-| Project scaffolder (supports full paths) | `modules/project_scaffolder.py` | ✅ Done |
-| Log file reader (supports full paths) | `modules/log_reader.py` | ✅ Done |
-| Interactive CLI interface | `aura.py` | ✅ Done |
-| Intent system (text/LLM → structured action) | `core/intent.py` | ✅ Done |
-| Command registry + intent-based routing | `command_engine/dispatcher.py` | ✅ Done |
-| Command policy (centralized safety gate) | `core/policy.py` | ✅ Done |
-| LLM backend abstraction + Ollama stub | `core/backends/` | ✅ Done |
-| LLM brain (intent translator stub) | `core/llm_brain.py` | ✅ Done |
-| Application context container | `core/context.py` | ✅ Done |
+- [✔] **Phase 0** — Core Infrastructure (COMPLETED)
+- [✔] **Phase 1** — Python Automation Core + Secure Execution (COMPLETED)
+- [→] **Phase 2** — Offline Voice Pipeline / Intelligence Layer (IN PROGRESS)
+- [ ] Phase 3 — Developer Tools (planned)
+- [ ] Phase 4 — GUI Dashboard (planned)
+- [ ] Phase 5 — Memory Layer (planned)
 
 ---
 
-## Phase 2 — Offline Voice Pipeline ⏳
+## Phase 0 — Core Infrastructure ✅
 
-**Status:** Planned · **ETA:** Week 9
+**Status:** COMPLETED
+
+The scaffolding. Cross-cutting infrastructure every later phase depends on — nothing user-facing, everything the rest of the system is built on.
+
+| Deliverable | Module | Status |
+|---|---|---|
+| Event bus (thread-safe pub/sub) | `aura/core/event_bus.py` | ✅ Done |
+| Config loader + env overrides | `aura/core/config_loader.py` | ✅ Done |
+| Typed error hierarchy | `aura/core/errors.py` | ✅ Done |
+| Structured `CommandResult` | `aura/core/result.py` | ✅ Done |
+| `CommandSpec` schema + validator | `aura/core/schema.py` | ✅ Done |
+| Parameter schema + size caps | `aura/core/param_schema.py` | ✅ Done |
+| Trace-ID context var | `aura/core/tracing.py` | ✅ Done |
+| Input / output abstractions | `aura/core/io.py` | ✅ Done |
+| Structured JSON logger | `aura/core/logger.py` | ✅ Done |
+| Interactive CLI bootstrap | `aura/cli.py` | ✅ Done |
+
+---
+
+## Phase 1 — Python Automation Core + Secure Execution ✅
+
+**Status:** COMPLETED
+
+The foundation. A modular command-execution engine plus the full secure-execution layer — sandbox, permissions, audit chain, non-bypassable registry, isolated worker subprocess.
+
+| Deliverable | Module | Status |
+|---|---|---|
+| Command dispatcher / router (text → Intent → registry) | `aura/runtime/router.py` | ✅ Done |
+| Centralized path resolution (`~`, smart keywords, safety) | `plugins/system/executor.py` | ✅ Done |
+| File operations (create, delete, rename, move, search) | `plugins/system/executor.py` | ✅ Done |
+| Process management (run, list, kill) | `plugins/system/executor.py` | ✅ Done |
+| System health checker (Python, Git, Node, Docker) | `plugins/system/executor.py` | ✅ Done |
+| Project scaffolder (supports full paths) | `plugins/system/executor.py` | ✅ Done |
+| Log file reader (supports full paths) | `plugins/system/executor.py` | ✅ Done |
+| Intent system (text/LLM → structured action) | `aura/core/intent.py` | ✅ Done |
+| Non-bypassable command registry | `aura/runtime/command_registry.py` | ✅ Done |
+| Plugin loader + manifest enforcement | `aura/runtime/plugin_loader.py`, `aura/security/plugin_manifest.py` | ✅ Done |
+| Isolated worker subprocess (JSON-line IPC) | `aura/worker/server.py`, `aura/runtime/worker_client.py` | ✅ Done |
+| Filesystem sandbox + symlink escape block | `aura/security/sandbox.py` | ✅ Done |
+| Shell argv allowlist + denylist policy | `aura/security/policy.py` | ✅ Done |
+| PermissionLevel validator (source-capped) | `aura/security/permissions.py` | ✅ Done |
+| Per-source sliding-window rate limiter | `aura/security/rate_limiter.py` | ✅ Done |
+| Non-blocking confirmation safety gate | `aura/security/safety_gate.py` | ✅ Done |
+| Tamper-evident hash-chained audit log + rotation sidecar | `aura/security/audit_log.py` | ✅ Done |
+| Dynamic audit event registry | `aura/security/audit_events.py` | ✅ Done |
+| LLM backend abstraction + Ollama stub | `aura/core/backends/` | ✅ Done |
+| LLM brain (intent translator stub) | `aura/core/llm_brain.py` | ✅ Done |
+
+Security properties verified end-to-end (runtime-probed, not documented-only):
+
+- Exactly one execution entry point (`CommandRegistry.execute`) — no reachable dispatcher via reflection, closure walk, or `dir()` introspection.
+- Worker boundary is JSON-only, size-capped, manifest-hash-bound, and schema-validated in both directions.
+- Audit chain distinguishes rotation truncation from tampering via sidecar hash file.
+
+---
+
+## Phase 2 — Offline Voice Pipeline / Intelligence Layer 🔄
+
+**Status:** IN PROGRESS · **ETA:** Week 9
 
 The transformation. AURA hears you, thinks locally, and speaks back.
 
@@ -88,7 +131,7 @@ AURA remembers. Persistent semantic context across sessions.
 | Semantic codebase search | ChromaDB | `aura/memory/` |
 | Conversation history persistence | ChromaDB | `aura/memory/` |
 
-> Phase 2–5 code lands inside the existing `aura/` / `plugins/` tree (e.g. `aura/voice/`, `plugins/git/`, `aura/gui/`, `aura/memory/`).  Final per-file layout is locked in when each phase opens — see [`docs/phases.md`](docs/phases.md) for the current plan.
+> Phase 2 is the currently active phase. Its code lands inside the existing `aura/` / `plugins/` tree (`aura/voice/` for STT/TTS, tool-orchestration updates to `aura/runtime/`); Phase 3–5 follow the same pattern (`plugins/git/`, `aura/gui/`, `aura/memory/`). Final per-file layout is locked in when each phase opens — see [`docs/phases.md`](docs/phases.md) for the current plan.
 
 ---
 

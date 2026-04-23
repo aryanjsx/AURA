@@ -53,6 +53,80 @@ from aura.core.event_bus import EventBus
 
 _GENESIS_HASH = "0" * 64
 
+# Sidecar filename containing the last hash of any rotation segment
+# that was evicted (purged past ``backupCount``).  The chain verifier
+# uses this hash as the starting ``prev_hash`` for the oldest surviving
+# segment; without it, a legitimate rotation that drops the genesis
+# segment would be indistinguishable from an attacker truncating the
+# log.
+_HASH_SIDECAR_SUFFIX = ".chain"
+
+
+def _sidecar_for(base_path: Path) -> Path:
+    """Return the sidecar path for a given live audit log path."""
+    return base_path.with_name(base_path.name + _HASH_SIDECAR_SUFFIX)
+
+
+def _read_last_hash_of_file(path: Path) -> str | None:
+    """Return the ``hash`` field of the final JSON record in *path*,
+    or ``None`` if the file is missing / empty / unparseable."""
+    if not path.exists():
+        return None
+    try:
+        last: str | None = None
+        with path.open("r", encoding="utf-8") as fh:
+            for raw in fh:
+                line = raw.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except Exception:
+                    continue
+                h = record.get("hash")
+                if isinstance(h, str) and len(h) == 64:
+                    last = h
+        return last
+    except Exception:
+        return None
+
+
+def _read_sidecar(path: Path) -> str | None:
+    """Return the purged-segment hash stored in the sidecar, or
+    ``None`` if the sidecar is absent / malformed."""
+    sidecar = _sidecar_for(path)
+    if not sidecar.exists():
+        return None
+    try:
+        data = json.loads(sidecar.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    h = data.get("purged_last_hash") if isinstance(data, dict) else None
+    if isinstance(h, str) and len(h) == 64:
+        return h
+    return None
+
+
+def _write_sidecar(path: Path, purged_hash: str) -> None:
+    """Persist the last hash of a segment about to be evicted."""
+    sidecar = _sidecar_for(path)
+    try:
+        sidecar.write_text(
+            json.dumps(
+                {
+                    "purged_last_hash": purged_hash,
+                    "updated_at": time.strftime(
+                        "%Y-%m-%dT%H:%M:%S", time.localtime()
+                    ),
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+    except Exception:
+        # Sidecar write must never break audit logging itself.
+        pass
+
 
 class _AuraRotatingFileHandler(logging.handlers.RotatingFileHandler):
     """``RotatingFileHandler`` that refuses to rotate an empty file.
@@ -66,6 +140,12 @@ class _AuraRotatingFileHandler(logging.handlers.RotatingFileHandler):
     writing, propagating empty segments up the rotation stack on every
     subsequent emit and polluting the tamper-evident chain with blank
     files that break cross-segment verification.
+
+    On rollover, the handler also persists the last-hash of any
+    *evicted* segment (``audit.log.<backupCount>``) into the sidecar
+    described above, so the tamper-evident chain survives truncation
+    without losing the ability to distinguish legit rotation from
+    tampering.
 
     .. _gh-116263: https://github.com/python/cpython/pull/116263
     """
@@ -82,6 +162,30 @@ class _AuraRotatingFileHandler(logging.handlers.RotatingFileHandler):
             if pos + len(msg) >= self.maxBytes:
                 return 1
         return 0
+
+    def doRollover(self) -> None:  # noqa: N802
+        """Overrides parent rollover to snapshot the evicted segment's
+        last hash into the sidecar BEFORE the rename chain discards it.
+
+        The stdlib behaviour: ``audit.log.<backupCount>`` (if present)
+        is removed during the rename shuffle.  We read that file's
+        last JSON record, extract its ``hash``, and persist it to the
+        sidecar so :func:`verify_chain_dir` can pick up where the
+        truncation starts.
+        """
+        try:
+            base = Path(self.baseFilename)
+            evicted = base.with_name(
+                f"{base.name}.{self.backupCount}"
+            )
+            if self.backupCount > 0 and evicted.exists():
+                purged = _read_last_hash_of_file(evicted)
+                if purged:
+                    _write_sidecar(base, purged)
+        except Exception:
+            # Never let sidecar bookkeeping abort rotation.
+            pass
+        super().doRollover()
 
 
 def _canonical(obj: Any) -> str:
@@ -330,29 +434,52 @@ def verify_chain_dir(
 ) -> tuple[bool, str | None, int | None]:
     """Verify the full hash chain **across** rotated log files.
 
-    ``RotatingFileHandler`` names rotated segments ``base.N`` where ``N``
-    increases with *age*: ``base.1`` is the most recent rotated file,
-    ``base.2`` is older, etc.  The live file is simply ``base``.
+    Simple boolean-oriented wrapper around
+    :func:`verify_chain_dir_detailed`.  See that function for status
+    semantics.  Legitimate rotation (``TRUNCATED`` without tampering)
+    is reported as ``True``; any hash mismatch or schema corruption is
+    reported as ``False`` with the offending filename and 1-indexed
+    line number.
+    """
+    status, filename, bad_line = verify_chain_dir_detailed(base_path)
+    if status == "TAMPERED":
+        return False, filename, bad_line
+    # "OK" and "TRUNCATED" are both *valid* chain states.
+    return True, None, None
 
-    The chain therefore runs oldest→newest:
+
+def verify_chain_dir_detailed(
+    base_path: str | Path,
+) -> tuple[str, str | None, int | None]:
+    """Verify the full hash chain across rotated segments, with
+    three-state status output.
+
+    ``RotatingFileHandler`` names rotated segments ``base.N`` where
+    ``N`` increases with *age*.  The live file is ``base``; the chain
+    therefore runs oldest→newest:
 
         base.N, base.N-1, …, base.2, base.1, base
 
     Returns
     -------
-    (ok, filename, bad_line) :
-        * ``(True, None, None)``  — every rotated segment + the live
-          file verify, and every segment's first record links to the
-          previous segment's last record.
-        * ``(False, "audit.log.3", 42)`` — file *audit.log.3* had its
-          line *42* break the chain.
+    (status, filename, bad_line) :
+        * ``("OK", None, None)``
+            every segment verifies, and the oldest segment starts
+            from the genesis hash (or from the sidecar-recorded
+            purged hash, if the live log has been rotated past
+            ``backupCount`` times).
+        * ``("TRUNCATED", name, 1)``
+            the sidecar is missing / stale and the oldest surviving
+            segment's first record ``prev_hash`` is non-genesis - the
+            prefix is gone but the surviving chain is internally
+            consistent.  This is *not* tampering.
+        * ``("TAMPERED", name, line)``
+            a record's ``hash`` / ``prev_hash`` failed verification.
+            This IS tampering.
     """
     base = Path(base_path)
     parent = base.parent
 
-    # Collect all existing rotated segments by suffix number.  Unknown
-    # suffixes / foreign files are ignored so dropping an attacker-
-    # planted file next to the log cannot DoS verification.
     segments: list[tuple[int, Path]] = []
     prefix = base.name + "."
     if parent.exists():
@@ -361,6 +488,9 @@ def verify_chain_dir(
                 continue
             if entry.name == base.name:
                 continue
+            if entry.name.endswith(_HASH_SIDECAR_SUFFIX):
+                # Ignore our own sidecar during segment enumeration.
+                continue
             if not entry.name.startswith(prefix):
                 continue
             suffix = entry.name[len(prefix):]
@@ -368,16 +498,76 @@ def verify_chain_dir(
                 continue
             segments.append((int(suffix), entry))
 
-    # Rotated files walked from oldest to newest (largest N first).
     segments.sort(key=lambda pair: pair[0], reverse=True)
     ordered_paths: list[Path] = [p for _, p in segments]
     if base.exists():
         ordered_paths.append(base)
 
-    prev = _GENESIS_HASH
-    for path in ordered_paths:
+    # Pick the starting prev_hash: sidecar first, genesis otherwise.
+    sidecar_prev = _read_sidecar(base)
+    prev = sidecar_prev or _GENESIS_HASH
+    starting_from_sidecar = sidecar_prev is not None
+
+    # Sub-case: no segments at all and no live file.
+    if not ordered_paths:
+        return "OK", None, None
+
+    # Walk each segment.  The FIRST segment is special: if its first
+    # record's prev_hash doesn't match our starting prev, we must
+    # distinguish "truncated history" (valid chain, missing prefix)
+    # from "tampered" (body doesn't match stored hash).
+    for idx, path in enumerate(ordered_paths):
+        first_segment = (idx == 0)
         with path.open("r", encoding="utf-8") as fh:
-            ok, bad, prev = _verify_stream(fh, prev)
+            raw_lines = [line.rstrip("\n") for line in fh]
+        non_empty = [(i + 1, ln) for i, ln in enumerate(raw_lines) if ln.strip()]
+
+        if first_segment and non_empty and not starting_from_sidecar:
+            # Peek the first record: if its prev_hash is a valid
+            # 64-hex string but != genesis, we are looking at a
+            # truncated head.  Check the intra-record hash is still
+            # valid before labelling it TRUNCATED vs TAMPERED.
+            line_no, first_line = non_empty[0]
+            try:
+                first_rec = json.loads(first_line)
+            except json.JSONDecodeError:
+                return "TAMPERED", path.name, line_no
+            ph = first_rec.get("prev_hash")
+            stored = first_rec.get("hash")
+            if (
+                isinstance(ph, str) and len(ph) == 64
+                and ph != _GENESIS_HASH
+                and isinstance(stored, str) and len(stored) == 64
+            ):
+                body = {k: v for k, v in first_rec.items() if k != "hash"}
+                canonical = _canonical(body)
+                expected = _sha256(ph + canonical)
+                if expected == stored:
+                    # Chain is self-consistent from this record onward
+                    # even though the prefix is missing.  Seed `prev`
+                    # with ph and continue verifying; a later tamper
+                    # still FAILS normally.
+                    prev = ph
+                    # Fall through into the normal _verify_stream for
+                    # the full file, seeded with this prev.  The
+                    # prev==ph seeding above means the first record
+                    # will re-verify and match.
+                    # Mark this status so later segments that match
+                    # cleanly preserve TRUNCATED as the final state.
+                    ok, bad, prev = _verify_stream(iter(raw_lines), prev)
+                    if not ok:
+                        return "TAMPERED", path.name, bad
+                    # Remaining segments must chain normally.
+                    for tail in ordered_paths[idx + 1:]:
+                        with tail.open("r", encoding="utf-8") as tfh:
+                            ok, bad, prev = _verify_stream(tfh, prev)
+                        if not ok:
+                            return "TAMPERED", tail.name, bad
+                    return "TRUNCATED", path.name, line_no
+
+        # Normal verification path.
+        ok, bad, prev = _verify_stream(iter(raw_lines), prev)
         if not ok:
-            return False, path.name, bad
-    return True, None, None
+            return "TAMPERED", path.name, bad
+
+    return "OK", None, None

@@ -21,6 +21,7 @@ from aura.security.permissions import PermissionLevel
 from aura.security.plugin_manifest import PluginManifest
 from aura.core.result import CommandResult
 from aura.core.schema import CommandSpec
+from tests._inprocess_port import InProcessWorkerPort
 
 
 # ------------------------------------------------------------------
@@ -68,7 +69,7 @@ def test_registry_rejects_oversized_param_before_dispatch():
     bus = EventBus()
     engine = ExecutionEngine(bus)
     registry = CommandRegistry(
-        bus, engine,
+        bus, InProcessWorkerPort(engine),
         manifest=PluginManifest.permissive(),
         auto_confirm=True,
     )

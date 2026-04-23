@@ -119,7 +119,26 @@ def bootstrap(
 
     audit_events = get_audit_event_registry()
 
-    registry = CommandRegistry(bus, worker, manifest=manifest)
+    if auto_confirm is None:
+        auto_confirm = bool(get_config("safety.auto_confirm", False))
+
+    safety_gate: SafetyGate = (
+        AutoConfirmGate(bus) if auto_confirm else SafetyGate(bus)
+    )
+    rate_limiter = RateLimiter()
+    permission_validator = PermissionValidator()
+
+    # Security policy is fixed at construction.  There is no
+    # ``attach_security`` after this point — the registry is locked.
+    registry = CommandRegistry(
+        bus,
+        worker,
+        manifest=manifest,
+        rate_limiter=rate_limiter,
+        permission_validator=permission_validator,
+        safety_gate=safety_gate,
+        auto_confirm=auto_confirm,
+    )
     for entry in schema:
         action = entry["action"]
         plugin_name = entry.get("plugin", "system")
@@ -150,23 +169,10 @@ def bootstrap(
     # may have been registered (idempotent per-event).
     audit.subscribe()
 
-    if auto_confirm is None:
-        auto_confirm = bool(get_config("safety.auto_confirm", False))
-
-    safety_gate: SafetyGate = (
-        AutoConfirmGate(bus) if auto_confirm else SafetyGate(bus)
-    )
-    rate_limiter = RateLimiter()
-    permission_validator = PermissionValidator()
-
     router = Router(
         bus,
         registry,
         default_intent_parsers(),
-        safety_gate=safety_gate,
-        permission_validator=permission_validator,
-        rate_limiter=rate_limiter,
-        auto_confirm=auto_confirm,
     )
     return router, registry
 

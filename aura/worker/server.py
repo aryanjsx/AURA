@@ -187,18 +187,18 @@ def _build_engine_and_sink():
 
     loader = PluginLoader(
         bus,
-        sink,  # duck-typed — PluginLoader only calls register_metadata / list
+        sink,  # duck-typed - PluginLoader only calls register_metadata / list
         engine,
         package_prefix="plugins",
         manifest=manifest,
     )
     loader.load_all(plugins_dir)
 
-    # Seal the engine ourselves — we are the only legitimate dispatcher
-    # holder inside the worker process.
-    dispatch = engine._seal()
-
-    return engine, sink, dispatch, bus, set_trace_id
+    # Inside the trusted worker subprocess the engine is simply a
+    # plain dispatcher - no capability token, no one-shot handoff.
+    # Closure-walk attacks are a main-process concern; the worker's
+    # trust boundary is the IPC pipe, which is already strict JSON.
+    return engine, sink, bus, set_trace_id
 
 
 def _attach_worker_logger(bus) -> None:
@@ -233,16 +233,21 @@ def _action_schema(sink) -> list[dict[str, Any]]:
     ]
 
 
-def _handle_exec(dispatch, set_trace_id, request: dict[str, Any]) -> dict[str, Any]:
+def _handle_exec(engine, set_trace_id, request: dict[str, Any]) -> dict[str, Any]:
     request_id = request.get("id")
     action = request.get("action")
     params = request.get("params") or {}
     trace_id = request.get("trace_id")
 
+    # Action echo is MANDATORY in every reply: the registry validates
+    # ``reply["action"] == requested action`` and rejects mismatches.
+    action_echo = action if isinstance(action, str) else None
+
     if not isinstance(action, str) or not action.strip():
         return {
             "type": "error",
             "id": request_id,
+            "action": action_echo,
             "error_class": "SchemaError",
             "error_code": "SCHEMA_ERROR",
             "message": "Missing or empty 'action' field",
@@ -251,6 +256,7 @@ def _handle_exec(dispatch, set_trace_id, request: dict[str, Any]) -> dict[str, A
         return {
             "type": "error",
             "id": request_id,
+            "action": action_echo,
             "error_class": "SchemaError",
             "error_code": "SCHEMA_ERROR",
             "message": "'params' must be a JSON object",
@@ -271,14 +277,15 @@ def _handle_exec(dispatch, set_trace_id, request: dict[str, Any]) -> dict[str, A
         return {
             "type": "error",
             "id": request_id,
+            "action": action_echo,
             "error_class": "SchemaError",
             "error_code": "SCHEMA_ERROR",
             "message": str(err),
         }
 
     try:
-        result = dispatch(action, dict(params))
-    except Exception as exc:  # noqa: BLE001 — worker IPC boundary
+        result = engine.dispatch(action, dict(params))
+    except Exception as exc:  # noqa: BLE001 - worker IPC boundary
         from aura.core.errors import AuraError
 
         error_code = "EXECUTION_ERROR"
@@ -293,6 +300,7 @@ def _handle_exec(dispatch, set_trace_id, request: dict[str, Any]) -> dict[str, A
         return {
             "type": "error",
             "id": request_id,
+            "action": action_echo,
             "error_class": error_class,
             "error_code": error_code,
             "message": str(exc),
@@ -301,6 +309,7 @@ def _handle_exec(dispatch, set_trace_id, request: dict[str, Any]) -> dict[str, A
     return {
         "type": "result",
         "id": request_id,
+        "action": action_echo,
         "success": bool(result.success),
         "message": str(result.message),
         "data": dict(result.data or {}),
@@ -325,10 +334,8 @@ def run_worker(
 
     try:
         _verify_manifest_hash()
-        _engine, sink, dispatch, _bus, set_trace_id = _build_engine_and_sink()
-        # ``_engine`` is kept on the stack so the dispatch bound method
-        # has a live self reference (no-op for GC, but explicit).
-    except Exception as exc:  # noqa: BLE001 — bootstrap failure is fatal
+        engine, sink, _bus, set_trace_id = _build_engine_and_sink()
+    except Exception as exc:  # noqa: BLE001 - bootstrap failure is fatal
         _worker_log(
             stderr, "ERROR", "worker.bootstrap_failed",
             error=str(exc), traceback=traceback.format_exc(),
@@ -358,6 +365,7 @@ def run_worker(
             _send(stdout, {
                 "type": "error",
                 "id": None,
+                "action": None,
                 "error_class": "SchemaError",
                 "error_code": "SCHEMA_ERROR",
                 "message": f"Malformed request: {exc}",
@@ -369,16 +377,18 @@ def run_worker(
             _worker_log(stderr, "INFO", "worker.shutdown")
             return 0
         if msg_type != "exec":
+            req_action = request.get("action")
             _send(stdout, {
                 "type": "error",
                 "id": request.get("id"),
+                "action": req_action if isinstance(req_action, str) else None,
                 "error_class": "SchemaError",
                 "error_code": "SCHEMA_ERROR",
                 "message": f"Unknown message type: {msg_type!r}",
             })
             continue
 
-        reply = _handle_exec(dispatch, set_trace_id, request)
+        reply = _handle_exec(engine, set_trace_id, request)
         _send(stdout, reply)
 
     return 0

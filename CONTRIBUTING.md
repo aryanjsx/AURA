@@ -87,18 +87,19 @@ Each module has a clear home in the codebase:
 
 ### Currently Accepting Contributions
 
-#### Phase 1 — Now
-- Python automation module testing
+#### Phase 0 + Phase 1 — Completed (maintenance)
+- Additional test coverage for the automation modules
 - Documentation improvements
 - `.gitignore` and project config refinements
-- Bug reports and fixes
+- Bug reports and fixes against the secure-execution core
 
-#### Phase 2 — Opening Soon
+#### Phase 2 — In Progress (active focus)
 - Whisper STT integration and optimization
 - Ollama prompt engineering for developer tasks
 - Piper TTS voice configuration
+- LLM tool-use orchestration on top of the existing command registry
 
-#### Phase 3+ — Future
+#### Phase 3+ — Future (planned)
 - Git automation edge cases
 - Docker SDK integration
 - PyQt6 dashboard components

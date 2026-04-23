@@ -1,8 +1,9 @@
 """
 AURA — Input / Output abstractions.
 
-These contracts let the CLI loop (Phase 1), voice listener (Phase 2),
-and GUI (Phase 4) be swapped without touching the router or executors.
+These contracts let the CLI loop (Phase 1 — COMPLETED), voice
+listener (Phase 2 — IN PROGRESS), and GUI (Phase 4 — planned) be
+swapped without touching the router or executors.
 """
 
 from __future__ import annotations

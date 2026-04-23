@@ -1,12 +1,20 @@
 # AURA Architecture
 
-AURA's architecture is designed so that the command execution layer remains untouched as new input channels (voice), reasoning engines (LLM), and output channels (TTS, GUI) are added. The **Phase-0 execution backbone** (secure dispatch, policy, argv-based subprocess, path safety) supports the CLI and future channels. Phase 2 preparation added an intent layer, command registry, policy gate, and LLM backend abstraction — in place for when a Whisper listener and Ollama model complete the pipeline.
+AURA's architecture is designed so that the command execution layer remains untouched as new input channels (voice), reasoning engines (LLM), and output channels (TTS, GUI) are added.
+
+**Phase status** (see [`../ROADMAP.md`](../ROADMAP.md)):
+
+- **Phase 0** — Core Infrastructure: **COMPLETED**
+- **Phase 1** — Python Automation Core + Secure Execution: **COMPLETED**
+- **Phase 2** — Intelligence Layer (voice + LLM + tool orchestration): **IN PROGRESS**
+
+The **Phase-0 execution backbone** (secure dispatch, policy, argv-based subprocess, path safety) and the **Phase-1 security pipeline** (non-bypassable `CommandRegistry`, sandboxed worker, audit chain, rate limiter, safety gate, plugin manifest binding) support the CLI and every future channel. The intent layer, command registry, policy gate, and LLM backend abstraction are already in place so the in-progress Whisper listener and Ollama model slot into the pipeline without touching the execution core.
 
 ---
 
 ## Data Flow
 
-### Phase-0 / Phase 1 — CLI (current)
+### Phase 0 + Phase 1 — CLI (COMPLETED)
 
 ```
 User input (stdin)  OR  one-shot: python aura.py "<command>"
@@ -32,7 +40,7 @@ User input (stdin)  OR  one-shot: python aura.py "<command>"
        ├──► system_check       (check system health)
        ├──► project_scaffolder (create project)
        ├──► log_reader         (show logs)
-       └──► show_help          (built-in Phase-0 help text)
+              └──► show_help          (built-in Phase 0 help text)
               │
               │  File and npm handlers resolve paths through path_utils
               │  before touching the filesystem or project cwd
@@ -54,7 +62,7 @@ User input (stdin)  OR  one-shot: python aura.py "<command>"
 
 **Natural phrases:** The dispatcher recognises short monitor phrases (e.g. `cpu`, `ram`, `processes`, `show processes`) and maps them to registry actions such as `get_cpu_usage`, `get_ram_usage`, and `list_processes`, implemented in `process_manager.py`.
 
-### Phase 2 — Voice + LLM (planned)
+### Phase 2 — Voice + LLM (IN PROGRESS)
 
 ```
 Microphone input
@@ -93,7 +101,7 @@ The `Intent` dataclass represents a parsed user intention — the bridge between
 
 ### core/policy.py
 
-The `CommandPolicy` class is the centralized safety gate. Every intent passes through `validate_intent()` before a handler is invoked — both in the CLI dispatcher and (in Phase 2) in the LLM pipeline.
+The `CommandPolicy` class is the centralized safety gate. Every intent passes through `validate_intent()` before a handler is invoked — both in the CLI dispatcher and (via the in-progress Phase 2 LLM pipeline) in the LLM pipeline.
 
 For **`process.shell`** (the `run command` path), validation uses a **hybrid model**:
 
@@ -106,7 +114,7 @@ Commands are split with `split_command_string()` (no shell); execution uses argv
 
 ### core/context.py
 
-The `AppContext` dataclass bundles cross-cutting concerns — config, policy, and session state — into a single injectable object. Phase 2 will add the LLM backend and conversation history here so that components receive one object instead of importing scattered globals.
+The `AppContext` dataclass bundles cross-cutting concerns — config, policy, and session state — into a single injectable object. Phase 2 (in progress) adds the LLM backend and conversation history here so that components receive one object instead of importing scattered globals.
 
 ### core/backends/
 
@@ -128,7 +136,7 @@ Every other module reads settings through this loader. The loader logs warnings 
 
 ### core/io.py
 
-Defines `InputSource` and `OutputSink` abstract base classes so that the main loop can read commands and emit results through any channel. Phase 1 provides `StdinInput` and `StdoutOutput`. Phase 2 will add a Whisper-based input source and a Piper TTS output sink — the dispatcher and handlers require zero changes.
+Defines `InputSource` and `OutputSink` abstract base classes so that the main loop can read commands and emit results through any channel. Phase 1 (completed) provides `StdinInput` and `StdoutOutput`. Phase 2 (in progress) adds a Whisper-based input source and a Piper TTS output sink — the dispatcher and handlers require zero changes.
 
 ### core/result.py
 
@@ -170,7 +178,7 @@ Configures a stdlib `logging.Logger` with two handlers: a `RotatingFileHandler` 
 
 ### core/llm_brain.py
 
-The `LLMBrain` class accepts natural-language text and returns a structured `Intent`. It wraps an `LLMBackend` and will (in Phase 2) build a prompt from the command registry, send it to the model, and parse the structured response. Currently a stub that returns a low-confidence passthrough intent when the backend is unavailable.
+The `LLMBrain` class accepts natural-language text and returns a structured `Intent`. It wraps an `LLMBackend` and — as part of the in-progress Phase 2 work — builds a prompt from the command registry, sends it to the model, and parses the structured response. Currently a stub that returns a low-confidence passthrough intent when the backend is unavailable.
 
 ---
 
@@ -190,7 +198,7 @@ The stdlib `logging` module supports file handlers, formatters, log levels, and 
 
 ### Why Intent + Registry instead of direct dispatch
 
-The original dispatcher matched keywords and called handlers directly in a long if-chain. The intent-based architecture separates parsing from execution: `parse_intent()` produces a data object, and `execute_intent()` consumes it. This means an LLM can produce the same `Intent` structure that the text parser produces, and both flow through the same execution path — policy check, registry lookup, handler call. The command registry also enables `get_available_commands()`, which Phase 2's prompt builder will use to tell the LLM what AURA can do.
+The original dispatcher matched keywords and called handlers directly in a long if-chain. The intent-based architecture separates parsing from execution: `parse_intent()` produces a data object, and `execute_intent()` consumes it. This means an LLM can produce the same `Intent` structure that the text parser produces, and both flow through the same execution path — policy check, registry lookup, handler call. The command registry also enables `get_available_commands()`, which the in-progress Phase 2 prompt builder uses to tell the LLM what AURA can do.
 
 ### Why argv-only subprocess
 
@@ -198,12 +206,12 @@ Passing argument lists with `shell=False` eliminates shell metacharacter injecti
 
 ---
 
-## Phase 2 — What Remains
+## Phase 2 — What Remains (IN PROGRESS)
 
-The following architecture is already in place:
+The following architecture landed in Phase 0 + Phase 1 and is ready for Phase 2 to build on:
 
 - **Intent system** — `Intent` dataclass, `parse_intent()`, `execute_intent()`
-- **Command registry** — `COMMAND_REGISTRY` dict with `get_available_commands()`
+- **Command registry** — non-bypassable `CommandRegistry` with `get_available_commands()`
 - **Policy gate** — `CommandPolicy.validate_intent()` blocks dangerous operations
 - **LLM backend abstraction** — `LLMBackend` ABC with `OllamaBackend` stub
 - **LLM brain** — `LLMBrain.process()` stub ready for real inference

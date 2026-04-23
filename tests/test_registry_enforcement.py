@@ -5,6 +5,10 @@ These tests call :meth:`CommandRegistry.execute` *directly*, bypassing
 the Router, and confirm that every security check (rate limit,
 permission, schema, safety gate) still fires.  Security must NOT depend
 on callers going through the Router.
+
+After the lockdown, security is fixed at construction time — there is
+no ``attach_security`` API — so every test passes its security
+components straight into the constructor.
 """
 from __future__ import annotations
 
@@ -25,16 +29,13 @@ from aura.security.rate_limiter import RateLimiter
 from aura.core.result import CommandResult
 from aura.security.safety_gate import SafetyGate
 from aura.core.schema import CommandSpec
+from tests._inprocess_port import InProcessWorkerPort
 
 
-def _build(*, auto_confirm: bool = True):
+def _build(*, auto_confirm: bool = True, **security):
+    """Build a registry with three pre-registered probe actions."""
     bus = EventBus()
     engine = ExecutionEngine(bus)
-    registry = CommandRegistry(
-        bus, engine,
-        manifest=PluginManifest.permissive(),
-        auto_confirm=auto_confirm,
-    )
 
     class _Owner:
         pass
@@ -47,6 +48,13 @@ def _build(*, auto_confirm: bool = True):
     engine.register("probe.low", _ok, plugin_instance=owner)
     engine.register("probe.high", _ok, plugin_instance=owner)
     engine.register("probe.destructive", _ok, plugin_instance=owner)
+
+    registry = CommandRegistry(
+        bus, InProcessWorkerPort(engine),
+        manifest=PluginManifest.permissive(),
+        auto_confirm=auto_confirm,
+        **security,
+    )
 
     registry.register_metadata(
         "probe.low", plugin="t", permission_level=PermissionLevel.LOW
@@ -71,9 +79,8 @@ def _spec(action: str, params: dict | None = None, confirm: bool = False) -> Com
 # Rate limit is enforced at the registry
 # ------------------------------------------------------------------
 def test_registry_enforces_rate_limit():
-    bus, registry = _build()
-    registry.attach_security(
-        rate_limiter=RateLimiter(max_per_minute=1, repeat_threshold=1000)
+    bus, registry = _build(
+        rate_limiter=RateLimiter(max_per_minute=1, repeat_threshold=1000),
     )
     registry.execute(_spec("probe.low"), source="cli")
     with pytest.raises(RateLimitError):
@@ -84,9 +91,8 @@ def test_registry_enforces_rate_limit():
 # Per-source rate-limit isolation (cli cap !== llm cap)
 # ------------------------------------------------------------------
 def test_registry_rate_limits_are_per_source():
-    bus, registry = _build()
-    registry.attach_security(
-        rate_limiter=RateLimiter(max_per_minute=1, repeat_threshold=1000)
+    bus, registry = _build(
+        rate_limiter=RateLimiter(max_per_minute=1, repeat_threshold=1000),
     )
     registry.execute(_spec("probe.low"), source="cli")
     # Different source → independent bucket → still allowed.
@@ -117,11 +123,6 @@ def test_registry_default_source_is_safe_low_cap():
 def test_registry_rejects_unknown_parameter_for_known_action():
     bus = EventBus()
     engine = ExecutionEngine(bus)
-    registry = CommandRegistry(
-        bus, engine,
-        manifest=PluginManifest.permissive(),
-        auto_confirm=True,
-    )
 
     class _Owner:
         pass
@@ -130,6 +131,11 @@ def test_registry_rejects_unknown_parameter_for_known_action():
         return CommandResult(success=True, message="ok")
 
     engine.register("file.create", _ok, plugin_instance=_Owner())
+    registry = CommandRegistry(
+        bus, InProcessWorkerPort(engine),
+        manifest=PluginManifest.permissive(),
+        auto_confirm=True,
+    )
     registry.register_metadata(
         "file.create", plugin="t", permission_level=PermissionLevel.MEDIUM
     )
@@ -149,30 +155,29 @@ def test_registry_rejects_malformed_payload():
 # ------------------------------------------------------------------
 # Safety gate fires for destructive actions
 # ------------------------------------------------------------------
+class _StubGate:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    def request(self, *, action, params, source, permission, trace_id):
+        self.calls.append({"action": action, "source": source})
+
+
+class _DenyingGate:
+    def request(self, **kw):
+        raise ConfirmationDenied("nope")
+
+
 def test_registry_fires_safety_gate_for_destructive_commands():
-    bus, registry = _build(auto_confirm=False)
-
-    # Stub gate that records the request instead of blocking on stdin.
-    calls: list[dict] = []
-
-    class _StubGate:
-        def request(self, *, action, params, source, permission, trace_id):
-            calls.append({"action": action, "source": source})
-
-    registry.attach_security(safety_gate=_StubGate(), auto_confirm=False)
+    gate = _StubGate()
+    bus, registry = _build(auto_confirm=False, safety_gate=gate)
     registry.execute(_spec("probe.destructive"), source="cli")
-    assert calls and calls[0]["action"] == "probe.destructive"
-    assert calls[0]["source"] == "cli"
+    assert gate.calls and gate.calls[0]["action"] == "probe.destructive"
+    assert gate.calls[0]["source"] == "cli"
 
 
 def test_registry_safety_gate_denial_propagates():
-    bus, registry = _build(auto_confirm=False)
-
-    class _DenyingGate:
-        def request(self, **kw):
-            raise ConfirmationDenied("nope")
-
-    registry.attach_security(safety_gate=_DenyingGate(), auto_confirm=False)
+    bus, registry = _build(auto_confirm=False, safety_gate=_DenyingGate())
     with pytest.raises(ConfirmationDenied):
         registry.execute(_spec("probe.destructive"), source="cli")
 
@@ -184,14 +189,6 @@ def test_registry_safety_gate_denial_propagates():
 def test_registry_blocks_before_dispatch_when_rate_limited():
     bus = EventBus()
     engine = ExecutionEngine(bus)
-    registry = CommandRegistry(
-        bus, engine,
-        manifest=PluginManifest.permissive(),
-        auto_confirm=True,
-    )
-    registry.attach_security(
-        rate_limiter=RateLimiter(max_per_minute=1, repeat_threshold=1000)
-    )
     called: list[bool] = []
 
     class _Owner:
@@ -202,14 +199,18 @@ def test_registry_blocks_before_dispatch_when_rate_limited():
         return CommandResult(True, "ok")
 
     engine.register("probe.rl", _record, plugin_instance=_Owner())
+    registry = CommandRegistry(
+        bus, InProcessWorkerPort(engine),
+        manifest=PluginManifest.permissive(),
+        auto_confirm=True,
+        rate_limiter=RateLimiter(max_per_minute=1, repeat_threshold=1000),
+    )
     registry.register_metadata(
         "probe.rl", plugin="t", permission_level=PermissionLevel.LOW
     )
-    # First call consumes the quota and actually dispatches.
     registry.execute(_spec("probe.rl"), source="cli")
     assert called == [True]
     called.clear()
-    # Second call is rate-limited and MUST NOT reach the handler.
     with pytest.raises(RateLimitError):
         registry.execute(_spec("probe.rl"), source="cli")
     assert called == []

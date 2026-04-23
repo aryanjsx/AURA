@@ -23,6 +23,7 @@ from aura.security.plugin_manifest import (
     PluginManifest,
     PluginManifestError,
 )
+from tests._inprocess_port import InProcessWorkerPort
 
 
 # ------------------------------------------------------------------
@@ -178,7 +179,9 @@ def loader_env(tmp_path: Path):
         bus = EventBus()
         engine = ExecutionEngine(bus)
         manifest = PluginManifest(manifest_entries)
-        registry = CommandRegistry(bus, engine, manifest=manifest)
+        registry = CommandRegistry(
+            bus, InProcessWorkerPort(engine), manifest=manifest
+        )
         loader = PluginLoader(
             bus,
             registry,

@@ -61,12 +61,16 @@ def _wire_registry(client: WorkerClient, bus: EventBus) -> CommandRegistry:
     """
     schema = client.start()
     manifest = PluginManifest.load(default_manifest_path(_PROJECT_ROOT))
+    # Security policy is fixed at construction.  No attach_security
+    # exists after the lockdown; pass everything to the constructor.
     registry = CommandRegistry(
-        bus, client, manifest=manifest, auto_confirm=True,
-    )
-    # Permissive caps: every source may run up to CRITICAL.
-    registry.attach_security(
-        rate_limiter=RateLimiter(max_per_minute=10_000, repeat_threshold=10_000),
+        bus,
+        client,
+        manifest=manifest,
+        auto_confirm=True,
+        rate_limiter=RateLimiter(
+            max_per_minute=10_000, repeat_threshold=10_000
+        ),
         permission_validator=PermissionValidator(
             source_caps={
                 "cli": PermissionLevel.CRITICAL,
@@ -76,7 +80,6 @@ def _wire_registry(client: WorkerClient, bus: EventBus) -> CommandRegistry:
                 "test": PermissionLevel.CRITICAL,
             },
         ),
-        auto_confirm=True,
     )
     for entry in schema:
         action = entry["action"]

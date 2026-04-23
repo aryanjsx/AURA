@@ -36,8 +36,8 @@ from aura.security.permissions import PermissionValidator
 from aura.core.plugin_base import IntentParser
 from aura.security.rate_limiter import RateLimiter
 from aura.core.result import CommandResult
-from aura.security.safety_gate import AutoConfirmGate, SafetyGate
-from aura.core.schema import CommandSpec, intent_to_spec, validate_command
+from aura.security.safety_gate import SafetyGate
+from aura.core.schema import CommandSpec, intent_to_spec, validate_command  # noqa: F401
 from aura.core.tracing import TraceScope, current_trace_id
 
 logger = get_logger("aura.router")
@@ -52,29 +52,21 @@ class Router:
         registry: CommandRegistry,
         intent_parsers: list[IntentParser] | None = None,
         *,
+        # Kept ONLY for backwards-compatible test signatures.  After
+        # the security lockdown the registry's security policy is
+        # fixed at construction time, so passing these here is a no-op.
         safety_gate: SafetyGate | None = None,
         permission_validator: PermissionValidator | None = None,
         rate_limiter: RateLimiter | None = None,
-        auto_confirm: bool = False,
+        auto_confirm: bool | None = None,
     ) -> None:
+        # Touch unused params so type checkers / linters don't flag them;
+        # we deliberately do NOT inject them into the registry — the
+        # registry refuses such mutations after construction.
+        del safety_gate, permission_validator, rate_limiter, auto_confirm
         self._bus = bus
         self._registry = registry
         self._parsers: list[IntentParser] = list(intent_parsers or [])
-        self._auto_confirm = bool(auto_confirm)
-
-        # Forward the security components straight into the registry so
-        # there is exactly ONE enforcement site.  Defaulting to real
-        # instances here (rather than ``None``) preserves the previous
-        # Router constructor contract for tests that don't provide them.
-        gate: SafetyGate = safety_gate or (
-            AutoConfirmGate(bus) if self._auto_confirm else SafetyGate(bus)
-        )
-        self._registry.attach_security(
-            rate_limiter=rate_limiter or RateLimiter(),
-            permission_validator=permission_validator or PermissionValidator(),
-            safety_gate=gate,
-            auto_confirm=self._auto_confirm,
-        )
 
     def add_parser(self, parser: IntentParser) -> None:
         if not callable(parser):

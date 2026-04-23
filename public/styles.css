@@ -785,6 +785,13 @@ body {
   box-shadow: 0 0 18px rgba(124, 92, 255, 0.5);
 }
 
+.badge--done {
+  color: #0b0f19;
+  background: linear-gradient(135deg, #34d399, #22d3ee);
+  border-color: transparent;
+  box-shadow: 0 0 18px rgba(52, 211, 153, 0.45);
+}
+
 /* ---------- Architecture ---------- */
 .architecture__grid {
   display: grid;

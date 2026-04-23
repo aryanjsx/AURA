@@ -1,5 +1,5 @@
 """
-AURA — Event Bus (Phase 0 infrastructure).
+AURA — Event Bus (Phase 0 infrastructure — COMPLETED).
 
 Thread-safe publish/subscribe channel used for ALL inter-module
 communication.  Plugins, executors, loggers, and the error handler

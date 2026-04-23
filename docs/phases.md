@@ -1,19 +1,25 @@
-# AURA — Planned Phase Layouts
+# AURA — Phase Layouts
 
-Authoritative list of what each future phase ships and where it will
-live inside the package.  Folder names are final; they will be created
-under `aura/` when implementation begins — no more root-level
-`aura-*/` placeholders that collide with `aura.core`, `aura.runtime`,
-and `aura.security`.
+Authoritative list of what each phase ships and where it lives inside
+the package.  Folder names are final; they are created under `aura/`
+as each phase opens — no more root-level `aura-*/` placeholders that
+collide with `aura.core`, `aura.runtime`, and `aura.security`.
 
 See [`../ROADMAP.md`](../ROADMAP.md) for schedule, status, and
 deliverables.
 
+**Current state:**
+
+- Phase 0 — Core Infrastructure — **COMPLETED**
+- Phase 1 — Python Automation Core + Secure Execution — **COMPLETED**
+- Phase 2 — Offline Voice Pipeline — **IN PROGRESS** (this document's active section)
+- Phase 3–5 — Planned
+
 ---
 
-## Phase 2 — Offline Voice Pipeline
+## Phase 2 — Offline Voice Pipeline / Intelligence Layer
 
-**Status:** Planned.  Hear, think, speak — fully local.
+**Status:** IN PROGRESS.  Hear, think, speak — fully local.
 
 | Component       | Technology         | Purpose                                  |
 |-----------------|--------------------|------------------------------------------|

@@ -22,6 +22,7 @@ from aura.runtime.execution_engine import ExecutionEngine
 from aura.security.permissions import PermissionLevel
 from aura.core.plugin_loader import PluginLoader
 from aura.security.plugin_manifest import ManifestEntry, PluginManifest
+from tests._inprocess_port import InProcessWorkerPort
 
 
 _COUNTER = {"n": 0}
@@ -58,7 +59,9 @@ def loader_factory(tmp_path: Path):
         bus = EventBus()
         engine = ExecutionEngine(bus)
         manifest = PluginManifest(manifest_entries or {})
-        registry = CommandRegistry(bus, engine, manifest=manifest)
+        registry = CommandRegistry(
+            bus, InProcessWorkerPort(engine), manifest=manifest
+        )
         loader = PluginLoader(
             bus,
             registry,
