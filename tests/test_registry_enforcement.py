@@ -23,11 +23,10 @@ from aura.core.errors import (
 )
 from aura.core.event_bus import EventBus
 from aura.runtime.execution_engine import ExecutionEngine
-from aura.security.permissions import PermissionLevel, PermissionValidator
+from aura.security.permissions import PermissionLevel
 from aura.security.plugin_manifest import PluginManifest
 from aura.security.rate_limiter import RateLimiter
 from aura.core.result import CommandResult
-from aura.security.safety_gate import SafetyGate
 from aura.core.schema import CommandSpec
 from tests._inprocess_port import InProcessWorkerPort
 
@@ -217,10 +216,52 @@ def test_registry_blocks_before_dispatch_when_rate_limited():
 
 
 # ------------------------------------------------------------------
-# Source normalisation: empty/whitespace source is rejected.
+# Source normalisation: empty/whitespace/non-string source is rejected.
 # ------------------------------------------------------------------
 @pytest.mark.parametrize("bad", ["", "   ", None])
 def test_registry_rejects_invalid_source(bad):
     _, registry = _build()
     with pytest.raises(SchemaError):
         registry.execute(_spec("probe.low"), source=bad)  # type: ignore[arg-type]
+
+
+# ------------------------------------------------------------------
+# Source spoofing — regression for the Phase-1 destruction-audit
+# finding.  ``"CLI "`` / ``" cli"`` / ``"CLI\n"`` / ``"Cli"`` previously
+# passed through ``.strip().lower()`` and were silently granted the
+# ``cli`` cap (CRITICAL).  They must now be rejected outright with
+# SchemaError because they are not in the canonical source whitelist.
+# ------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "spoofed",
+    ["CLI", "CLI ", " cli", "CLI\n", "Cli", "CLI\t", "cli ", "cli\x00"],
+)
+def test_registry_rejects_spoofed_source_strings(spoofed: str) -> None:
+    _, registry = _build()
+    with pytest.raises(SchemaError) as excinfo:
+        registry.execute(_spec("probe.low"), source=spoofed)
+    # Error should name the offending source so the defect is obvious.
+    msg = str(excinfo.value)
+    assert "Unknown source" in msg or "source" in msg
+
+
+def test_registry_accepts_only_canonical_source_strings() -> None:
+    """All four canonical sources still pass; any case variant does not."""
+    _, registry = _build()
+    for canonical in ("cli", "llm", "planner", "auto"):
+        # Must not raise for well-formed input.
+        registry.execute(_spec("probe.low"), source=canonical)
+    with pytest.raises(SchemaError):
+        registry.execute(_spec("probe.low"), source="LLM")
+
+
+def test_spoofed_cli_does_not_inherit_critical_cap() -> None:
+    """End-to-end proof of the privilege-escalation defense.
+
+    Before the fix: ``source="CLI "`` inherited cli's CRITICAL cap
+    and a HIGH command would execute.  After the fix: SchemaError
+    before we even reach the permission check.
+    """
+    _, registry = _build()
+    with pytest.raises(SchemaError):
+        registry.execute(_spec("probe.high"), source="CLI ")

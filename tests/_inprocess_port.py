@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from aura.core.errors import AuraError, SchemaError
+from aura.core.errors import AuraError
 from aura.core.event_bus import EventBus
 from aura.core.result import CommandResult
 from aura.runtime.command_registry import CommandRegistry

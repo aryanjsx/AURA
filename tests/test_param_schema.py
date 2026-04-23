@@ -19,6 +19,9 @@ def test_missing_required_parameter_rejected():
         validate_params("file.create", {})
     assert "Missing required parameter" in str(e.value)
     assert "'path'" in str(e.value)
+    # Usage hint must be included so the REPL / LLM caller sees the
+    # signature without needing a second round-trip through `help`.
+    assert "Usage: file.create path=<str>" in str(e.value)
 
 
 def test_unknown_parameter_rejected():
@@ -26,6 +29,15 @@ def test_unknown_parameter_rejected():
         validate_params("file.create", {"path": "x", "extra": "y"})
     assert "Unknown parameter" in str(e.value)
     assert "extra" in str(e.value)
+    assert "Usage: file.create path=<str>" in str(e.value)
+
+
+def test_usage_hint_marks_optional_params_with_brackets():
+    with pytest.raises(SchemaError) as e:
+        validate_params("file.search", {"directory": "."})
+    # Required params must be bare, optional ones must be bracketed.
+    msg = str(e.value)
+    assert "Usage: file.search directory=<str> pattern=<str> [limit=<int>]" in msg
 
 
 @pytest.mark.parametrize(

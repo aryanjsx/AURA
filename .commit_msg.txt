@@ -1,0 +1,48 @@
+Harden command pipeline after destruction audit
+
+Close a HIGH-severity source-spoofing path and a MEDIUM-severity audit
+gap surfaced by the Phase-1 destruction audit, plus the UX fixes that
+came out of manual command-system testing.
+
+Security fixes
+  * CommandRegistry._execute_safe no longer normalises the source
+    string. Previously source.strip().lower() silently mapped "CLI ",
+    "\tcli", and "CLI\n" into the cli bucket, which inherits CRITICAL
+    cap. Any upstream layer that forwarded an attacker-influenced
+    label could gain cli privilege. The gate now requires an exact
+    match against PermissionValidator.known_sources and raises
+    SchemaError otherwise.
+  * PermissionValidator.cap_for drops its own .strip()/.lower() and
+    exposes a known_sources property so the registry can enforce the
+    whitelist without reaching into private state. Unknown sources
+    still fall back to LOW for defence in depth, but the registry
+    refuses them outright before they reach cap_for.
+  * CLI bootstrap now runs verify_chain on the existing audit log and,
+    on mismatch, emits an audit.chain_break event plus a loud stderr
+    warning. A tamper event is therefore itself tamper-evident instead
+    of going unnoticed until the next manual audit. Verification is
+    best-effort and never blocks startup.
+
+UX / command-system polish
+  * New parse_action_id fallback parser accepts canonical action ids
+    (system.ram, file.create path=foo.txt) in addition to the existing
+    natural-language phrases. Unknown keys are passed through so the
+    schema layer can produce a helpful error instead of a generic
+    UNKNOWN_COMMAND.
+  * validate_params now includes a per-action usage signature in
+    SchemaError messages so file.create without args tells the user
+    exactly which keys are required.
+  * help lists both the natural-language and action-id usage for every
+    registered command.
+
+Regression coverage
+  * 8 new tests in test_permissions for cap_for / known_sources
+    exact-match behaviour.
+  * 12 new tests in test_registry_enforcement covering whitespace,
+    case, unicode lookalike, and newline spoofing attempts.
+  * test_action_id_parser covers the new fallback parser, including
+    quoted values, unknown keys, and interaction with the schema
+    layer.
+  * test_param_schema extended for the enriched error messages.
+
+All 361 tests pass; 4 pre-existing skips unchanged.

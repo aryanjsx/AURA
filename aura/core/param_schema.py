@@ -142,6 +142,25 @@ def _type_names(types: tuple[type, ...]) -> str:
     return ", ".join(t.__name__ for t in types)
 
 
+def _signature(action: str) -> str:
+    """Return a human-readable ``action key=<type> ...`` usage string.
+
+    Derived purely from :data:`PARAM_SCHEMAS` so it can never drift from
+    the actual validation rules; optional params are wrapped in
+    brackets.  Used to enrich :class:`SchemaError` messages so callers
+    (REPL, LLM, API) get an actionable hint instead of just the name of
+    the missing key.
+    """
+    specs = PARAM_SCHEMAS.get(action, ())
+    if not specs:
+        return action
+    parts: list[str] = [action]
+    for spec in specs:
+        token = f"{spec.name}=<{_type_names(spec.types)}>"
+        parts.append(token if spec.required else f"[{token}]")
+    return " ".join(parts)
+
+
 def validate_params(action: str, params: dict[str, Any]) -> None:
     """Validate *params* against the declared schema for *action*.
 
@@ -176,6 +195,7 @@ def validate_params(action: str, params: dict[str, Any]) -> None:
 
     specs = PARAM_SCHEMAS[action]
     spec_by_name = {s.name: s for s in specs}
+    usage_hint = f"Usage: {_signature(action)}"
 
     # 1) Reject unknown keys.
     for key in params:
@@ -186,7 +206,7 @@ def validate_params(action: str, params: dict[str, Any]) -> None:
         if key not in spec_by_name:
             raise SchemaError(
                 f"Unknown parameter {key!r} for action {action!r}; "
-                f"allowed: {sorted(spec_by_name)}"
+                f"allowed: {sorted(spec_by_name)}. {usage_hint}"
             )
 
     # 2) Missing required + type validation.
@@ -195,7 +215,7 @@ def validate_params(action: str, params: dict[str, Any]) -> None:
             if spec.required:
                 raise SchemaError(
                     f"Missing required parameter {spec.name!r} "
-                    f"for action {action!r}"
+                    f"for action {action!r}. {usage_hint}"
                 )
             continue
 

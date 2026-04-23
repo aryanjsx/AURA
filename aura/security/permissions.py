@@ -79,8 +79,25 @@ class PermissionValidator:
                 caps[str(src).lower()] = PermissionLevel.parse(level)
         self._caps: Mapping[str, PermissionLevel] = caps
 
+    @property
+    def known_sources(self) -> frozenset[str]:
+        """Return the set of canonically-registered source names.
+
+        Used by the registry to reject source strings that aren't an
+        exact match for one of these.  Upstream layers MUST pass a
+        canonical source label verbatim (``"cli"``, ``"llm"``, ...);
+        any whitespace / case variation is a defect, not a feature.
+        """
+        return frozenset(self._caps.keys())
+
     def cap_for(self, source: str) -> PermissionLevel:
-        return self._caps.get((source or "").lower(), PermissionLevel.LOW)
+        # Exact-match lookup: no ``.lower()`` or ``.strip()``.
+        # A caller supplying ``"CLI "`` or ``"Cli"`` is a buggy /
+        # adversarial caller and must not silently gain ``cli``'s
+        # cap via string normalisation.  Unknown sources fall to
+        # ``LOW`` for defence-in-depth, but the registry's source
+        # whitelist refuses them outright before they reach here.
+        return self._caps.get(source, PermissionLevel.LOW)
 
     def validate(
         self,

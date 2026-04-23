@@ -8,6 +8,9 @@ The router runs them in order; the first non-``None`` wins.
 
 from __future__ import annotations
 
+import re
+import shlex
+
 from aura.core.intent import Intent
 
 _CPU_PHRASES: frozenset[str] = frozenset({
@@ -164,6 +167,129 @@ def parse_npm_commands(text: str) -> Intent | None:
         )
 
     return None
+
+
+# --------------------------------------------------------------------------
+# Canonical action-id parser (fallback, ordered last in the parser chain).
+#
+# Accepts input shaped like one of:
+#
+#     system.cpu
+#     system.ram
+#     file.create path=foo.txt
+#     file.search directory=. pattern=*.py limit=50
+#     process.shell command="git status"
+#
+# The dotted head must look like a real action identifier.  Additional
+# tokens are parsed as ``key=value`` pairs via :func:`shlex.split`, which
+# preserves quoted values without executing anything.
+#
+# Security note
+# -------------
+# This parser produces an :class:`Intent` only; it performs NO dispatch,
+# NO filesystem I/O, and NO subprocess work.  Every resulting intent is
+# still handed to :meth:`CommandRegistry.execute` which runs the full
+# safety pipeline (rate limit -> permission validator -> param schema
+# -> safety gate -> worker).  Destructive actions have ``requires_confirm``
+# forced to ``True`` inside the registry regardless of what is set here,
+# so this parser cannot bypass the safety gate.
+# --------------------------------------------------------------------------
+
+# Matches ``plugin.action`` or ``plugin.sub.action``; each segment must
+# start with an ASCII letter and contain only lowercase ASCII / digits /
+# underscores.  The strict shape makes it impossible for arbitrary user
+# text to be silently funneled into the registry as an action name.
+_ACTION_ID_RE = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$")
+
+# Integer parameter names allowed by the current schema.  We coerce
+# ``key=value`` strings to ``int`` for exactly these names so that e.g.
+# ``file.search directory=. pattern=*.py limit=50`` passes the int-typed
+# ``limit`` spec in :mod:`aura.core.param_schema`.  Anything else stays a
+# string -- no implicit coercion, no silent ``bool``/``float``/container.
+_INT_PARAM_NAMES: frozenset[str] = frozenset({"limit"})
+
+# Actions that the registry marks destructive at manifest level.  We set
+# ``requires_confirm=True`` up front so the Router -> Registry hand-off
+# is explicit; the Registry would force it anyway (see
+# ``_apply_safety_inline`` in ``aura/runtime/command_registry.py``), this
+# is belt-and-braces for clarity in logs and tests.
+_DESTRUCTIVE_ACTIONS: frozenset[str] = frozenset({
+    "file.delete",
+    "file.rename",
+    "file.move",
+    "process.shell",
+    "process.kill",
+    "npm.install",
+    "npm.run",
+})
+
+
+def _looks_like_action_id(token: str) -> bool:
+    return bool(_ACTION_ID_RE.fullmatch(token))
+
+
+def parse_action_id(text: str) -> Intent | None:
+    """Fallback parser: recognise canonical ``plugin.action`` ids.
+
+    Returns ``None`` (so later parsers / the router's ``Unknown command``
+    error take over) for anything that does not look like an action id.
+    Never raises.
+    """
+    stripped = (text or "").strip()
+    if not stripped:
+        return None
+
+    # shlex handles quoted values ("command=\"git status\"") without any
+    # shell execution. posix=True gives consistent behaviour on Windows.
+    try:
+        tokens = shlex.split(stripped, posix=True)
+    except ValueError:
+        # Unbalanced quotes etc. -- let another parser try, or fall
+        # through to the router's Unknown-command path.
+        return None
+
+    if not tokens:
+        return None
+
+    head = tokens[0]
+    if not _looks_like_action_id(head):
+        return None
+
+    args: dict[str, object] = {}
+    for tok in tokens[1:]:
+        if "=" not in tok:
+            # Positional args are ambiguous across actions with multiple
+            # required params; require explicit key=value for safety.
+            return None
+        key, _, value = tok.partition("=")
+        key = key.strip()
+        if not key or not re.fullmatch(r"[a-z_][a-z0-9_]*", key):
+            return None
+        if key in args:
+            # Duplicate keys would silently win one over the other;
+            # refuse so the user can see the problem.
+            return None
+        if key in _INT_PARAM_NAMES:
+            try:
+                args[key] = int(value)
+            except ValueError:
+                return None
+        else:
+            args[key] = value
+
+    # We deliberately do NOT filter unknown keys here.  The registry's
+    # ``validate_params`` will reject them with a message that includes
+    # the full action signature ("Usage: file.create path=<str>"),
+    # which is strictly more helpful than a bare "Unknown command".
+    # If the action is not in PARAM_SCHEMAS either, the registry raises
+    # a clear "Unknown action" error.
+
+    return Intent(
+        action=head,
+        args=args,
+        raw_text=text,
+        requires_confirm=head in _DESTRUCTIVE_ACTIONS,
+    )
 
 
 __all__: list[str] = []

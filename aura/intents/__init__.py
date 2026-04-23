@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from aura.core.plugin_base import IntentParser
 from aura.intents.system_intents import (
+    parse_action_id,
     parse_file_commands,
     parse_npm_commands,
     parse_process_commands,
@@ -18,16 +19,22 @@ from aura.intents.system_intents import (
 
 
 def default_intent_parsers() -> list[IntentParser]:
+    # parse_action_id is ordered LAST so natural-language phrases always
+    # win.  It only matches strictly-shaped ``plugin.action`` ids and is
+    # a pure text parser -- every resulting intent still runs through the
+    # full CommandRegistry safety pipeline.
     return [
         parse_system_monitor,
         parse_file_commands,
         parse_process_commands,
         parse_npm_commands,
+        parse_action_id,
     ]
 
 
 __all__ = [
     "default_intent_parsers",
+    "parse_action_id",
     "parse_file_commands",
     "parse_npm_commands",
     "parse_process_commands",

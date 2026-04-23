@@ -45,3 +45,41 @@ def test_permission_level_parsing():
     assert PermissionLevel.parse("CRITICAL") is PermissionLevel.CRITICAL
     with pytest.raises(ValueError):
         PermissionLevel.parse("extreme")
+
+
+# ---------------------------------------------------------------------------
+# Source canonicalisation — regression guards for the whitespace /
+# case-normalisation privilege-escalation bug found in the Phase-1
+# destruction audit.  ``cap_for`` must do EXACT matching so that a
+# caller passing ``"CLI "`` or ``"Cli"`` cannot silently inherit the
+# ``cli`` cap.
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("spoofed", ["CLI", "CLI ", " cli", "CLI\n", "Cli", "CLI\t"])
+def test_cap_for_does_not_normalise_case_or_whitespace(spoofed: str) -> None:
+    v = PermissionValidator()
+    # Exact-match only: any variant of "cli" that isn't literally "cli"
+    # must NOT inherit the CRITICAL cap — it must fall to the LOW
+    # default for unknown sources.
+    assert v.cap_for(spoofed) is PermissionLevel.LOW
+
+
+def test_cap_for_canonical_sources_still_work():
+    v = PermissionValidator()
+    assert v.cap_for("cli") is PermissionLevel.CRITICAL
+    assert v.cap_for("llm") is PermissionLevel.MEDIUM
+    assert v.cap_for("planner") is PermissionLevel.HIGH
+    assert v.cap_for("auto") is PermissionLevel.LOW
+
+
+def test_known_sources_exposes_canonical_set():
+    v = PermissionValidator()
+    assert {"cli", "llm", "planner", "auto"}.issubset(v.known_sources)
+
+
+@pytest.mark.parametrize("spoofed", ["CLI ", " cli", "CLI\n", "Cli"])
+def test_validate_with_spoofed_cli_source_denies_critical(spoofed: str) -> None:
+    v = PermissionValidator()
+    with pytest.raises(PermissionDenied):
+        v.validate(
+            action="process.shell", level=PermissionLevel.CRITICAL, source=spoofed,
+        )

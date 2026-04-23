@@ -23,12 +23,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from aura.core.event_bus import EventBus
 from aura.security.audit_log import (
     AuditLogger,
-    _GENESIS_HASH,
     _read_sidecar,
     verify_chain,
     verify_chain_dir,

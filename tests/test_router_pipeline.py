@@ -1,7 +1,6 @@
 """End-to-end router tests covering the full safety pipeline."""
 from __future__ import annotations
 
-import pytest
 
 from aura.runtime.command_registry import CommandRegistry
 from aura.core.event_bus import EventBus
@@ -11,7 +10,7 @@ from aura.security.plugin_manifest import PluginManifest
 from aura.security.rate_limiter import RateLimiter
 from aura.core.result import CommandResult
 from aura.runtime.router import Router
-from aura.security.safety_gate import AutoConfirmGate, SafetyGate
+from aura.security.safety_gate import AutoConfirmGate
 from tests._inprocess_port import InProcessWorkerPort
 
 

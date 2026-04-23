@@ -67,6 +67,27 @@ Autonomous Utility & Resource Assistant
 """
 
 
+# Short, single-line usage examples per action.  Shown in `help` so
+# users don't have to guess the accepted phrasing.  Both the natural
+# language form and the canonical action-id form are supported by the
+# default intent parser chain; we show the shorter of the two here.
+_USAGE_EXAMPLES: dict[str, str] = {
+    "system.cpu":    "cpu  |  system.cpu",
+    "system.ram":    "ram  |  system.ram",
+    "system.health": "system health  |  system.health",
+    "process.list":  "list processes  |  process.list",
+    "process.kill":  "kill process <name>  |  process.kill process_name=<name>",
+    "process.shell": "run command <cmd>  |  process.shell command=\"<cmd>\"",
+    "file.create":   "create file <path>  |  file.create path=<path>",
+    "file.delete":   "delete file <path>  |  file.delete path=<path>",
+    "file.rename":   "rename file <old> <new>  |  file.rename old_name=<o> new_name=<n>",
+    "file.move":     "move file <src> <dst>  |  file.move source=<s> destination=<d>",
+    "file.search":   "search files <dir> <pattern>  |  file.search directory=<d> pattern=<p>",
+    "npm.install":   "npm install [cwd]  |  npm.install cwd=<dir>",
+    "npm.run":       "npm run <script> [cwd]  |  npm.run script=<s> cwd=<d>",
+}
+
+
 def _build_help(registry: CommandRegistry) -> str:
     lines = ["Available commands:"]
     for entry in sorted(registry.list(), key=lambda e: e["action"]):
@@ -77,7 +98,14 @@ def _build_help(registry: CommandRegistry) -> str:
             f"  {entry['action']:<18} [{entry['plugin']}] "
             f"({level})  {desc}{flag}"
         )
-    lines.append("\nType 'exit' or 'quit' to leave, 'help' to repeat this list.")
+        example = _USAGE_EXAMPLES.get(entry["action"])
+        if example:
+            lines.append(f"    usage: {example}")
+    lines.append(
+        "\nAction ids (e.g. 'system.ram', 'file.create path=foo.txt') "
+        "are accepted in addition to the natural-language phrases above."
+    )
+    lines.append("Type 'exit' or 'quit' to leave, 'help' to repeat this list.")
     return "\n".join(lines)
 
 
@@ -101,6 +129,26 @@ def bootstrap(
 
     audit = AuditLogger(bus)
     audit.subscribe()
+
+    # Verify the existing audit chain at startup.  A break here means
+    # either a previous session was tampered with, or a crash left
+    # the log in an inconsistent state.  We DON'T refuse to start (the
+    # admin may need the CLI to investigate), but we loudly emit an
+    # ``audit.chain_break`` event and write a durable record noting the
+    # break so the incident is itself tamper-evident.
+    try:
+        from aura.security.audit_log import verify_chain
+        ok, bad_line = verify_chain(audit.path)
+        if not ok:
+            bus.emit("audit.chain_break", {"path": str(audit.path), "bad_line": bad_line})
+            sys.stderr.write(
+                f"[AURA] WARNING: audit log {audit.path} failed hash-chain "
+                f"verification at line {bad_line}.  Prior session may have "
+                f"been tampered with; incident logged and continuing.\n"
+            )
+    except Exception:
+        # Chain-verify is best-effort at boot; never let it abort startup.
+        pass
 
     # Load the plugin safety manifest BEFORE spawning the worker.  We
     # bind its SHA-256 to the worker via an environment variable so

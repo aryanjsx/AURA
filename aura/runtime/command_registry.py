@@ -686,10 +686,28 @@ class CommandRegistry:
         def _execute_safe(
             spec: CommandSpec, source: str
         ) -> CommandResult:
-            # --- normalise source ---
-            if not isinstance(source, str) or not source.strip():
+            # --- source validation (STRICT, no normalisation) ---
+            # History: this used to do ``source.strip().lower()``, which
+            # silently turned ``"CLI "`` / ``" cli"`` / ``"CLI\n"`` into
+            # the ``cli`` bucket (CRITICAL).  That is a latent privilege
+            # escalation vector: any upstream layer that forwards an
+            # attacker-influenced source label could gain ``cli``'s cap
+            # by padding a whitespace or changing case.  We now require
+            # an EXACT match against the validator's known sources and
+            # refuse everything else at the gate — typos surface at
+            # dev time instead of silently downgrading in prod.
+            if not isinstance(source, str):
+                raise SchemaError("source must be a string")
+            if not source:
                 raise SchemaError("source must be a non-empty string")
-            clean_source = source.strip().lower()
+            known = permissions_ref.known_sources
+            if source not in known:
+                raise SchemaError(
+                    f"Unknown source {source!r}; must be one of "
+                    f"{sorted(known)} (exact match, no whitespace or case "
+                    f"normalisation)."
+                )
+            clean_source = source  # already canonical — pass through verbatim.
 
             if not isinstance(spec, CommandSpec):
                 spec = validate_command(spec)
