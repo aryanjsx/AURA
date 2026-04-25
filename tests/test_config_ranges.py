@@ -31,8 +31,13 @@ def _reload_from(tmp_path: Path, body: str, monkeypatch: pytest.MonkeyPatch):
 
 
 _BASELINE = """
+aura:
+  name: AURA
+  version: "2.0.0"
+  mode: offline
+sandbox:
+  base_dir: "./sandbox"
 paths:
-  sandbox: "./sandbox"
   protected:
     - "~/.ssh"
     - "/etc"
@@ -46,8 +51,12 @@ audit:
   max_bytes: 1048576
   backup_count: 3
 shell:
-  allowlist: ["echo"]
+  allowed_commands: ["echo"]
   timeout: 10
+permissions:
+  source_limits:
+    cli: CRITICAL
+    llm: MEDIUM
 rate_limit:
   max_per_minute: 60
   repeat_threshold: 10
