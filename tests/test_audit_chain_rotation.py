@@ -74,6 +74,8 @@ def test_verify_chain_dir_detects_tamper_in_rotated_segment(tmp_path: Path):
     )
     victim = rotated[0]
     lines = victim.read_text(encoding="utf-8").splitlines()
+    lines = [ln for ln in lines if ln.strip()]
+    assert lines, f"rotated file {victim.name} is empty — rotation guard failed"
     # Tamper line 1's payload — hash will no longer match.
     first = json.loads(lines[0])
     first["payload"]["action"] = "HACKED"
