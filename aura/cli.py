@@ -83,6 +83,8 @@ _USAGE_EXAMPLES: dict[str, str] = {
     "file.rename":   "rename file <old> <new>  |  file.rename old_name=<o> new_name=<n>",
     "file.move":     "move file <src> <dst>  |  file.move source=<s> destination=<d>",
     "file.search":   "search files <dir> <pattern>  |  file.search directory=<d> pattern=<p>",
+    "project.create": "create project <path>  |  project.create path=<path>",
+    "log.show":       "show logs <file> [n]  |  log.show filepath=<f> lines=<n>",
     "npm.install":   "npm install [cwd]  |  npm.install cwd=<dir>",
     "npm.run":       "npm run <script> [cwd]  |  npm.run script=<s> cwd=<d>",
 }
@@ -130,24 +132,21 @@ def bootstrap(
     audit = AuditLogger(bus)
     audit.subscribe()
 
-    # Verify the existing audit chain at startup.  A break here means
-    # either a previous session was tampered with, or a crash left
-    # the log in an inconsistent state.  We DON'T refuse to start (the
-    # admin may need the CLI to investigate), but we loudly emit an
-    # ``audit.chain_break`` event and write a durable record noting the
-    # break so the incident is itself tamper-evident.
+    # Verify the existing audit chain at startup.  Only warn when the
+    # log genuinely exists with entries and the chain is broken — fresh
+    # installs and empty logs should never alarm the user.
     try:
         from aura.security.audit_log import verify_chain
-        ok, bad_line = verify_chain(audit.path)
-        if not ok:
-            bus.emit("audit.chain_break", {"path": str(audit.path), "bad_line": bad_line})
-            sys.stderr.write(
-                f"[AURA] WARNING: audit log {audit.path} failed hash-chain "
-                f"verification at line {bad_line}.  Prior session may have "
-                f"been tampered with; incident logged and continuing.\n"
-            )
+        _audit_path = audit.path
+        if _audit_path.exists() and _audit_path.stat().st_size > 0:
+            ok, bad_line = verify_chain(_audit_path)
+            if not ok:
+                bus.emit("audit.chain_break", {"path": str(_audit_path), "bad_line": bad_line})
+                sys.stderr.write(
+                    "[AURA] SECURITY WARNING: Audit log integrity check failed. "
+                    "Log may have been tampered with. See logs/audit.log.\n"
+                )
     except Exception:
-        # Chain-verify is best-effort at boot; never let it abort startup.
         pass
 
     # Load the plugin safety manifest BEFORE spawning the worker.  We
@@ -225,6 +224,16 @@ def bootstrap(
     return router, registry
 
 
+def _mode_line() -> str:
+    """Return a human-readable mode indicator line."""
+    try:
+        from aura.core.mode_monitor import ModeMonitor
+        online = ModeMonitor().is_online()
+    except Exception:
+        online = False
+    return "  Mode: ONLINE \u2705" if online else "  Mode: OFFLINE \U0001f534"
+
+
 def run_repl(
     router: Router,
     registry: CommandRegistry,
@@ -236,6 +245,7 @@ def run_repl(
     sink = output_sink or StdoutOutput()
 
     sink.send(BANNER)
+    sink.send(_mode_line())
     sink.send(_build_help(registry))
 
     while True:
@@ -256,19 +266,50 @@ def run_repl(
         sink.send(result.message)
 
 
+def print_help(registry: CommandRegistry) -> None:
+    """Print the help text (shared between REPL and --yes mode)."""
+    print(_build_help(registry))
+
+
 def main(argv: list[str] | None = None) -> int:
-    argv = list(sys.argv[1:] if argv is None else argv)
+    import argparse
 
-    auto_confirm_flag = False
-    if "--yes" in argv:
-        auto_confirm_flag = True
-        argv = [a for a in argv if a != "--yes"]
+    parser = argparse.ArgumentParser(
+        prog="aura",
+        description="AURA \u2014 Autonomous Unified Response Architecture",
+    )
+    parser.add_argument(
+        "--version", action="store_true",
+        help="Print AURA version and exit",
+    )
+    parser.add_argument(
+        "--yes", metavar="COMMAND",
+        help="Run a single command non-interactively (auto-confirm) and exit",
+    )
+    parser.add_argument(
+        "--test", action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    args, remaining = parser.parse_known_args(
+        sys.argv[1:] if argv is None else argv,
+    )
 
-    if "--test" in argv and os.environ.get("AURA_DEV") == "1":
-        argv = [a for a in argv if a != "--test"]
-        text = " ".join(argv) if argv else "(no input)"
+    if args.version:
+        from aura import __version__
+        print(f"AURA {__version__}")
+        return 0
+
+    if args.test and os.environ.get("AURA_DEV") == "1":
+        text = " ".join(remaining) if remaining else "(no input)"
         print(f"Received input: {text}")
         return 0
+
+    auto_confirm_flag = args.yes is not None
+
+    if args.yes is not None:
+        if not args.yes.strip():
+            print("[AURA] No command provided. Use --yes \"<command>\".")
+            return 1
 
     try:
         router, registry = bootstrap(auto_confirm=auto_confirm_flag or None)
@@ -277,8 +318,21 @@ def main(argv: list[str] | None = None) -> int:
         print(result.message, file=sys.stderr)
         return 2
 
-    if argv:
-        text = " ".join(argv)
+    if args.yes is not None:
+        text = args.yes.strip()
+        low = text.lower()
+        if low == "help":
+            print_help(registry)
+            return 0
+        if low in ("exit", "quit"):
+            print("Goodbye.")
+            return 0
+        result = router.route(text, source="cli")
+        print(result.message)
+        return 0 if result.success else 1
+
+    if remaining:
+        text = " ".join(remaining)
         result = router.route(text, source="cli")
         print(result.message)
         return 0 if result.success else 1

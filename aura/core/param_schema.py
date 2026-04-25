@@ -129,6 +129,13 @@ PARAM_SCHEMAS: dict[str, tuple[ParamSpec, ...]] = {
     "system.cpu":    (),
     "system.ram":    (),
     "system.health": (),
+    # ---- project ----
+    "project.create": (ParamSpec("path", (str,)),),
+    # ---- log reader ----
+    "log.show": (
+        ParamSpec("filepath", (str,)),
+        ParamSpec("lines", (int,), required=False),
+    ),
     # ---- npm ----
     "npm.install":   (ParamSpec("cwd", (str,)),),
     "npm.run":       (

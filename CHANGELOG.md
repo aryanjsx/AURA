@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ---
 
+## [2.0.0] — 2026-04-25
+
+### Added
+
+- **`--version` flag** — `python -m aura --version` prints `AURA 2.0.0` and exits
+- **`--help` flag** — `python -m aura --help` prints usage via `argparse` and exits
+- **`--yes` single-command mode** — `python -m aura --yes "<command>"` runs one command non-interactively and exits
+- **Mode indicator** — the REPL banner now shows `Mode: ONLINE` or `Mode: OFFLINE` at startup
+- **`create project <path>`** — scaffolds a new project with `src/`, `tests/`, `README.md`, `.gitignore`, `requirements.txt`
+- **`show logs <file> [n]`** — tails the last *n* lines of any log file (default 20)
+- **Python in system health** — `check system health` now reports Python version as the first entry
+- **File-exists warning** — `create file` on an existing path warns instead of silently overwriting
+- **Config section validation** — missing required top-level sections in `config.yaml` produce a clear error, not a silent fallback
+- **Shell built-in support** — `echo`, `dir`, `type`, `cat`, `ls` are executed with `shell=True` on Windows so built-ins work correctly
+
+### Fixed
+
+- **UnicodeEncodeError crash on Windows** — `sys.stdout` and `sys.stderr` are reconfigured to UTF-8 at startup; child processes inherit `PYTHONUTF8=1`
+- **Raw tracebacks on invalid config** — startup errors (bad YAML, missing sections) produce a single clean `[AURA]` line instead of a Python traceback
+- **`--yes ""` hangs** — empty or whitespace-only `--yes` input now prints an error and exits immediately
+- **Audit log false alarm** — hash-chain verification no longer warns on fresh installs or empty log files
+- **JSON logs leaking to stderr** — the `stderr` console handler has been removed; structured JSON logs go to file only
+- **`help` broken in `--yes` mode** — REPL built-ins (`help`, `exit`, `quit`) now work in single-command mode
+- **Smart keyword paths sandboxed** — `desktop/`, `documents/`, `downloads/`, `home/` now resolve to real OS directories instead of creating literal subdirectories in the sandbox
+
+---
+
 ## [0.2.0] — 2026-03-16
 
 ### Added

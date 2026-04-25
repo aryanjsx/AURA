@@ -125,12 +125,7 @@ def get_logger(name: str = "aura") -> logging.Logger:
         file_handler.setLevel(effective)
         file_handler.setFormatter(formatter)
 
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(max(effective, logging.WARNING))
-        console_handler.setFormatter(formatter)
-
         logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
         logger.propagate = False
 
         _configured.add(name)

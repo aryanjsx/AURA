@@ -19,6 +19,7 @@ practically unreachable from outside the registry pipeline.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path, PurePath
@@ -39,6 +40,10 @@ _ALLOWED_SCRIPT_CHARS: frozenset[str] = frozenset(
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_:."
 )
 
+_SHELL_BUILTINS: frozenset[str] = frozenset({
+    "echo", "dir", "ls", "type", "cat",
+})
+
 
 class SystemExecutor:
     """All executors for the ``system`` plugin — private by construction."""
@@ -58,25 +63,30 @@ class SystemExecutor:
         cwd: Path | None = None,
         timeout: int | None = None,
         command_type: str = "process.shell",
+        use_shell: bool = False,
     ) -> CommandResult:
         if not argv:
             raise PolicyError("Empty argv")
         if timeout is None:
             timeout = int(get_config("shell.timeout", 120))
 
+        run_arg: str | list[str] = " ".join(argv) if use_shell else argv
+
         with benchmark(
             self._logger, "process.run",
             action=command_type, argv=argv, trace_id=current_trace_id(),
         ):
+            env = {**os.environ, "PYTHONUTF8": "1"}
             try:
                 completed = subprocess.run(
-                    argv,
+                    run_arg,
                     cwd=str(cwd) if cwd else None,
                     capture_output=True,
                     text=True,
                     timeout=timeout,
-                    shell=False,
+                    shell=use_shell,
                     check=False,
+                    env=env,
                 )
             except FileNotFoundError as exc:
                 raise ExecutionError(f"Command not found: {exc}") from exc
@@ -109,6 +119,13 @@ class SystemExecutor:
     # ------------------------------------------------------------------
     def __file_create(self, path: str) -> CommandResult:
         target = resolve_safe_path(path, create_parents=True)
+        if target.exists():
+            return CommandResult(
+                success=True,
+                message=f"[WARNING] File already exists: {target} \u2014 not overwritten.",
+                data={"path": str(target), "already_existed": True},
+                command_type="file.create",
+            )
         target.touch(exist_ok=True)
         self._logger.info(
             "file.created",
@@ -224,7 +241,11 @@ class SystemExecutor:
     def __process_shell(self, command: str) -> CommandResult:
         self._policy.check_shell_command(command)
         argv = split_command_string(command)
-        return self.__safe_run(argv, command_type="process.shell")
+        cmd_name = Path(argv[0]).stem.lower() if argv else ""
+        is_builtin = cmd_name in _SHELL_BUILTINS
+        return self.__safe_run(
+            argv, command_type="process.shell", use_shell=is_builtin,
+        )
 
     def __process_list(self, limit: int = 25) -> CommandResult:
         try:
@@ -337,8 +358,11 @@ class SystemExecutor:
         return out or "installed"
 
     def __system_health(self) -> CommandResult:
+        import sys as _sys
+        python_version = f"Python {_sys.version.split()[0]}"
         tools = get_config("system_check.tools") or ["git", "node", "docker", "npm"]
-        report: dict[str, str] = {tool: self.__probe_tool(tool) for tool in tools}
+        report: dict[str, str] = {"python": python_version}
+        report.update({tool: self.__probe_tool(tool) for tool in tools})
         lines = [
             f"  {tool:<10} : {('NOT INSTALLED' if v == 'not installed' else v)}"
             for tool, v in report.items()
@@ -352,6 +376,94 @@ class SystemExecutor:
             message="System Health:\n" + "\n".join(lines),
             data={"tools": report},
             command_type="system.health",
+        )
+
+    # ------------------------------------------------------------------
+    # Project scaffolding
+    # ------------------------------------------------------------------
+    def __project_create(self, path: str) -> CommandResult:
+        if not path or not str(path).strip():
+            raise ExecutionError(
+                "Project path is required. Usage: create project <path>"
+            )
+        target = resolve_safe_path(path, create_parents=True)
+        if target.exists() and any(target.iterdir()):
+            return CommandResult(
+                success=False,
+                message=f"[ERROR] Directory already exists and is not empty: {target}",
+                data={"path": str(target)},
+                command_type="project.create",
+            )
+        target.mkdir(parents=True, exist_ok=True)
+        (target / "src").mkdir(exist_ok=True)
+        (target / "tests").mkdir(exist_ok=True)
+        project_name = target.name
+        (target / "README.md").write_text(
+            f"# {project_name}\n", encoding="utf-8",
+        )
+        (target / ".gitignore").write_text(
+            "__pycache__/\n*.pyc\n.env\n*.egg-info/\ndist/\nbuild/\n"
+            "node_modules/\n.venv/\n",
+            encoding="utf-8",
+        )
+        (target / "requirements.txt").touch()
+        self._logger.info(
+            "project.created",
+            extra={"event": "project.created", "data": {"path": str(target)}},
+        )
+        return CommandResult(
+            success=True,
+            message=f"Project '{project_name}' created at {target}",
+            data={"path": str(target), "name": project_name},
+            command_type="project.create",
+        )
+
+    # ------------------------------------------------------------------
+    # Log reader
+    # ------------------------------------------------------------------
+    def __log_show(self, filepath: str, lines: int = 20) -> CommandResult:
+        if not filepath or not str(filepath).strip():
+            raise ExecutionError(
+                "Log file path is required. Usage: show logs <path> [n]"
+            )
+        try:
+            n = int(lines)
+        except (TypeError, ValueError) as exc:
+            raise ExecutionError(f"Line count must be an integer, got {lines!r}") from exc
+        if n <= 0:
+            raise ExecutionError("Line count must be positive")
+
+        log_path = Path(str(filepath).strip())
+        if not log_path.is_absolute():
+            log_path = Path(__file__).resolve().parent.parent.parent / log_path
+
+        if not log_path.exists():
+            return CommandResult(
+                success=False,
+                message=f"Log file not found: {log_path}",
+                data={"path": str(log_path)},
+                command_type="log.show",
+            )
+
+        try:
+            with log_path.open("r", encoding="utf-8", errors="replace") as fh:
+                all_lines = fh.readlines()
+            tail = all_lines[-n:] if len(all_lines) > n else all_lines
+            output = "".join(tail).rstrip("\n")
+        except Exception as exc:
+            return CommandResult(
+                success=False,
+                message=f"Error reading log file: {exc}",
+                data={"path": str(log_path)},
+                command_type="log.show",
+            )
+
+        header = f"Last {len(tail)} line(s) of {log_path}:\n"
+        return CommandResult(
+            success=True,
+            message=header + output,
+            data={"path": str(log_path), "lines_shown": len(tail)},
+            command_type="log.show",
         )
 
     # ------------------------------------------------------------------
@@ -401,6 +513,8 @@ class SystemExecutor:
             "file.rename": self._SystemExecutor__file_rename,
             "file.move":   self._SystemExecutor__file_move,
             "file.search": self._SystemExecutor__file_search,
+            "project.create": self._SystemExecutor__project_create,
+            "log.show":      self._SystemExecutor__log_show,
             "process.shell": self._SystemExecutor__process_shell,
             "process.list":  self._SystemExecutor__process_list,
             "process.kill":  self._SystemExecutor__process_kill,

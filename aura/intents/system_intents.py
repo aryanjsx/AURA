@@ -113,6 +113,33 @@ def parse_file_commands(text: str) -> Intent | None:
             raw_text=text,
         )
 
+    if head == "create" and sub == "project":
+        path = _rest(tokens, 2)
+        if not path:
+            return Intent(
+                action="project.create", args={"path": ""},
+                raw_text=text,
+            )
+        return Intent(
+            action="project.create", args={"path": path},
+            raw_text=text,
+        )
+
+    if head == "show" and sub == "logs":
+        remaining = tokens[2:]
+        if not remaining:
+            return Intent(
+                action="log.show", args={"filepath": ""},
+                raw_text=text,
+            )
+        filepath = remaining[0]
+        lines = int(remaining[1]) if len(remaining) > 1 and remaining[1].isdigit() else 20
+        return Intent(
+            action="log.show",
+            args={"filepath": filepath, "lines": lines},
+            raw_text=text,
+        )
+
     return None
 
 

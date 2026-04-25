@@ -108,6 +108,20 @@ plugins:
           - command.executing
           - command.completed
 
+      project.create:
+        permission_level: MEDIUM
+        destructive: false
+        audit_events:
+          - command.executing
+          - command.completed
+
+      log.show:
+        permission_level: LOW
+        destructive: false
+        audit_events:
+          - command.executing
+          - command.completed
+
       npm.install:
         permission_level: HIGH
         destructive: true

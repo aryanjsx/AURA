@@ -101,6 +101,18 @@ class Plugin(PluginBase):
                 "destructive": False,
                 "permission_level": PermissionLevel.LOW,
             },
+            "project.create": {
+                "handler": handlers["project.create"],
+                "description": "Scaffold a new project directory",
+                "destructive": False,
+                "permission_level": PermissionLevel.MEDIUM,
+            },
+            "log.show": {
+                "handler": handlers["log.show"],
+                "description": "Show last N lines of a log file",
+                "destructive": False,
+                "permission_level": PermissionLevel.LOW,
+            },
             "npm.install": {
                 "handler": handlers["npm.install"],
                 "description": "Run npm install in a sandbox directory",

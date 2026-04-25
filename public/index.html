@@ -192,12 +192,12 @@
         <div class="section__head reveal">
           <span class="eyebrow">How It Works</span>
           <h2 class="section__title">
-            From voice to action —
+            From intent to action —
             <span class="gradient-text">in milliseconds</span>.
           </h2>
           <p class="section__lead">
-            A clean, deterministic pipeline routes your intent through the
-            local brain and out to real actions on your system.
+            A clean, deterministic pipeline routes your command through
+            safety checks and out to real actions on your system.
           </p>
         </div>
 
@@ -252,18 +252,95 @@
       </div>
     </section>
 
-    <!-- FEATURES -->
+    <!-- FEATURES — AVAILABLE NOW -->
     <section id="features" class="section">
       <div class="container">
         <div class="section__head reveal">
-          <span class="eyebrow">Capabilities</span>
+          <span class="eyebrow eyebrow--green">Available Now</span>
           <h2 class="section__title">
-            Every layer of a
-            <span class="gradient-text">real assistant</span>.
+            What you can do
+            <span class="gradient-text">right now</span>.
           </h2>
           <p class="section__lead">
-            Built as modular plugins around an immutable core. Extend anything,
-            break nothing.
+            Phase 1 is complete. Everything below is fully working and tested.
+          </p>
+        </div>
+
+        <div class="features-grid">
+          <article class="feature reveal">
+            <div class="feature__icon">📁</div>
+            <h3>File Operations</h3>
+            <p>
+              Create, delete, rename, move, and search files anywhere on your
+              machine. Smart keywords like <code>desktop/</code> and
+              <code>~/</code> resolve to real OS directories.
+            </p>
+          </article>
+
+          <article class="feature reveal">
+            <div class="feature__icon">⚙️</div>
+            <h3>Process &amp; System</h3>
+            <p>
+              Monitor CPU and RAM, list running processes, check system health
+              (Python, Git, Node, Docker, npm), and run allowlisted shell commands.
+            </p>
+          </article>
+
+          <article class="feature reveal">
+            <div class="feature__icon">🏗️</div>
+            <h3>Project Scaffolding</h3>
+            <p>
+              Spin up a new project skeleton anywhere with
+              <code>create project</code> — generates src/, tests/, README,
+              .gitignore, and requirements.txt.
+            </p>
+          </article>
+
+          <article class="feature reveal">
+            <div class="feature__icon">📋</div>
+            <h3>Log Inspection</h3>
+            <p>
+              Tail any log file without leaving the CLI.
+              <code>show logs aura.log 10</code> gives you the last 10 lines
+              instantly.
+            </p>
+          </article>
+
+          <article class="feature reveal">
+            <div class="feature__icon">🔒</div>
+            <h3>Security Built In</h3>
+            <p>
+              Protected system paths are blocked, shell commands use an
+              allowlist, and every action is hash-chained to a tamper-evident
+              audit log.
+            </p>
+          </article>
+
+          <article class="feature reveal">
+            <div class="feature__icon">🛠️</div>
+            <h3>Developer-First CLI</h3>
+            <p>
+              Interactive REPL with banner, mode indicator, built-in help, and
+              single-command mode via <code>--yes</code>. Clean errors, no
+              tracebacks.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMING NEXT -->
+    <section class="section section--alt" id="coming-next">
+      <div class="container">
+        <div class="section__head reveal">
+          <span class="eyebrow">The Full Vision</span>
+          <h2 class="section__title">
+            What's
+            <span class="gradient-text">coming next</span>.
+          </h2>
+          <p class="section__lead">
+            Phase 2 is in progress. Each future phase adds a new layer of
+            capability — voice, vision, memory, and more.
           </p>
         </div>
 
@@ -275,6 +352,7 @@
               Natural wake-word, streaming STT, and expressive TTS — all
               running locally with zero latency overhead.
             </p>
+            <span class="badge badge--live" style="margin-top:12px;display:inline-block">Phase 2</span>
           </article>
 
           <article class="feature reveal">
@@ -284,15 +362,17 @@
               Pluggable open-weight models. Think, plan, summarize, and reason
               without a single API call.
             </p>
+            <span class="badge badge--live" style="margin-top:12px;display:inline-block">Phase 2</span>
           </article>
 
           <article class="feature reveal">
-            <div class="feature__icon">🖥️</div>
-            <h3>PC Automation</h3>
+            <div class="feature__icon">🔧</div>
+            <h3>Git &amp; Docker</h3>
             <p>
-              Open apps, move files, run scripts, control windows — AURA
-              speaks fluent operating system.
+              Commit, push, branch, build, run, stop — full dev-tool
+              automation from a single command.
             </p>
+            <span class="badge" style="margin-top:12px;display:inline-block">Phase 3</span>
           </article>
 
           <article class="feature reveal">
@@ -302,6 +382,7 @@
               Local OCR + vision models let AURA understand what's on your
               screen and act on it.
             </p>
+            <span class="badge" style="margin-top:12px;display:inline-block">Phase 4</span>
           </article>
 
           <article class="feature reveal">
@@ -311,15 +392,17 @@
               Long-term vector memory + session context so AURA remembers your
               habits, files, and preferences.
             </p>
+            <span class="badge" style="margin-top:12px;display:inline-block">Phase 6</span>
           </article>
 
           <article class="feature reveal">
-            <div class="feature__icon">🛠️</div>
-            <h3>Developer Tools</h3>
+            <div class="feature__icon">🌐</div>
+            <h3>Browser &amp; Integrations</h3>
             <p>
-              Git, shell, project scaffolding, and code awareness — your
-              terminal co-pilot, without the cloud.
+              Sandboxed web automation, plus optional bridges to Spotify,
+              Weather, Calendar, and Gmail.
             </p>
+            <span class="badge" style="margin-top:12px;display:inline-block">Phase 7–8</span>
           </article>
         </div>
       </div>
@@ -363,9 +446,9 @@
                 <span class="badge badge--done">Completed</span>
               </div>
               <p>
-                Command engine, module system, sandbox, permissions, audit
-                chain, and the first end-to-end "hello, AURA" flow through a
-                non-bypassable registry.
+                File ops, process control, project scaffolding, log reader,
+                system health, shell execution — all behind a sandboxed,
+                allowlisted, hash-chained security layer. 50/56 tests passing.
               </p>
             </div>
           </li>
@@ -392,8 +475,8 @@
                 <span class="badge">Planned</span>
               </div>
               <p>
-                Git automation, shell control, project scaffolding, and code
-                navigation.
+                Git automation (commit, push, branch, AI-generated messages)
+                and Docker container lifecycle management.
               </p>
             </div>
           </li>
@@ -535,7 +618,7 @@
     </section>
 
     <!-- DEMO / COMMANDS -->
-    <section class="section section--alt">
+    <section class="section">
       <div class="container">
         <div class="section__head reveal">
           <span class="eyebrow">Try It</span>
@@ -544,8 +627,8 @@
             <span class="gradient-text">Real actions.</span>
           </h2>
           <p class="section__lead">
-            Talk to AURA like you'd talk to a teammate. It opens apps, ships
-            code, and sees your screen.
+            Everything in this terminal works today. Clone the repo and try it
+            yourself.
           </p>
         </div>
 
@@ -554,28 +637,40 @@
             <span class="dotc red"></span>
             <span class="dotc yellow"></span>
             <span class="dotc green"></span>
-            <span class="terminal__title">aura — live session</span>
+            <span class="terminal__title">python -m aura</span>
           </div>
           <div class="terminal__body">
-            <p><span class="prompt">you &gt;</span> Open Chrome</p>
+            <p><span class="prompt">&gt;</span> create file desktop/hello.txt</p>
             <p class="out">
-              <span class="ok">✓</span> Launching Chrome… window focused.
+              <span class="ok">✓</span> File created: C:\Users\You\Desktop\hello.txt
             </p>
 
-            <p><span class="prompt">you &gt;</span> Push code to GitHub</p>
+            <p><span class="prompt">&gt;</span> check system health</p>
             <p class="out">
-              <span class="ok">✓</span> Staged 4 files · commit "feat: landing
-              page" · pushed to <em>main</em>.
+              <span class="ok">✓</span> System Health:<br>
+              &nbsp;&nbsp;python : Python 3.14.0<br>
+              &nbsp;&nbsp;git &nbsp;&nbsp;&nbsp;&nbsp;: git version 2.51.1<br>
+              &nbsp;&nbsp;node &nbsp;&nbsp;: v22.22.0<br>
+              &nbsp;&nbsp;npm &nbsp;&nbsp;&nbsp;: 11.6.1
             </p>
 
-            <p><span class="prompt">you &gt;</span> What's on my screen?</p>
+            <p><span class="prompt">&gt;</span> create project desktop/my-app</p>
             <p class="out">
-              <span class="ok">✓</span> VS Code · <em>index.html</em> ·
-              cursor on line 212. Want me to summarize the section?
+              <span class="ok">✓</span> Project 'my-app' created at C:\Users\You\Desktop\my-app
+            </p>
+
+            <p><span class="prompt">&gt;</span> show logs logs/aura.log 3</p>
+            <p class="out">
+              <span class="ok">✓</span> Last 3 line(s) of logs/aura.log
+            </p>
+
+            <p><span class="prompt">&gt;</span> run command git --version</p>
+            <p class="out">
+              <span class="ok">✓</span> git version 2.51.1
             </p>
 
             <p>
-              <span class="prompt">you &gt;</span>
+              <span class="prompt">&gt;</span>
               <span class="caret">▌</span>
             </p>
           </div>
@@ -626,7 +721,7 @@
           Build your own
           <span class="gradient-text">JARVIS</span>.
         </h2>
-        <p>Clone the repo, load a model, and say hello.</p>
+        <p>Clone the repo, install dependencies, and run <code>python -m aura</code>.</p>
         <div class="cta-banner__actions">
           <a
             class="btn btn--primary"

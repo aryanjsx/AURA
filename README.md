@@ -49,46 +49,115 @@ The Phase-0 execution backbone (secure dispatch, argv-based subprocess with `she
 
 ---
 
-## ✨ Features
+## ✅ What You Can Do Right Now
 
-### Phase 0 + Phase 1 — Available Now (Completed)
+> **Phase 1 is complete. Everything below is fully working and tested (50/56 tests passing).**
 
-- **Command Execution Engine** — dispatch natural-language text commands to file, process, npm, system, and monitor handlers
-- **Structured Results** — every handler returns a `CommandResult` with `success`, `message`, and typed `data` payload, ready for programmatic consumers (LLM, GUI)
-- **Smart Path Resolution** — `~`, `desktop/`, `downloads/`, `documents/` keywords are automatically expanded to real absolute paths across all modules
-- **File Operations** — create, delete, rename, move, and glob-search files anywhere on your machine
-- **Path Safety** — protected system directories (`C:\Windows`, `/usr`, etc.) are blocked using full ancestry checking, with path-traversal protection on renames; optional **`AURA_PROTECTED_PATHS`** env override
-- **Shell Safety** — user commands are split into argv and run with **`subprocess`…`shell=False`**; **`CommandPolicy`** applies a **denylist** (destructive patterns) and an **allowlist** of executable names before any generic `run command` reaches the process layer
-- **npm** — dedicated executor resolves **`npm`** or **`npm.cmd`** via **`shutil.which`**, validates project directory through **`path_utils`**, runs **`npm install`** / **`npm run <script>`** as argv lists (never a shell string)
-- **System Monitoring** — short phrases (`cpu`, `ram`, `memory usage`, `processes`, `show processes`, and more) map to CPU/RAM snapshots and process lists via **psutil**
-- **Process Management** — run allowed shell commands, inspect running processes, kill by name
-- **System Health Checks** — verify Python, Git, Node, and Docker availability (configurable tool list) using argv-based probes
-- **Project Scaffolding** — spin up a new project skeleton anywhere (`create project ~/Desktop/my_app`) with configurable folders and files from config
-- **Log Inspection** — tail any log file without leaving the assistant
-- **Built-in Help** — `help` / `--help` via the dispatcher returns a Phase-0 command summary; interactive REPL also has a static help banner
-- **Config-Driven** — settings (protected paths, log levels, tool lists, timeouts) from `config.yaml` with safe defaults; optional env overrides: **`AURA_LOG_PATH`**, **`AURA_SHELL_TIMEOUT`**, **`AURA_PROTECTED_PATHS`**
-- **Structured Logging** — every action, result, and error timestamped to `logs/aura.log` with automatic log rotation
-- **I/O Abstraction** — pluggable `InputSource` / `OutputSink` interfaces so the Phase 2 voice input and TTS output plug in with zero changes to the engine
-- **Intent System** — structured `Intent` dataclass decouples text parsing from command execution, enabling LLM-generated actions in Phase 2 (in progress)
-- **Command Registry** — programmatic registry of all commands with metadata, powering LLM tool-use discovery and dynamic help
-- **Command Policy** — centralized `CommandPolicy` safety gate validates every intent before any handler runs
-- **LLM Backend Abstraction** — pluggable `LLMBackend` interface with Ollama stub, ready for real model integration
+### Starting AURA
 
-### Phase 2 — In Progress (Intelligence Layer)
+| Command | What It Does |
+|---|---|
+| `python -m aura` | Start the interactive REPL |
+| `python -m aura --help` | Show usage info |
+| `python -m aura --version` | Print version (`AURA 2.0.0`) |
+| `python -m aura --yes "<command>"` | Run one command non-interactively and exit |
 
-- **Voice Control** — speak commands, hear responses (Whisper + Piper)
-- **Local LLM Reasoning** — intent parsing and code generation via Ollama (Llama 3)
-- **Tool Orchestration** — LLM-driven multi-step plans routed through the existing registry + safety pipeline
+AURA shows your connectivity mode at startup:
 
-### Coming After Phase 2
+```
+    ___   __  ______  ___
+   /   | / / / / __ \/   |
+  / /| |/ / / / /_/ / /| |
+ / ___ / /_/ / _, _/ ___ |
+/_/  |_\____/_/ |_/_/  |_|
 
-- **Git Automation** — commit, push, branch, and auto-generate commit messages (Phase 3)
-- **Docker Management** — build, run, stop containers from a single command (Phase 3)
-- **Screen Vision** — local OCR + vision models for screen understanding (Phase 4)
-- **Desktop GUI** — PyQt6 dashboard with live command log (Phase 5)
-- **Memory + RAG** — ChromaDB-powered semantic project context (Phase 6)
-- **Browser Automation** — sandboxed web research and form filling (Phase 7)
-- **Integrations** — Spotify, Weather, Calendar, Gmail bridges (Phase 8)
+Autonomous Unified Response Architecture
+
+  Mode: ONLINE ✅
+```
+
+### File Operations
+
+| Command | Example |
+|---|---|
+| `create file <path>` | `create file desktop/notes.txt` |
+| `delete file <path>` | `delete file ~/Documents/old.txt` |
+| `rename file <old> <new>` | `rename file draft.txt final.txt` |
+| `move file <src> <dst>` | `move file desktop/report.txt documents/report.txt` |
+| `search files <dir> <pattern>` | `search files . *.py` |
+
+**Path formats** — all commands accept three styles:
+
+| Style | Example | Resolves To |
+|---|---|---|
+| Smart keyword | `desktop/file.txt` | `C:\Users\You\Desktop\file.txt` |
+| Tilde | `~/Documents/file.txt` | `C:\Users\You\Documents\file.txt` |
+| Sandbox-relative | `myproject/file.txt` | `~/AURA_SANDBOX/myproject/file.txt` |
+
+Smart keywords: `desktop/`, `downloads/`, `documents/`, `home/`
+
+Creating a file that already exists warns you instead of silently overwriting.
+
+### Project Scaffolding
+
+```
+> create project desktop/my-app
+Project 'my-app' created at C:\Users\You\Desktop\my-app
+```
+
+Creates: `src/`, `tests/`, `README.md`, `.gitignore`, `requirements.txt`
+
+### Process & System
+
+| Command | What It Does |
+|---|---|
+| `cpu` | Current CPU usage percentage |
+| `ram` | Memory usage (used / total) |
+| `list processes` | Top 25 processes by memory (PID, name, CPU%, MEM) |
+| `check system health` | Reports Python, Git, Node, Docker, npm versions |
+| `run command <cmd>` | Runs an allowlisted shell command (`git`, `npm`, `docker`, `echo`) |
+| `kill process <name>` | Terminates a process by name (graceful not-found handling) |
+
+### Log Inspection
+
+| Command | What It Does |
+|---|---|
+| `show logs <file>` | Tails last 20 lines of a log file |
+| `show logs <file> <n>` | Tails last *n* lines |
+| `show logs nonexistent.log` | Clean error, no crash |
+
+### REPL Commands
+
+| Command | What It Does |
+|---|---|
+| `help` | Lists all available commands with usage |
+| `exit` / `quit` | Clean exit with "Goodbye." |
+| Ctrl+D | Clean EOF exit |
+| Empty line | Silently re-prompts (no crash) |
+| Unknown command | Shows `[UNKNOWN_COMMAND]` and continues |
+
+### Security (transparent to user)
+
+- **Protected paths blocked** — `C:\Windows`, `/usr`, `/etc`, etc. are unreachable
+- **Shell allowlist** — only `git`, `npm`, `docker`, `echo` can be run; arbitrary code execution is blocked
+- **Tamper-evident audit log** — every destructive action is hash-chained to `logs/audit.log`
+- **Sandboxed by default** — plain relative paths resolve inside `~/AURA_SANDBOX`; keyword/tilde paths go to real OS locations
+- **No JSON noise** — structured logs go to files only; stderr is clean
+
+---
+
+### Not Available Yet (Future Phases)
+
+| Phase | Feature | Status |
+|---|---|---|
+| Phase 2 | Voice commands (Whisper + Piper) | In Progress |
+| Phase 2 | AI/LLM reasoning (Ollama, Llama 3) | In Progress |
+| Phase 3 | Git automation, Docker control | Planned |
+| Phase 4 | Screen vision (OCR, visual reasoning) | Planned |
+| Phase 5 | GUI dashboard (PyQt6) | Planned |
+| Phase 6 | Memory across sessions (ChromaDB) | Planned |
+| Phase 7 | Browser automation (Playwright) | Planned |
+| Phase 8 | Spotify, Weather, Calendar, Email | Planned |
 
 ---
 
@@ -226,72 +295,61 @@ Optional environment overrides (see `config_loader` docstring): `AURA_LOG_PATH`,
 python -m aura
 ```
 
-**One-shot command** (runs a single dispatch and exits)
+**Single-command mode** (auto-confirms, runs one command, exits)
 
 ```bash
-python -m aura "cpu"
-python -m aura "npm install"
+python -m aura --yes "cpu"
+python -m aura --yes "create file desktop/hello.txt"
+python -m aura --yes "system health"
 ```
 
+**Example session:**
+
 ```
-    ___   __  ______  ___
-   /   | / / / / __ \/   |
-  / /| |/ / / / /_/ / /| |
- / ___ / /_/ / _, _/ ___ |
-/_/  |_\____/_/ |_/_/  |_|
-
-Autonomous Unified Response Architecture
-Phase 0 + Phase 1 — Secure Command Execution Engine (Completed)
-
-> create file ~/Desktop/hello.txt
+> create file desktop/hello.txt
 File created: C:\Users\You\Desktop\hello.txt
 
 > create file desktop/notes.txt
 File created: C:\Users\You\Desktop\notes.txt
 
-> move file ~/Desktop/notes.txt ~/Documents/
+> move file desktop/notes.txt documents/notes.txt
 Moved: C:\Users\You\Desktop\notes.txt -> C:\Users\You\Documents\notes.txt
 
 > check system health
 System Health:
   python     : Python 3.14.0
   git        : git version 2.51.1
-  node       : v24.11.0
+  node       : v22.22.0
   docker     : NOT INSTALLED
+  npm        : 11.6.1
 
-> create project ~/Desktop/my-app
+> create project desktop/my-app
 Project 'my-app' created at C:\Users\You\Desktop\my-app
 
-> help
-(full command reference from aura.cli._build_help)
+> show logs logs/aura.log 3
+Last 3 line(s) of logs/aura.log:
+{"timestamp": "...", "level": "INFO", ...}
+{"timestamp": "...", "level": "INFO", ...}
+{"timestamp": "...", "level": "INFO", ...}
 
 > exit
 Goodbye.
 ```
 
-### Available Commands
+### Quick Command Reference
 
-| Command | Description |
+| Category | Commands |
 |---|---|
-| **Monitoring** | `cpu`, `cpu usage`, `get cpu usage`, `ram`, `memory`, `memory usage`, `processes`, `show processes`, `running processes` |
+| **Files** | `create file <path>`, `delete file <path>`, `rename file <old> <new>`, `move file <src> <dst>`, `search files <dir> <pattern>` |
+| **Projects** | `create project <path>` |
+| **Monitoring** | `cpu`, `ram`, `list processes`, `check system health` |
+| **Shell** | `run command <cmd>` (allowlisted: `git`, `npm`, `docker`, `echo`) |
+| **Processes** | `kill process <name>` |
+| **Logs** | `show logs <file> [n]` |
 | **npm** | `npm install [path]`, `npm run <script> [path]` |
-| `create file <path>` | Create an empty file |
-| `delete file <path>` | Delete a file |
-| `rename file <old> <new>` | Rename a file |
-| `move file <src> <dst>` | Move a file |
-| `search files <dir> <pattern>` | Glob-search for files |
-| `run command <cmd>` | Execute an allowed command (argv; see policy allowlist) |
-| `list processes` | Show top processes by memory (same handler as short `processes` phrases) |
-| `kill process <name>` | Terminate processes by name |
-| `check system health` | Check Python, Git, Node, Docker |
-| `create project <name\|path>` | Scaffold a new project |
-| `show logs <file> [n]` | Tail a log file (default 20 lines) |
-| `help` / `--help` | Phase-0 help via dispatcher (one-shot); interactive `help` shows REPL banner help |
-| `exit` / `quit` | Exit the CLI |
+| **REPL** | `help`, `exit`, `quit` |
 
-> All paths support `~` (home directory), smart keywords (`desktop/`, `downloads/`, `documents/`), and absolute paths. Files are always created at the correct location, not inside the AURA project folder.
-
-> Full voice and LLM-driven interaction arrives with Phase 2 (in progress).
+> All paths support `~`, smart keywords (`desktop/`, `downloads/`, `documents/`, `home/`), and sandbox-relative paths.
 
 ---
 

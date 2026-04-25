@@ -41,6 +41,36 @@ _base_lock = threading.Lock()
 
 SMART_LOCATIONS: tuple[str, ...] = ("desktop", "downloads", "documents", "home")
 
+_KEYWORD_MAP: dict[str, Path] = {
+    "desktop": Path.home() / "Desktop",
+    "downloads": Path.home() / "Downloads",
+    "documents": Path.home() / "Documents",
+    "home": Path.home(),
+}
+
+
+def expand_keywords(raw_path: str) -> tuple[str, bool]:
+    """Expand smart keyword prefixes and tilde to real OS paths.
+
+    Returns (expanded_path, was_expanded) where was_expanded is True if
+    a keyword or tilde prefix was resolved.
+    """
+    stripped = raw_path.strip().strip("\"'")
+    if not stripped:
+        return stripped, False
+
+    if stripped.startswith("~"):
+        return str(Path(stripped).expanduser()), True
+
+    parts = Path(stripped).parts
+    if parts and parts[0].lower() in _KEYWORD_MAP:
+        real_root = _KEYWORD_MAP[parts[0].lower()]
+        if len(parts) > 1:
+            return str(real_root / Path(*parts[1:])), True
+        return str(real_root), True
+
+    return stripped, False
+
 
 def get_base_dir() -> Path:
     """Return the absolute sandbox root, creating it on first access."""
@@ -191,19 +221,19 @@ def resolve_safe_path(
     if _contains_traversal(cleaned):
         raise SandboxError(f"Path traversal is not allowed: {cleaned!r}")
 
+    expanded, was_keyword = expand_keywords(cleaned)
+
     base = get_base_dir()
     base_resolved = base.resolve()
 
-    path_obj = Path(cleaned).expanduser()
+    path_obj = Path(expanded).expanduser()
     if path_obj.is_absolute():
         raw_candidate = path_obj
     else:
         raw_candidate = base / path_obj
 
-    # Reject *any* symlink in the ancestry whose target is outside base.
-    # This runs BEFORE .resolve() so dangling / cyclic symlinks don't
-    # succeed by being silently coerced.
-    _check_symlink_chain(raw_candidate, base_resolved)
+    if not was_keyword:
+        _check_symlink_chain(raw_candidate, base_resolved)
 
     # Strict resolve when the target exists (catches every remaining
     # race where a deeper component became a symlink between the
@@ -218,12 +248,13 @@ def resolve_safe_path(
             f"Cannot resolve path safely: {raw_candidate} ({exc})"
         ) from exc
 
-    try:
-        candidate.relative_to(base_resolved)
-    except ValueError as exc:
-        raise SandboxError(
-            f"Path escapes sandbox root {base_resolved}: {candidate}"
-        ) from exc
+    if not was_keyword:
+        try:
+            candidate.relative_to(base_resolved)
+        except ValueError as exc:
+            raise SandboxError(
+                f"Path escapes sandbox root {base_resolved}: {candidate}"
+            ) from exc
 
     protected = _is_under_protected(candidate)
     if protected is not None:

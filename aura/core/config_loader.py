@@ -164,6 +164,23 @@ def _dig(cfg: dict[str, Any], dotted: str) -> Any:
     return cur
 
 
+_REQUIRED_SECTIONS: tuple[str, ...] = (
+    "aura", "sandbox", "paths", "logging", "shell",
+    "permissions", "rate_limit", "safety", "audit",
+)
+
+
+def _validate_required_sections(raw: dict[str, Any]) -> None:
+    """Fail if any required top-level section is absent from the raw config."""
+    missing = [s for s in _REQUIRED_SECTIONS if s not in raw]
+    if missing:
+        raise ConfigError(
+            f"Required top-level section(s) missing from config.yaml: "
+            f"{', '.join(sorted(missing))}. "
+            f"Run `cp config.yaml.example config.yaml` to reset."
+        )
+
+
 def _validate_required(cfg: dict[str, Any]) -> None:
     missing: list[str] = []
     empty: list[str] = []
@@ -311,6 +328,7 @@ def load_config() -> dict[str, Any]:
             f"or {_FALLBACK_PATH.name} at {_PROJECT_ROOT}."
         )
 
+    _validate_required_sections(raw)
     merged = _deep_merge(_DEFAULTS, raw)
     merged = _apply_env_overrides(merged)
     _validate_required(merged)
