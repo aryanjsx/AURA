@@ -59,8 +59,14 @@ def test_unknown_prefix_does_not_expand():
 
 @pytest.mark.unit
 def test_absolute_path_outside_sandbox_is_blocked(sandbox_dir):
+    import sys
     from aura.core.errors import SandboxError
     from aura.security.sandbox import resolve_safe_path
 
+    path = (
+        "C:/Windows/System32/cmd.exe"
+        if sys.platform == "win32"
+        else "/usr/bin/ls"
+    )
     with pytest.raises(SandboxError):
-        resolve_safe_path("C:/Windows/System32/cmd.exe")
+        resolve_safe_path(path)

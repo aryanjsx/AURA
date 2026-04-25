@@ -23,9 +23,15 @@ from aura.security.sandbox import resolve_safe_path
 @pytest.mark.unit
 class TestSandboxBlocking:
     def test_sandbox_blocks_path_outside_sandbox_root(self, sandbox_dir):
+        import sys
+        path = "C:/totally_outside" if sys.platform == "win32" else "/some/external/path"
         with pytest.raises(SandboxError):
-            resolve_safe_path("/some/external/path")
+            resolve_safe_path(path)
 
+    @pytest.mark.skipif(
+        __import__("sys").platform != "win32",
+        reason="Windows-only protected path",
+    )
     def test_sandbox_blocks_windows_system32(self, sandbox_dir):
         with pytest.raises(SandboxError):
             resolve_safe_path("C:/Windows/System32/cmd.exe")
@@ -38,6 +44,10 @@ class TestSandboxBlocking:
         with pytest.raises(SandboxError):
             resolve_safe_path("/etc/passwd")
 
+    @pytest.mark.skipif(
+        __import__("sys").platform != "win32",
+        reason="Windows-only protected path",
+    )
     def test_sandbox_blocks_program_files(self, sandbox_dir):
         with pytest.raises(SandboxError):
             resolve_safe_path("C:/Program Files/something")
