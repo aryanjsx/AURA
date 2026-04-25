@@ -72,3 +72,15 @@ aura = "aura.cli:main"
 [project.urls]
 Homepage = "https://github.com/aryanjsx/AURA"
 "Bug Tracker" = "https://github.com/aryanjsx/AURA/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "unit: Phase 1 unit tests — must always pass",
+    "integration: requires external services (Ollama, mic, etc.)",
+    "slow: tests that take more than 2 seconds",
+]

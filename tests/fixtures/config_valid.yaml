@@ -1,0 +1,54 @@
+aura:
+  name: "AURA"
+  version: "2.0"
+  mode: "offline"
+
+sandbox:
+  base_dir: "~/AURA_SANDBOX"
+
+paths:
+  protected:
+    - "C:/Windows"
+    - "C:/Windows/System32"
+    - "C:/Program Files"
+    - "/bin"
+    - "/usr"
+    - "/etc"
+
+logging:
+  file: "logs/aura.log"
+  level: "INFO"
+  format: "json"
+  max_bytes: 5242880
+  backup_count: 3
+
+shell:
+  timeout: 120
+  allowed_commands:
+    - "git"
+    - "npm"
+    - "docker"
+    - "echo"
+
+system_check:
+  tools:
+    - "git"
+    - "node"
+
+permissions:
+  source_limits:
+    cli: "CRITICAL"
+    llm: "MEDIUM"
+
+rate_limit:
+  max_per_minute: 60
+  repeat_threshold: 10
+
+safety:
+  confirm_timeout: 8
+  auto_confirm: false
+
+audit:
+  file: "logs/audit.log"
+  max_bytes: 5242880
+  backup_count: 5
