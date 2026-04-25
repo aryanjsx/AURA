@@ -1,7 +1,7 @@
-# ⚡ AURA — Autonomous Utility & Resource Assistant
+# ⚡ AURA — Autonomous Unified Response Architecture
 
 <p align="center">
-  <img src="docs/assets/AURA.jpg" alt="AURA — Autonomous Utility & Resource Assistant" width="800"/>
+  <img src="docs/assets/AURA.jpg" alt="AURA — Autonomous Unified Response Architecture" width="800"/>
 </p>
 
 ![Build Status](https://github.com/aryanjsx/AURA/actions/workflows/ci.yml/badge.svg)
@@ -37,12 +37,15 @@ The Phase-0 execution backbone (secure dispatch, argv-based subprocess with `she
 
 | Phase | Description | Status | ETA |
 |-------|-------------|--------|-----|
-| Phase 0 — Core Infrastructure | Event bus, config loader, registry, CLI, execution backbone | ✅ Completed | — |
-| Phase 1 — Python Automation Core + Secure Execution | File / process / npm / monitor plugins, sandbox, permissions, audit chain, non-bypassable registry | ✅ Completed | — |
-| Phase 2 — Intelligence Layer (Voice + LLM) | Whisper STT + Ollama LLM + Piper TTS + tool orchestration | 🔄 In Progress | Week 9 |
-| Phase 3 — Dev Tools | Git & Docker automation | ⏳ Planned | Week 13 |
-| Phase 4 — GUI Dashboard | PyQt6 desktop interface | ⏳ Planned | Week 16 |
-| Phase 5 — Memory Layer | ChromaDB semantic memory | ⏳ Planned | Week 18 |
+| Phase 0 — Project Core (INFRA) | Event bus, config loader, registry, CLI, execution backbone | ✅ Completed | — |
+| Phase 1 — Foundation (System Plugin) | File / process / npm / monitor plugins, sandbox, permissions, audit chain, non-bypassable registry | ✅ Completed | — |
+| Phase 2 — Voice + Intelligence Router | Whisper STT + Ollama LLM + Piper TTS + tool orchestration | 🔄 In Progress | Week 9 |
+| Phase 3 — Dev Tools (Git + Docker) | Git & Docker automation | ⏳ Planned | Week 13 |
+| Phase 4 — Vision (Screen Understanding) | Screen capture, OCR, visual reasoning | ⏳ Planned | Week 16 |
+| Phase 5 — GUI Dashboard | PyQt6 desktop interface | ⏳ Planned | Week 18 |
+| Phase 6 — Memory + RAG | ChromaDB semantic memory + conversation history | ⏳ Planned | Week 20 |
+| Phase 7 — Browser Automation | Sandboxed web automation and research | ⏳ Planned | Week 22 |
+| Phase 8 — Integrations | Spotify, Weather, Calendar, Gmail bridges | ⏳ Planned | Week 24 |
 
 ---
 
@@ -81,8 +84,11 @@ The Phase-0 execution backbone (secure dispatch, argv-based subprocess with `she
 
 - **Git Automation** — commit, push, branch, and auto-generate commit messages (Phase 3)
 - **Docker Management** — build, run, stop containers from a single command (Phase 3)
-- **Desktop GUI** — PyQt6 dashboard with live command log (Phase 4)
-- **Persistent Memory** — ChromaDB-powered semantic project context (Phase 5)
+- **Screen Vision** — local OCR + vision models for screen understanding (Phase 4)
+- **Desktop GUI** — PyQt6 dashboard with live command log (Phase 5)
+- **Memory + RAG** — ChromaDB-powered semantic project context (Phase 6)
+- **Browser Automation** — sandboxed web research and form filling (Phase 7)
+- **Integrations** — Spotify, Weather, Calendar, Gmail bridges (Phase 8)
 
 ---
 
@@ -117,61 +123,52 @@ AURA is built as a layered pipeline where each layer is a standalone module with
 ```
 AURA/
 ├── plugins_manifest.yaml          # Authoritative plugin safety manifest
-├── config.example.yaml            # Configuration template (copy to config.yaml)
+├── config.yaml.example            # Configuration template (copy to config.yaml)
 │
 ├── aura/                          # Main-process package — core, runtime, IPC client
 │   ├── __main__.py                # ``python -m aura`` entry point
 │   ├── cli.py                     # CLI bootstrap + REPL / one-shot
 │   ├── core/                      # Infrastructure + security primitives
-│   │   ├── command_registry.py    # Sole authorized execution entry point
-│   │   ├── router.py              # Text → Intent → registry pipeline
-│   │   ├── execution_engine.py    # In-process dispatch (sealed, private)
-│   │   ├── worker_client.py       # IPC proxy to the isolated worker (sealed)
-│   │   ├── planner.py             # Multi-step TaskPlan execution + rollback
-│   │   ├── plugin_loader.py       # Plugin discovery and registration
-│   │   ├── plugin_manifest.py     # Cross-process manifest + SHA-256 binding
-│   │   ├── plugin_base.py         # Plugin / IntentParser contracts
-│   │   ├── safety_gate.py         # Non-blocking confirmation prompt
-│   │   ├── sandbox.py             # Filesystem sandbox + symlink escape block
-│   │   ├── policy.py              # Shell argv allowlist / denylist
-│   │   ├── permissions.py         # PermissionLevel validator
-│   │   ├── rate_limiter.py        # Per-source sliding-window limiter
-│   │   ├── audit_log.py           # Tamper-evident hash-chained audit log
-│   │   ├── audit_events.py        # Dynamic audit event registry
 │   │   ├── event_bus.py           # Pub/sub event bus
-│   │   ├── logger.py              # Structured JSON logger
+│   │   ├── mode_monitor.py        # Online/offline state tracker (Phase 2)
 │   │   ├── config_loader.py       # YAML + env override loader (strict validation)
-│   │   ├── error_handler.py       # Centralized error-to-message translator
+│   │   ├── logger.py              # Structured JSON logger
 │   │   ├── errors.py              # Typed error hierarchy (AuraError, …)
+│   │   ├── error_handler.py       # Centralized error-to-message translator
 │   │   ├── intent.py              # Intent dataclass (no caller-trusted source)
 │   │   ├── schema.py              # CommandSpec + action-name validation
 │   │   ├── param_schema.py        # Per-command parameter schema + size caps
-│   │   ├── tracing.py             # Trace-ID context var
+│   │   ├── plugin_base.py         # Plugin / IntentParser contracts
+│   │   ├── plugin_loader.py       # Plugin discovery and registration
 │   │   ├── result.py              # CommandResult return type
+│   │   ├── tracing.py             # Trace-ID context var
 │   │   └── io.py                  # Input / output abstractions
 │   │
+│   ├── runtime/                   # Router, registry, engine, worker IPC, planner
+│   ├── security/                  # Sandbox, policy, safety gate, audit, manifest
 │   ├── worker/                    # Isolated execution subprocess
-│   │   ├── server.py              # JSON-line IPC server + manifest hash verify
-│   │   ├── __main__.py            # ``python -m aura.worker`` entry point
-│   │   └── __init__.py
-│   │
 │   └── intents/                   # Main-process text → Intent parsers
-│       └── system_intents.py
 │
-├── plugins/                       # Worker-only plugin code (import-guarded)
-│   └── system/                    # Built-in system plugin
-│       ├── plugin.py              # Plugin registration surface
-│       └── executor.py            # File / process / npm / monitor executors
+├── plugins/                       # Modular plugin tree (worker-only, import-guarded)
+│   ├── system/                    # File, process, npm, monitor (Phase 1)
+│   ├── voice/                     # STT, TTS, Ollama client (Phase 2)
+│   ├── git/                       # Git automation (Phase 3)
+│   ├── docker/                    # Docker lifecycle (Phase 3)
+│   ├── vision/                    # Screen understanding (Phase 4)
+│   ├── memory/                    # Semantic RAG context (Phase 6)
+│   ├── browser/                   # Web automation (Phase 7)
+│   ├── spotify/                   # Music control (Phase 8)
+│   ├── weather/                   # Weather data (Phase 8)
+│   ├── calendar/                  # Schedule management (Phase 8)
+│   └── gmail/                     # Email integration (Phase 8)
 │
 ├── tests/                         # pytest suite (214 tests incl. lockdown probes)
 ├── docs/                          # Architecture, phase plans, design docs
-│   ├── architecture.md
-│   └── phases.md                  # Layout for Phase 2 (in progress) + Phase 3–5 plans
 ├── public/                        # GitHub Pages site (deployed via pages.yml)
 └── logs/                          # Runtime log output (auto-created, rotated)
 ```
 
-> Active code lives under `aura/` and `plugins/`.  Future phases (voice, devtools, GUI, memory) will land inside the same `aura/` / `plugins/` tree — see [`docs/phases.md`](docs/phases.md) for the planned layout of each.
+> Active code lives under `aura/` and `plugins/`.  Each phase lands inside the same `aura/` / `plugins/` tree — see [`docs/phases.md`](docs/phases.md) for the planned layout of each.
 
 ---
 
@@ -209,13 +206,15 @@ cd AURA
 pip install -r requirements.txt
 ```
 
-### Configure (optional)
+### Configure
+
+A working `config.yaml` ships with the repo so AURA boots out of the box. To reset it to defaults:
 
 ```bash
-cp config.example.yaml config.yaml
+cp config.yaml.example config.yaml
 ```
 
-Edit `config.yaml` to customize protected paths, logging levels, shell timeouts, system-check tools, and project scaffolding. If you skip this step, AURA uses sensible defaults from `config.example.yaml`.
+Edit `config.yaml` to customize protected paths, logging levels, shell timeouts, model routing, and LLM backends. The config loader validates all required keys on boot and **exits immediately if `config.yaml` is missing or malformed** -- the fallback template `config.yaml.example` is used only when no `config.yaml` exists.
 
 Optional environment overrides (see `config_loader` docstring): `AURA_LOG_PATH`, `AURA_SHELL_TIMEOUT`, `AURA_PROTECTED_PATHS`.
 
@@ -241,7 +240,7 @@ python -m aura "npm install"
  / ___ / /_/ / _, _/ ___ |
 /_/  |_\____/_/ |_/_/  |_|
 
-Autonomous Utility & Resource Assistant
+Autonomous Unified Response Architecture
 Phase 0 + Phase 1 — Secure Command Execution Engine (Completed)
 
 > create file ~/Desktop/hello.txt
@@ -302,12 +301,15 @@ See [ROADMAP.md](ROADMAP.md) for the detailed phase breakdown.
 
 | Phase | What Ships | Key Tech |
 |---|---|---|
-| **0** ✅ | Core Infrastructure — event bus, config, registry, CLI, execution backbone | Python, PyYAML |
-| **1** ✅ | Python Automation Core + Secure Execution — file/process/npm/monitor plugins, sandbox, permissions, audit chain, non-bypassable registry | subprocess (argv), psutil, hashlib, hmac |
-| **2** 🔄 | Intelligence Layer — offline voice + LLM + tool orchestration | Whisper, Ollama, Piper |
-| **3** ⏳ | Developer Tools — Git & Docker automation | GitPython, Docker SDK |
-| **4** ⏳ | Desktop GUI — visual dashboard | PyQt6 |
-| **5** ⏳ | Memory Layer — semantic project context | ChromaDB |
+| **Phase 0 — Project Core (INFRA)** ✅ | Event bus, config, registry, CLI, execution backbone | Python, PyYAML |
+| **Phase 1 — Foundation (System Plugin)** ✅ | File/process/npm/monitor plugins, sandbox, permissions, audit chain, non-bypassable registry | subprocess (argv), psutil, hashlib, hmac |
+| **Phase 2 — Voice + Intelligence Router** 🔄 | Offline voice + LLM + tool orchestration | Whisper, Ollama, Piper |
+| **Phase 3 — Dev Tools (Git + Docker)** ⏳ | Git & Docker automation | GitPython, Docker SDK |
+| **Phase 4 — Vision (Screen Understanding)** ⏳ | Screen capture, OCR, visual reasoning | LLaVA, Tesseract |
+| **Phase 5 — GUI Dashboard** ⏳ | Desktop interface with live command log | PyQt6 |
+| **Phase 6 — Memory + RAG** ⏳ | Semantic project context + conversation history | ChromaDB, nomic-embed-text |
+| **Phase 7 — Browser Automation** ⏳ | Sandboxed web automation and research | Playwright |
+| **Phase 8 — Integrations** ⏳ | Spotify, Weather, Calendar, Gmail bridges | Plugin-specific APIs |
 
 ---
 

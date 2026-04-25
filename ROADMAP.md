@@ -6,16 +6,19 @@
 
 ## Progress at a Glance
 
-- [✔] **Phase 0** — Core Infrastructure (COMPLETED)
-- [✔] **Phase 1** — Python Automation Core + Secure Execution (COMPLETED)
-- [→] **Phase 2** — Offline Voice Pipeline / Intelligence Layer (IN PROGRESS)
-- [ ] Phase 3 — Developer Tools (planned)
-- [ ] Phase 4 — GUI Dashboard (planned)
-- [ ] Phase 5 — Memory Layer (planned)
+- [✔] **Phase 0** — Project Core (INFRA) (COMPLETED)
+- [✔] **Phase 1** — Foundation (System Plugin) (COMPLETED)
+- [→] **Phase 2** — Voice + Intelligence Router (IN PROGRESS)
+- [ ] Phase 3 — Dev Tools (Git + Docker) (planned)
+- [ ] Phase 4 — Vision (Screen Understanding) (planned)
+- [ ] Phase 5 — GUI Dashboard (planned)
+- [ ] Phase 6 — Memory + RAG (planned)
+- [ ] Phase 7 — Browser Automation (planned)
+- [ ] Phase 8 — Integrations (planned)
 
 ---
 
-## Phase 0 — Core Infrastructure ✅
+## Phase 0 — Project Core (INFRA) ✅
 
 **Status:** COMPLETED
 
@@ -36,7 +39,7 @@ The scaffolding. Cross-cutting infrastructure every later phase depends on — n
 
 ---
 
-## Phase 1 — Python Automation Core + Secure Execution ✅
+## Phase 1 — Foundation (System Plugin) ✅
 
 **Status:** COMPLETED
 
@@ -73,7 +76,7 @@ Security properties verified end-to-end (runtime-probed, not documented-only):
 
 ---
 
-## Phase 2 — Offline Voice Pipeline / Intelligence Layer 🔄
+## Phase 2 — Voice + Intelligence Router 🔄
 
 **Status:** IN PROGRESS · **ETA:** Week 9
 
@@ -89,7 +92,7 @@ The transformation. AURA hears you, thinks locally, and speaks back.
 
 ---
 
-## Phase 3 — Developer Tools ⏳
+## Phase 3 — Dev Tools (Git + Docker) ⏳
 
 **Status:** Planned · **ETA:** Week 13
 
@@ -98,14 +101,28 @@ Real developer workflow automation — Git and Docker from voice or text.
 | Deliverable | Tech | Module |
 |---|---|---|
 | Git automation (commit, push, branch, status) | GitPython | `plugins/git/` |
-| AI-generated commit messages | Ollama | `plugins/ai_commit/` |
+| AI-generated commit messages | Ollama | `plugins/git/` |
 | Docker container lifecycle (build, run, stop, logs) | Docker SDK | `plugins/docker/` |
 
 ---
 
-## Phase 4 — GUI Dashboard ⏳
+## Phase 4 — Vision (Screen Understanding) ⏳
 
 **Status:** Planned · **ETA:** Week 16
+
+AURA sees your screen. Local OCR and vision models for screen understanding.
+
+| Deliverable | Tech | Module |
+|---|---|---|
+| Screen capture + OCR | Tesseract / LLaVA | `plugins/vision/` |
+| Visual reasoning queries | LLaVA (local) | `plugins/vision/` |
+| Screenshot-to-action pipeline | — | `plugins/vision/` |
+
+---
+
+## Phase 5 — GUI Dashboard ⏳
+
+**Status:** Planned · **ETA:** Week 18
 
 A desktop interface that makes AURA visual.
 
@@ -118,30 +135,59 @@ A desktop interface that makes AURA visual.
 
 ---
 
-## Phase 5 — Memory Layer ⏳
+## Phase 6 — Memory + RAG ⏳
 
-**Status:** Planned · **ETA:** Week 18
+**Status:** Planned · **ETA:** Week 20
 
 AURA remembers. Persistent semantic context across sessions.
 
 | Deliverable | Tech | Module |
 |---|---|---|
-| ChromaDB vector store setup | ChromaDB | `aura/memory/` |
-| Project context indexer | ChromaDB | `aura/memory/` |
-| Semantic codebase search | ChromaDB | `aura/memory/` |
-| Conversation history persistence | ChromaDB | `aura/memory/` |
+| ChromaDB vector store setup | ChromaDB | `plugins/memory/` |
+| Project context indexer | nomic-embed-text | `plugins/memory/` |
+| Semantic codebase search | ChromaDB | `plugins/memory/` |
+| Conversation history persistence | ChromaDB | `plugins/memory/` |
 
-> Phase 2 is the currently active phase. Its code lands inside the existing `aura/` / `plugins/` tree (`aura/voice/` for STT/TTS, tool-orchestration updates to `aura/runtime/`); Phase 3–5 follow the same pattern (`plugins/git/`, `aura/gui/`, `aura/memory/`). Final per-file layout is locked in when each phase opens — see [`docs/phases.md`](docs/phases.md) for the current plan.
+---
+
+## Phase 7 — Browser Automation ⏳
+
+**Status:** Planned · **ETA:** Week 22
+
+Sandboxed web automation for research, forms, and bookmarks.
+
+| Deliverable | Tech | Module |
+|---|---|---|
+| Headless browser control | Playwright | `plugins/browser/` |
+| Web research pipeline | Playwright + LLM | `plugins/browser/` |
+| Form filling and bookmarks | Playwright | `plugins/browser/` |
+
+---
+
+## Phase 8 — Integrations ⏳
+
+**Status:** Planned · **ETA:** Week 24
+
+Optional bridges to services you trust — entirely opt-in, never default.
+
+| Deliverable | Tech | Module |
+|---|---|---|
+| Spotify playback control | Spotify local API | `plugins/spotify/` |
+| Weather data provider | Local weather API | `plugins/weather/` |
+| Calendar management | CalDAV / local | `plugins/calendar/` |
+| Email integration | IMAP / local | `plugins/gmail/` |
+
+> Phase 2 is the currently active phase. Its code lands inside the existing `aura/` / `plugins/` tree; Phases 3–8 follow the same pattern. Final per-file layout is locked in when each phase opens — see [`docs/phases.md`](docs/phases.md) for the current plan.
 
 ---
 
 ## v1.0 Release
 
-When all 5 phases ship, AURA v1.0 is:
+When all 8 phases ship, AURA v1.0 is:
 
 - A fully offline, voice-controlled AI developer assistant
 - Powered by local LLMs (no cloud, no API keys)
-- With Git/Docker automation, a desktop GUI, and persistent memory
+- With Git/Docker automation, screen vision, a desktop GUI, persistent memory, browser automation, and service integrations
 - 100% open source under MIT
 
 ---

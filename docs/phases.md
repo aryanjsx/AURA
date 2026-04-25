@@ -10,14 +10,19 @@ deliverables.
 
 **Current state:**
 
-- Phase 0 — Core Infrastructure — **COMPLETED**
-- Phase 1 — Python Automation Core + Secure Execution — **COMPLETED**
-- Phase 2 — Offline Voice Pipeline — **IN PROGRESS** (this document's active section)
-- Phase 3–5 — Planned
+- Phase 0 — Project Core (INFRA) — **COMPLETED**
+- Phase 1 — Foundation (System Plugin) — **COMPLETED**
+- Phase 2 — Voice + Intelligence Router — **IN PROGRESS** (this document's active section)
+- Phase 3 — Dev Tools (Git + Docker) — Planned
+- Phase 4 — Vision (Screen Understanding) — Planned
+- Phase 5 — GUI Dashboard — Planned
+- Phase 6 — Memory + RAG — Planned
+- Phase 7 — Browser Automation — Planned
+- Phase 8 — Integrations — Planned
 
 ---
 
-## Phase 2 — Offline Voice Pipeline / Intelligence Layer
+## Phase 2 — Voice + Intelligence Router
 
 **Status:** IN PROGRESS.  Hear, think, speak — fully local.
 
@@ -42,7 +47,7 @@ The STT and TTS modules plug into the existing `aura.core.io.InputSource`
 
 ---
 
-## Phase 3 — Developer Tools
+## Phase 3 — Dev Tools (Git + Docker)
 
 **Status:** Planned.  Git and Docker automation from voice or text.
 
@@ -59,12 +64,9 @@ plugins/
 ├── git/
 │   ├── plugin.py
 │   └── executor.py        # GitPython wrapper
-├── docker/
-│   ├── plugin.py
-│   └── executor.py        # Docker SDK wrapper
-└── ai_commit/
+└── docker/
     ├── plugin.py
-    └── executor.py        # Ollama-driven commit messages
+    └── executor.py        # Docker SDK wrapper
 ```
 
 Every new action must be declared in `plugins_manifest.yaml` before
@@ -72,7 +74,29 @@ registration; the worker enforces the SHA-256 manifest binding.
 
 ---
 
-## Phase 4 — GUI Dashboard
+## Phase 4 — Vision (Screen Understanding)
+
+**Status:** Planned.  AURA sees your screen.
+
+| Component         | Technology       | Purpose                                    |
+|-------------------|------------------|--------------------------------------------|
+| Screen Capture    | Pillow / mss     | Grab screenshots programmatically          |
+| OCR               | Tesseract        | Extract text from screen regions           |
+| Visual Reasoning  | LLaVA (local)    | Answer questions about what's on screen    |
+
+Planned layout:
+
+```
+plugins/vision/
+├── plugin.py
+├── capture.py           # Screenshot acquisition
+├── ocr.py               # Tesseract text extraction
+└── reasoning.py         # LLaVA visual question answering
+```
+
+---
+
+## Phase 5 — GUI Dashboard
 
 **Status:** Planned.  Desktop-native frontend.
 
@@ -102,29 +126,78 @@ pipeline is unchanged.
 
 ---
 
-## Phase 5 — Memory Layer
+## Phase 6 — Memory + RAG
 
 **Status:** Planned.  Persistent semantic project context.
 
-| Component       | Technology | Purpose                                          |
-|-----------------|------------|--------------------------------------------------|
-| Vector Store    | ChromaDB   | Persistent local embedding storage               |
-| Project Indexer | ChromaDB   | Index codebase files and project structure       |
-| Semantic Search | ChromaDB   | Query project context by meaning                 |
-| History         | ChromaDB   | Conversation and action history across sessions  |
+| Component       | Technology       | Purpose                                          |
+|-----------------|------------------|--------------------------------------------------|
+| Vector Store    | ChromaDB         | Persistent local embedding storage               |
+| Project Indexer | nomic-embed-text | Index codebase files and project structure       |
+| Semantic Search | ChromaDB         | Query project context by meaning                 |
+| History         | ChromaDB         | Conversation and action history across sessions  |
 
 Planned layout:
 
 ```
-aura/memory/
+plugins/memory/
+├── plugin.py
 ├── store.py             # ChromaDB collection management
 ├── indexer.py           # Project file and codebase indexer
 ├── search.py            # Semantic similarity search
 └── history.py           # Conversation / action log persistence
 ```
 
-`aura.memory` is consumed by the LLM intent parser (Phase 2) and the
-audit chain; it never runs inside the worker subprocess.
+---
+
+## Phase 7 — Browser Automation
+
+**Status:** Planned.  Sandboxed web automation.
+
+| Component       | Technology | Purpose                                      |
+|-----------------|------------|----------------------------------------------|
+| Browser Control | Playwright | Headless browser automation                  |
+| Web Research    | Playwright | Search, scrape, and summarise web pages      |
+| Form Filling    | Playwright | Automated form submission                    |
+
+Planned layout:
+
+```
+plugins/browser/
+├── plugin.py
+├── controller.py        # Playwright session management
+├── research.py          # Web search and scraping pipeline
+└── forms.py             # Form detection and auto-fill
+```
+
+---
+
+## Phase 8 — Integrations
+
+**Status:** Planned.  Optional bridges to services you trust.
+
+| Component  | Technology        | Purpose                          |
+|------------|-------------------|----------------------------------|
+| Spotify    | Local Spotify API | Music playback control           |
+| Weather    | Weather API       | Local weather data               |
+| Calendar   | CalDAV / local    | Schedule and event management    |
+| Gmail      | IMAP / local      | Email reading and management     |
+
+Planned layout:
+
+```
+plugins/
+├── spotify/
+│   └── plugin.py
+├── weather/
+│   └── plugin.py
+├── calendar/
+│   └── plugin.py
+└── gmail/
+    └── plugin.py
+```
+
+All integrations are entirely opt-in and never enabled by default.
 
 ---
 

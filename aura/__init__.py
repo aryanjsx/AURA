@@ -1,1 +1,1 @@
-"""AURA — Autonomous Utility & Resource Assistant (package root)."""
+"""AURA — Autonomous Unified Response Architecture (package root)."""

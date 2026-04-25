@@ -1,0 +1,122 @@
+# ──────────────────────────────────────────────────────────
+# AURA Configuration — copy this file to config.yaml:
+#   cp config.yaml.example config.yaml
+#
+# The loader FAILS HARD if any required key below is missing
+# or empty.  Do not comment keys out; edit their values instead.
+#
+# Optional environment overrides:
+#   AURA_LOG_PATH         — logging.file
+#   AURA_SHELL_TIMEOUT    — shell.timeout (integer seconds)
+#   AURA_PROTECTED_PATHS  — comma-separated list replacing paths.protected
+#   AURA_SANDBOX_DIR      — overrides sandbox.base_dir
+# ──────────────────────────────────────────────────────────
+
+# [REQUIRED]
+aura:
+  name: "AURA"
+  version: "2.0"
+  mode: "offline"           # offline | api
+  language: "en"
+  cli_mode: true
+
+# [REQUIRED] Filesystem sandbox root. All file operations must stay
+# inside this directory. Relative paths in commands resolve against it.
+sandbox:
+  base_dir: "~/AURA_SANDBOX"
+
+# [REQUIRED] System directories that are always blocked even if the
+# sandbox would otherwise permit them.
+paths:
+  protected:
+    - "C:/Windows"
+    - "C:/Windows/System32"
+    - "C:/Program Files"
+    - "C:/Program Files (x86)"
+    - "/bin"
+    - "/usr"
+    - "/etc"
+    - "/sbin"
+    - "/boot"
+
+# [REQUIRED]
+logging:
+  file: "logs/aura.log"
+  level: "INFO"              # TRACE | DEBUG | INFO | WARNING | ERROR
+  format: "json"             # json | text
+  max_bytes: 5242880
+  backup_count: 3
+  benchmark: false           # emit latency_ms events around each step
+  trace: false               # enable TRACE-level pipeline step events
+
+# [REQUIRED] Shell execution policy.
+# NOTE: interpreters (python, node, pip, sh, bash, cmd, powershell) are
+# intentionally excluded. They enable arbitrary-code execution via -c/-e
+# flags. If you add them, the policy will still block those flags.
+shell:
+  timeout: 120
+  allowed_commands:
+    - "git"
+    - "npm"
+    - "docker"
+    - "echo"
+
+# Optional: dev-tool probe list for 'check system health'.
+system_check:
+  tools:
+    - "git"
+    - "node"
+    - "docker"
+    - "npm"
+
+# [REQUIRED] Permission caps per input source.  If a command's level
+# exceeds the cap of its source, it is rejected before execution.
+permissions:
+  source_limits:
+    cli: "CRITICAL"
+    llm: "MEDIUM"
+    planner: "HIGH"
+    auto: "LOW"
+
+# [REQUIRED] Rate limiting / loop protection (per-source buckets).
+rate_limit:
+  max_per_minute: 60          # default hard cap for a 60-second window
+  repeat_threshold: 10        # same (action+params) N times in a row → abort
+  # Optional per-source overrides.  Sources without an override inherit
+  # the defaults above.
+  sources:
+    cli:     {max_per_minute: 120, repeat_threshold: 20}
+    llm:     {max_per_minute: 30,  repeat_threshold: 5}
+    planner: {max_per_minute: 240, repeat_threshold: 30}
+
+# [REQUIRED] Interactive safety gate.
+safety:
+  confirm_timeout: 8          # seconds to wait for user confirmation
+  auto_confirm: false         # NEVER set to true in production
+
+# [REQUIRED] Audit log path (security-relevant events only).
+audit:
+  file: "logs/audit.log"
+  max_bytes: 5242880          # rotate at 5 MB
+  backup_count: 5
+
+# ──────────────────────────────────────────────────────────
+# Phase 2 — Intelligence Layer (model routing + LLM config)
+# ──────────────────────────────────────────────────────────
+
+models:
+  fast: "llama3.2:3b-q4_0"
+  general: "mistral:7b-instruct-q4_0"
+  reasoning: "llama3:8b-q4_0"
+  code: "deepseek-coder:7b-q4_0"
+  vision: "llava:7b"
+  embeddings: "nomic-embed-text"
+
+routing:
+  complexity_threshold: 50
+  rag_confidence_threshold: 0.72
+  realtime_warning: true
+
+ollama:
+  base_url: "http://localhost:11434"
+  timeout: 60

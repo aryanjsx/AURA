@@ -63,7 +63,7 @@ BANNER = r"""
  / ___ / /_/ / _, _/ ___ |
 /_/  |_\____/_/ |_/_/  |_|
 
-Autonomous Utility & Resource Assistant
+Autonomous Unified Response Architecture
 """
 
 
@@ -263,6 +263,12 @@ def main(argv: list[str] | None = None) -> int:
     if "--yes" in argv:
         auto_confirm_flag = True
         argv = [a for a in argv if a != "--yes"]
+
+    if "--test" in argv and os.environ.get("AURA_DEV") == "1":
+        argv = [a for a in argv if a != "--test"]
+        text = " ".join(argv) if argv else "(no input)"
+        print(f"Received input: {text}")
+        return 0
 
     try:
         router, registry = bootstrap(auto_confirm=auto_confirm_flag or None)

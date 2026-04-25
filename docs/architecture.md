@@ -4,9 +4,9 @@ AURA's architecture is designed so that the command execution layer remains unto
 
 **Phase status** (see [`../ROADMAP.md`](../ROADMAP.md)):
 
-- **Phase 0** — Core Infrastructure: **COMPLETED**
-- **Phase 1** — Python Automation Core + Secure Execution: **COMPLETED**
-- **Phase 2** — Intelligence Layer (voice + LLM + tool orchestration): **IN PROGRESS**
+- **Phase 0** — Project Core (INFRA): **COMPLETED**
+- **Phase 1** — Foundation (System Plugin): **COMPLETED**
+- **Phase 2** — Voice + Intelligence Router: **IN PROGRESS**
 
 The **Phase-0 execution backbone** (secure dispatch, policy, argv-based subprocess, path safety) and the **Phase-1 security pipeline** (non-bypassable `CommandRegistry`, sandboxed worker, audit chain, rate limiter, safety gate, plugin manifest binding) support the CLI and every future channel. The intent layer, command registry, policy gate, and LLM backend abstraction are already in place so the in-progress Whisper listener and Ollama model slot into the pipeline without touching the execution core.
 
@@ -122,7 +122,7 @@ The LLM backend abstraction layer. `base.py` defines the `LLMBackend` ABC with `
 
 ### core/config_loader.py
 
-Loads settings from `config.yaml` (user-local, gitignored) with fallback to `config.example.yaml` (tracked template). Supports dot-notation access (`get("logging.level")`), deep-merges user YAML into built-in defaults, applies **environment overrides**, and caches the result.
+Loads settings from `config.yaml` (user-local, gitignored) with fallback to `config.yaml.example` (tracked template). Supports dot-notation access (`get("logging.level")`), deep-merges user YAML into built-in defaults, applies **environment overrides**, and caches the result.
 
 Optional environment variables (applied after YAML merge):
 
