@@ -1,19 +1,5 @@
 # AURA — Plugin Safety Manifest (SOURCE OF TRUTH).
-#
-# Every action exposed by any plugin MUST appear in this file.  The
-# plugin loader refuses to register an action that is either:
-#
-#   * missing from this manifest, or
-#   * declares a permission_level / destructive flag that differs from
-#     the value the plugin is self-declaring in register_commands().
-#
-# Destructive actions additionally MUST list at least one audit event
-# name in `audit_events` — if no entry covers a destructive action the
-# loader raises AuditCoverageError and AURA refuses to start.
-#
-# IMPORTANT: self-declared trust is NOT allowed.  Do not "fix" a
-# mismatch by tweaking the plugin's declaration — update this file with
-# intent, review it, commit it.
+# ──────────────────────────────────────────────────────────
 
 version: 1
 
