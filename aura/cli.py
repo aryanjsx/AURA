@@ -83,7 +83,7 @@ _USAGE_EXAMPLES: dict[str, str] = {
     "file.rename":   "rename file <old> <new>  |  file.rename old_name=<o> new_name=<n>",
     "file.move":     "move file <src> <dst>  |  file.move source=<s> destination=<d>",
     "file.search":   "search files <dir> <pattern>  |  file.search directory=<d> pattern=<p>",
-    "project.create": "create project <path>  |  project.create path=<path>",
+    "project.create": "create project <path> [--stack python|node|react|fastapi]",
     "log.show":       "show logs <file> [n]  |  log.show filepath=<f> lines=<n>",
     "npm.install":   "npm install [cwd]  |  npm.install cwd=<dir>",
     "npm.run":       "npm run <script> [cwd]  |  npm.run script=<s> cwd=<d>",
@@ -234,6 +234,42 @@ def _mode_line() -> str:
     return "  Mode: ONLINE \u2705" if online else "  Mode: OFFLINE \U0001f534"
 
 
+_STACK_CHOICES = ("python", "node", "react", "fastapi")
+
+
+def _prompt_stack(src: InputSource, sink: OutputSink) -> str | None:
+    """Ask the user to choose a tech stack interactively.
+
+    Returns the stack name, or ``None`` if the user cancels.
+    """
+    sink.send("\nSelect a tech stack:")
+    for idx, name in enumerate(_STACK_CHOICES, 1):
+        sink.send(f"  [{idx}] {name}")
+    sink.send("")
+
+    while True:
+        sink.send("Enter number (or 'cancel'): ")
+        choice = src.get_command()
+        if choice is None or (choice and choice.strip().lower() == "cancel"):
+            return None
+        if choice and choice.strip().isdigit():
+            num = int(choice.strip())
+            if 1 <= num <= len(_STACK_CHOICES):
+                return _STACK_CHOICES[num - 1]
+        sink.send(f"  Please enter 1-{len(_STACK_CHOICES)} or 'cancel'.")
+
+
+def _needs_stack_prompt(text: str) -> bool:
+    """Return True when the command is ``create project <path>`` without
+    an explicit ``--stack`` flag."""
+    tokens = text.strip().split()
+    if len(tokens) < 3:
+        return False
+    if tokens[0].lower() != "create" or tokens[1].lower() != "project":
+        return False
+    return "--stack" not in tokens
+
+
 def run_repl(
     router: Router,
     registry: CommandRegistry,
@@ -262,6 +298,14 @@ def run_repl(
         if low == "help":
             sink.send(_build_help(registry))
             continue
+
+        if _needs_stack_prompt(text):
+            stack = _prompt_stack(src, sink)
+            if stack is None:
+                sink.send("Cancelled.")
+                continue
+            text = f"{text} --stack {stack}"
+
         result = router.route(text, source="cli")
         sink.send(result.message)
 

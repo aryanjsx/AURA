@@ -381,11 +381,26 @@ class SystemExecutor:
     # ------------------------------------------------------------------
     # Project scaffolding
     # ------------------------------------------------------------------
-    def __project_create(self, path: str) -> CommandResult:
+    def __project_create(self, path: str, stack: str = "") -> CommandResult:
+        from plugins.system.templates import (
+            DEFAULT_STACK,
+            STACK_CHOICES,
+            get_template,
+        )
+
         if not path or not str(path).strip():
             raise ExecutionError(
-                "Project path is required. Usage: create project <path>"
+                "Project path is required. "
+                "Usage: create project <path> --stack <python|node|react|fastapi>"
             )
+
+        stack = (stack or "").strip().lower() or DEFAULT_STACK
+        if stack not in STACK_CHOICES:
+            raise ExecutionError(
+                f"Unknown stack {stack!r}. "
+                f"Available: {', '.join(STACK_CHOICES)}"
+            )
+
         target = resolve_safe_path(path, create_parents=True)
         if target.exists() and any(target.iterdir()):
             return CommandResult(
@@ -394,27 +409,36 @@ class SystemExecutor:
                 data={"path": str(target)},
                 command_type="project.create",
             )
+
         target.mkdir(parents=True, exist_ok=True)
-        (target / "src").mkdir(exist_ok=True)
-        (target / "tests").mkdir(exist_ok=True)
         project_name = target.name
-        (target / "README.md").write_text(
-            f"# {project_name}\n", encoding="utf-8",
-        )
-        (target / ".gitignore").write_text(
-            "__pycache__/\n*.pyc\n.env\n*.egg-info/\ndist/\nbuild/\n"
-            "node_modules/\n.venv/\n",
-            encoding="utf-8",
-        )
-        (target / "requirements.txt").touch()
+        files = get_template(stack, project_name)
+
+        for rel_path, content in files.items():
+            file_target = target / rel_path
+            file_target.parent.mkdir(parents=True, exist_ok=True)
+            file_target.write_text(content, encoding="utf-8")
+
+        created_paths = sorted(files.keys())
         self._logger.info(
             "project.created",
-            extra={"event": "project.created", "data": {"path": str(target)}},
+            extra={
+                "event": "project.created",
+                "data": {"path": str(target), "stack": stack},
+            },
         )
         return CommandResult(
             success=True,
-            message=f"Project '{project_name}' created at {target}",
-            data={"path": str(target), "name": project_name},
+            message=(
+                f"{stack.capitalize()} project '{project_name}' "
+                f"created at {target}"
+            ),
+            data={
+                "path": str(target),
+                "name": project_name,
+                "stack": stack,
+                "files": created_paths,
+            },
             command_type="project.create",
         )
 

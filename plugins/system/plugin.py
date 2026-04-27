@@ -103,7 +103,7 @@ class Plugin(PluginBase):
             },
             "project.create": {
                 "handler": handlers["project.create"],
-                "description": "Scaffold a new project directory",
+                "description": "Scaffold a project (python/node/react/fastapi)",
                 "destructive": False,
                 "permission_level": PermissionLevel.MEDIUM,
             },

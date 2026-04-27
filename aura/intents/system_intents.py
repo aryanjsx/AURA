@@ -114,14 +114,23 @@ def parse_file_commands(text: str) -> Intent | None:
         )
 
     if head == "create" and sub == "project":
-        path = _rest(tokens, 2)
-        if not path:
-            return Intent(
-                action="project.create", args={"path": ""},
-                raw_text=text,
-            )
+        remaining = tokens[2:]
+        path = ""
+        stack = ""
+        i = 0
+        while i < len(remaining):
+            if remaining[i] == "--stack" and i + 1 < len(remaining):
+                stack = remaining[i + 1]
+                i += 2
+            else:
+                if not path:
+                    path = remaining[i]
+                i += 1
+        args: dict[str, object] = {"path": path}
+        if stack:
+            args["stack"] = stack
         return Intent(
-            action="project.create", args={"path": path},
+            action="project.create", args=args,
             raw_text=text,
         )
 
