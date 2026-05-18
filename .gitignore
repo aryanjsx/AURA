@@ -12,10 +12,7 @@ venv/
 .env
 
 # Config
-# config.yaml is tracked so cloners get a working default.
-# config.yaml.example is the pristine reference template.
-# To customize: edit config.yaml directly (it won't diverge on pull
-# unless upstream changes the schema).
+config.yaml
 
 # Logs
 logs/*.log
