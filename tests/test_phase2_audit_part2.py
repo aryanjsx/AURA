@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 
 from aura.core.config_loader import load_config
+from tests.conftest import keyboard_wake_run, requires_openwakeword
 from aura.utils.event_bus import EventType, bus
 
 
@@ -55,10 +56,68 @@ def _oww_inference_framework() -> str:
         return "onnx"
 
 
-@pytest.fixture(scope="module", autouse=True)
-def _ensure_openwakeword_models():
-    from openwakeword.utils import download_models
-    download_models()
+def _make_oww_model():
+    """Load openwakeword Model — caller must guard with requires_openwakeword."""
+    from openwakeword.model import Model
+
+    return Model(
+        wakeword_models=["hey_jarvis"],
+        inference_framework=_oww_inference_framework(),
+    )
+
+
+# ═══════════════════════════════════════════════════════════
+# SECTION 6 — WakeWordListener Audit
+# ═══════════════════════════════════════════════════════════
+
+@requires_openwakeword
+class TestOpenWakeWordInference:
+    """Integration checks for the openwakeword ONNX stack (skipped when unavailable)."""
+
+    def test_openwakeword_model_loads_without_error(self, config):
+        """openwakeword Model initialises and loads hey_jarvis successfully"""
+        model = _make_oww_model()
+        assert model is not None
+
+    def test_openwakeword_predict_returns_dict(self, config):
+        """Model.predict() returns a dict with the model name as key"""
+        model = _make_oww_model()
+        chunk = np.zeros(1280, dtype=np.float32)
+        result = model.predict(chunk)
+        assert isinstance(result, dict)
+        assert "hey_jarvis" in result
+        assert 0.0 <= result["hey_jarvis"] <= 1.0
+
+    def test_openwakeword_score_on_silence_is_below_threshold(self, config):
+        """Silence should not trigger a detection — score stays below 0.5"""
+        model = _make_oww_model()
+        silence = np.zeros(1280, dtype=np.float32)
+        for _ in range(20):
+            result = model.predict(silence)
+        score = result["hey_jarvis"]
+        assert score < 0.5, (
+            f"Silence produced score {score:.3f} — model may be too sensitive"
+        )
+
+    def test_openwakeword_score_on_noise_is_below_threshold(self, config):
+        """Random noise should not trigger a detection"""
+        model = _make_oww_model()
+        for _ in range(20):
+            noise = np.random.uniform(-0.1, 0.1, 1280).astype(np.float32)
+            result = model.predict(noise)
+        score = result["hey_jarvis"]
+        assert score < 0.5, (
+            f"White noise produced score {score:.3f} — false positive risk"
+        )
+
+    def test_openwakeword_reset_clears_internal_state(self, config):
+        """model.reset() resets internal buffers — no residual state"""
+        model = _make_oww_model()
+        for _ in range(10):
+            model.predict(np.zeros(1280, dtype=np.float32))
+        model.reset()
+        result = model.predict(np.zeros(1280, dtype=np.float32))
+        assert result["hey_jarvis"] < 0.5
 
 
 # ═══════════════════════════════════════════════════════════
@@ -191,72 +250,7 @@ class TestSTTEngineAdversarial:
 
 class TestWakeWordListenerHappyPath:
 
-    def test_openwakeword_model_loads_without_error(self, config):
-        """openwakeword Model initialises and loads hey_jarvis successfully"""
-        from openwakeword.model import Model
-        model = Model(
-            wakeword_models=["hey_jarvis"],
-            inference_framework=_oww_inference_framework(),
-        )
-        assert model is not None
-
-    def test_openwakeword_predict_returns_dict(self, config):
-        """Model.predict() returns a dict with the model name as key"""
-        from openwakeword.model import Model
-        model = Model(
-            wakeword_models=["hey_jarvis"],
-            inference_framework=_oww_inference_framework(),
-        )
-        chunk = np.zeros(1280, dtype=np.float32)
-        result = model.predict(chunk)
-        assert isinstance(result, dict)
-        assert "hey_jarvis" in result
-        assert 0.0 <= result["hey_jarvis"] <= 1.0
-
-    def test_openwakeword_score_on_silence_is_below_threshold(self, config):
-        """Silence should not trigger a detection — score stays below 0.5"""
-        from openwakeword.model import Model
-        model = Model(
-            wakeword_models=["hey_jarvis"],
-            inference_framework=_oww_inference_framework(),
-        )
-        silence = np.zeros(1280, dtype=np.float32)
-        for _ in range(20):
-            result = model.predict(silence)
-        score = result["hey_jarvis"]
-        assert score < 0.5, (
-            f"Silence produced score {score:.3f} — model may be too sensitive"
-        )
-
-    def test_openwakeword_score_on_noise_is_below_threshold(self, config):
-        """Random noise should not trigger a detection"""
-        from openwakeword.model import Model
-        model = Model(
-            wakeword_models=["hey_jarvis"],
-            inference_framework=_oww_inference_framework(),
-        )
-        for _ in range(20):
-            noise = np.random.uniform(-0.1, 0.1, 1280).astype(np.float32)
-            result = model.predict(noise)
-        score = result["hey_jarvis"]
-        assert score < 0.5, (
-            f"White noise produced score {score:.3f} — false positive risk"
-        )
-
-    def test_openwakeword_reset_clears_internal_state(self, config):
-        """model.reset() resets internal buffers — no residual state"""
-        from openwakeword.model import Model
-        model = Model(
-            wakeword_models=["hey_jarvis"],
-            inference_framework=_oww_inference_framework(),
-        )
-        for _ in range(10):
-            model.predict(np.zeros(1280, dtype=np.float32))
-        model.reset()
-        result = model.predict(np.zeros(1280, dtype=np.float32))
-        assert result["hey_jarvis"] < 0.5
-
-    def test_start_is_nonblocking(self, config):
+    def test_start_is_nonblocking(self, config, keyboard_wake_run):
         """start() returns immediately — does not block"""
         from aura.modules.wake_word import WakeWordListener
         listener = WakeWordListener(config)
@@ -266,7 +260,7 @@ class TestWakeWordListenerHappyPath:
         listener.stop()
         assert elapsed < 1.0, f"start() blocked for {elapsed:.2f}s"
 
-    def test_stop_is_idempotent(self, config):
+    def test_stop_is_idempotent(self, config, keyboard_wake_run):
         """stop() called twice does not crash"""
         from aura.modules.wake_word import WakeWordListener
         listener = WakeWordListener(config)
@@ -274,7 +268,7 @@ class TestWakeWordListenerHappyPath:
         listener.stop()
         listener.stop()
 
-    def test_start_twice_does_not_spawn_two_threads(self, config):
+    def test_start_twice_does_not_spawn_two_threads(self, config, keyboard_wake_run):
         """Second start() call is silently ignored — no duplicate thread"""
         from aura.modules.wake_word import WakeWordListener
         listener = WakeWordListener(config)
@@ -353,15 +347,19 @@ class TestWakeWordListenerAdversarial:
         """sounddevice InputStream failure → SYSTEM_ERROR emitted, pipeline lives"""
         import sounddevice as sd
         from aura.modules.wake_word import WakeWordListener
+
         errors = []
         bus.subscribe(EventType.SYSTEM_ERROR, lambda p: errors.append(p.data))
-        with patch.object(sd, "InputStream", side_effect=Exception("No mic found")):
-            listener = WakeWordListener(config)
-            listener.start()
-            time.sleep(0.5)
-            listener.stop()
+        mock_model = MagicMock()
+        mock_model.predict.return_value = {"hey_jarvis": 0.0}
+        with patch("openwakeword.model.Model", return_value=mock_model):
+            with patch.object(sd, "InputStream", side_effect=Exception("No mic found")):
+                listener = WakeWordListener(config)
+                listener.start()
+                time.sleep(0.5)
+                listener.stop()
 
-    def test_no_access_key_skips_porcupine_silently(self, config):
+    def test_no_access_key_skips_porcupine_silently(self, config, keyboard_wake_run):
         """Missing Porcupine key → no crash, no error"""
         from aura.modules.wake_word import WakeWordListener
         with patch.dict(os.environ, {"PICOVOICE_ACCESS_KEY": ""}, clear=False):
@@ -381,7 +379,6 @@ class TestWakeWordListenerAdversarial:
         Must be logged at debug and NOT crash the listen loop.
         """
         import sounddevice as sd
-        from openwakeword.model import Model
 
         overflow_count = {"n": 0}
 
@@ -399,19 +396,19 @@ class TestWakeWordListenerAdversarial:
                     overflow_count["n"] % 2 == 0,
                 )
 
-        with patch.object(sd, "InputStream", return_value=MockStream()):
-            model = Model(
-            wakeword_models=["hey_jarvis"],
-            inference_framework=_oww_inference_framework(),
-        )
-            mock = MockStream()
-            for _ in range(5):
-                chunk, overflowed = mock.read(1280)
-                if overflowed:
-                    pass
-                model.predict(chunk.flatten())
+        mock_model = MagicMock()
+        mock_model.predict.return_value = {"hey_jarvis": 0.0}
 
-    def test_rapid_start_stop_does_not_leak_threads(self, config):
+        with patch("openwakeword.model.Model", return_value=mock_model):
+            with patch.object(sd, "InputStream", return_value=MockStream()):
+                mock = MockStream()
+                for _ in range(5):
+                    chunk, overflowed = mock.read(1280)
+                    if overflowed:
+                        pass
+                    mock_model.predict(chunk.flatten())
+
+    def test_rapid_start_stop_does_not_leak_threads(self, config, keyboard_wake_run):
         """5 rapid start/stop cycles leave no orphan threads"""
         from aura.modules.wake_word import WakeWordListener
         for _ in range(5):

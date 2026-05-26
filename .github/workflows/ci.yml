@@ -26,7 +26,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libportaudio2 portaudio19-dev
+        run: sudo apt-get update && sudo apt-get install -y libportaudio2 portaudio19-dev libgomp1 ffmpeg
 
       - name: Install dependencies
         run: |
