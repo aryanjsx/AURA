@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 from aura.core.config_loader import load_config
-from tests.conftest import keyboard_wake_run, requires_openwakeword
+from tests.conftest import keyboard_wake_run, oww_model
 from aura.utils.event_bus import EventType, bus
 
 
@@ -48,75 +48,51 @@ def _reset_bus():
     bus._subscribers = original
 
 
-def _oww_inference_framework() -> str:
-    try:
-        import tflite_runtime  # noqa: F401
-        return "tflite"
-    except ImportError:
-        return "onnx"
-
-
-def _make_oww_model():
-    """Load openwakeword Model — caller must guard with requires_openwakeword."""
-    from openwakeword.model import Model
-
-    return Model(
-        wakeword_models=["hey_jarvis"],
-        inference_framework=_oww_inference_framework(),
-    )
-
-
 # ═══════════════════════════════════════════════════════════
 # SECTION 6 — WakeWordListener Audit
 # ═══════════════════════════════════════════════════════════
 
-@requires_openwakeword
 class TestOpenWakeWordInference:
-    """Integration checks for the openwakeword ONNX stack (skipped when unavailable)."""
+    """Integration checks for openwakeword (skipped at runtime when ONNX unavailable)."""
 
-    def test_openwakeword_model_loads_without_error(self, config):
+    def test_openwakeword_model_loads_without_error(self, oww_model):
         """openwakeword Model initialises and loads hey_jarvis successfully"""
-        model = _make_oww_model()
-        assert model is not None
+        assert oww_model is not None
 
-    def test_openwakeword_predict_returns_dict(self, config):
+    def test_openwakeword_predict_returns_dict(self, oww_model):
         """Model.predict() returns a dict with the model name as key"""
-        model = _make_oww_model()
         chunk = np.zeros(1280, dtype=np.float32)
-        result = model.predict(chunk)
+        result = oww_model.predict(chunk)
         assert isinstance(result, dict)
         assert "hey_jarvis" in result
         assert 0.0 <= result["hey_jarvis"] <= 1.0
 
-    def test_openwakeword_score_on_silence_is_below_threshold(self, config):
+    def test_openwakeword_score_on_silence_is_below_threshold(self, oww_model):
         """Silence should not trigger a detection — score stays below 0.5"""
-        model = _make_oww_model()
         silence = np.zeros(1280, dtype=np.float32)
         for _ in range(20):
-            result = model.predict(silence)
+            result = oww_model.predict(silence)
         score = result["hey_jarvis"]
         assert score < 0.5, (
             f"Silence produced score {score:.3f} — model may be too sensitive"
         )
 
-    def test_openwakeword_score_on_noise_is_below_threshold(self, config):
+    def test_openwakeword_score_on_noise_is_below_threshold(self, oww_model):
         """Random noise should not trigger a detection"""
-        model = _make_oww_model()
         for _ in range(20):
             noise = np.random.uniform(-0.1, 0.1, 1280).astype(np.float32)
-            result = model.predict(noise)
+            result = oww_model.predict(noise)
         score = result["hey_jarvis"]
         assert score < 0.5, (
             f"White noise produced score {score:.3f} — false positive risk"
         )
 
-    def test_openwakeword_reset_clears_internal_state(self, config):
+    def test_openwakeword_reset_clears_internal_state(self, oww_model):
         """model.reset() resets internal buffers — no residual state"""
-        model = _make_oww_model()
         for _ in range(10):
-            model.predict(np.zeros(1280, dtype=np.float32))
-        model.reset()
-        result = model.predict(np.zeros(1280, dtype=np.float32))
+            oww_model.predict(np.zeros(1280, dtype=np.float32))
+        oww_model.reset()
+        result = oww_model.predict(np.zeros(1280, dtype=np.float32))
         assert result["hey_jarvis"] < 0.5
 
 

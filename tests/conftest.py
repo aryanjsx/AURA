@@ -37,10 +37,11 @@ def openwakeword_usable() -> bool:
 
         download_models(model_names=["hey_jarvis"])
         model = Model(wakeword_models=["hey_jarvis"], inference_framework="onnx")
-        pcm = (np.clip(np.zeros(1280, dtype=np.float32), -1, 1) * 32767).astype(np.int16)
-        model.predict(pcm)
+        # Match the test suite: float32 chunks, same as wake_word/stt paths.
+        chunk = np.zeros(1280, dtype=np.float32)
+        model.predict(chunk)
         _OWW_USABLE = True
-    except Exception:
+    except BaseException:
         _OWW_USABLE = False
     return _OWW_USABLE
 
@@ -49,6 +50,22 @@ requires_openwakeword = pytest.mark.skipif(
     not openwakeword_usable(),
     reason="openwakeword/onnxruntime unavailable in this environment",
 )
+
+
+@pytest.fixture(scope="module")
+def oww_model():
+    """Load openwakeword once; skip at runtime if ONNX inference is broken."""
+    try:
+        from openwakeword.utils import download_models
+        from openwakeword.model import Model
+
+        download_models(model_names=["hey_jarvis"])
+        model = Model(wakeword_models=["hey_jarvis"], inference_framework="onnx")
+        chunk = np.zeros(1280, dtype=np.float32)
+        model.predict(chunk)
+    except BaseException as exc:
+        pytest.skip(f"openwakeword/onnxruntime unavailable: {type(exc).__name__}: {exc}")
+    return model
 
 
 def keyboard_only_wake_run(listener) -> None:

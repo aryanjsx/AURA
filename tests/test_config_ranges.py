@@ -63,6 +63,23 @@ rate_limit:
 safety:
   confirm_timeout: 15
   auto_confirm: false
+models:
+  fast: "llama3.2:1b"
+  general: "llama3.2:1b"
+  code: "deepseek-coder:6.7b"
+routing:
+  intent_timeout_seconds: 10
+  intent_max_retries: 3
+stt:
+  model: "tiny"
+  silence_timeout: 1.0
+  max_recording: 10
+tts:
+  offline_engine: "piper"
+ollama:
+  base_url: "http://localhost:11434"
+  timeout: 120
+  retries: 2
 """
 
 
