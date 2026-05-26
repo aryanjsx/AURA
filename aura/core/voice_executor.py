@@ -168,7 +168,8 @@ def _open_app(app_name: str) -> str:
     except Exception:
         try:
             if system == "Windows":
-                subprocess.Popen(["start", app], shell=True)
+                # List-form launch via cmd; user input stays in argv only.
+                subprocess.Popen(["cmd", "/c", "start", "", app])
                 return f"Opening {app}."
         except Exception:
             pass
