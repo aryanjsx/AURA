@@ -92,9 +92,9 @@ audit:
 # ──────────────────────────────────────────────────────────
 
 models:
-  fast:       "llama3.2:3b"
-  general:    "llama3.2:3b"
-  reasoning:  "mistral:7b-instruct-q4_0"
+  fast:       "llama3.2:1b"
+  general:    "llama3.2:1b"
+  reasoning:  "llama3.2:3b"
   code:       "deepseek-coder:6.7b"
   vision:     "llava:7b"
   embeddings: "nomic-embed-text:latest"
@@ -108,15 +108,15 @@ routing:
 
 stt:
   model:           "tiny"
-  silence_timeout: 1.5
-  max_recording:   15
+  silence_timeout: 1.0
+  max_recording:   10
 
 wake_word:
   engine:            "whisper"      # "whisper" (recommended) or "oww" (openwakeword)
   phrases:                          # what to say to wake AURA (Whisper engine)
     - "hey jarvis"
     - "jarvis"
-  listen_duration:   2.0            # seconds to record when voice detected
+  listen_duration:   1.5            # seconds to record when voice detected
   vad_threshold:     0.008          # mic RMS above this = speech detected
   vad_pre_frames:    3              # consecutive speech frames before recording
   input_device:      null           # null = auto-pick; or device index
@@ -140,5 +140,6 @@ memory:
 
 ollama:
   base_url: "http://localhost:11434"
-  timeout:  30
+  timeout:  120
   retries:  2
+  keep_alive: "10m"

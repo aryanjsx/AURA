@@ -3,12 +3,17 @@ AURA — Intelligence Router (Phase 2).
 
 Every voice command passes through this router. It classifies intent,
 selects the right model, and decides whether RAG memory retrieval is needed.
+
+Uses a two-tier classification strategy:
+  1. Fast regex patterns for obvious intents (instant, no LLM call)
+  2. LLM-based classification for ambiguous commands
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -88,8 +93,18 @@ _MODEL_MAP: dict[IntentType, str] = {
 }
 
 
+_FAST_PATTERNS: list[tuple[re.Pattern, IntentType]] = [
+    (re.compile(r"\b(open|close|launch|start|kill|shutdown|restart|screenshot|volume|brightness)\b", re.I), IntentType.SYSTEM_COMMAND),
+    (re.compile(r"\b(write|code|function|class|implement|refactor|debug|fix bug|script)\b.*\b(in|for|using|with)?\b", re.I), IntentType.CODE_GENERATION),
+    (re.compile(r"\b(git |docker |npm |pip |yarn |push|pull|commit|deploy|build)\b", re.I), IntentType.DEV_TASK),
+    (re.compile(r"\b(screen|see|look at|what.s on my|describe my)\b", re.I), IntentType.VISION_TASK),
+    (re.compile(r"\b(latest|current|today|price|stock|weather|news)\b", re.I), IntentType.REALTIME_QUERY),
+    (re.compile(r"\b(what is|who is|explain|how does|why does|tell me about|define|meaning of|difference between)\b", re.I), IntentType.GENERAL_KNOWLEDGE),
+]
+
+
 class IntentRouter:
-    """Classifies user intent via LLM and selects the appropriate model."""
+    """Classifies user intent via fast regex then LLM fallback."""
 
     def __init__(self, config: dict, ollama_client: OllamaClient) -> None:
         self._config = config
@@ -97,80 +112,66 @@ class IntentRouter:
         self._models: dict[str, str] = config.get("models", {})
         routing_cfg = config.get("routing", {})
         self._timeout: int = routing_cfg.get("intent_timeout_seconds", 10)
-        self._max_retries: int = routing_cfg.get("intent_max_retries", 3)
+        self._max_retries: int = routing_cfg.get("intent_max_retries", 2)
         self._fast_model: str = self._models.get("fast", "llama3.2:3b")
 
     def classify(self, raw_text: str) -> IntentObject:
-        """Classify a voice-transcribed command into a structured IntentObject."""
+        """Classify a voice-transcribed command.
+
+        Pure regex — no LLM call. Unmatched input defaults to
+        GENERAL_KNOWLEDGE so the response pipeline starts immediately.
+        """
         cleaned = raw_text.lower().strip()
 
-        for attempt in range(self._max_retries):
-            try:
-                response = self._ollama.chat(
-                    model=self._fast_model,
-                    prompt=cleaned,
-                    system_prompt=_CLASSIFICATION_SYSTEM_PROMPT,
-                )
-                parsed = self._parse_response(response.text)
-                if parsed is not None:
-                    intent_type = parsed["intent_type"]
-                    model_key = _MODEL_MAP.get(intent_type, "general")
-                    model_override = self._models.get(model_key, self._fast_model)
+        fast_result = self._fast_classify(raw_text, cleaned)
+        if fast_result is not None:
+            logger.info("Classified as %s", fast_result.intent_type.value)
+            return fast_result
 
-                    result = IntentObject(
-                        intent_type=intent_type,
-                        raw_text=raw_text,
-                        cleaned_text=cleaned,
-                        entities=parsed.get("entities", {}),
-                        model_override=model_override,
-                        requires_rag=parsed.get("requires_rag", False),
-                        confidence=parsed.get("confidence", 0.5),
-                    )
-                    bus.emit(
-                        EventType.INTENT_CLASSIFIED,
-                        {
-                            "intent_type": result.intent_type.value,
-                            "confidence": result.confidence,
-                            "raw_text": raw_text,
-                        },
-                    )
-                    return result
-
-            except OllamaUnavailableError:
-                logger.error("Ollama unavailable during classification")
-                break
-            except Exception as exc:
-                logger.warning(
-                    "Classification attempt %d/%d failed: %s",
-                    attempt + 1,
-                    self._max_retries,
-                    exc,
-                )
-
-            if attempt < self._max_retries - 1:
-                time.sleep(1)
-
-        # All retries exhausted — return UNKNOWN
+        # No regex matched — default to GENERAL_KNOWLEDGE (instant, no LLM)
         model_override = self._models.get("general", self._fast_model)
-        fallback = IntentObject(
-            intent_type=IntentType.UNKNOWN,
+        result = IntentObject(
+            intent_type=IntentType.GENERAL_KNOWLEDGE,
             raw_text=raw_text,
             cleaned_text=cleaned,
             entities={},
             model_override=model_override,
-            requires_rag=True,
-            confidence=0.0,
+            requires_rag=False,
+            confidence=0.7,
         )
         bus.emit(
             EventType.INTENT_CLASSIFIED,
-            {
-                "intent_type": "UNKNOWN",
-                "confidence": 0.0,
-                "raw_text": raw_text,
-                "fallback": True,
-            },
+            {"intent_type": result.intent_type.value, "confidence": result.confidence, "raw_text": raw_text},
         )
-        return fallback
+        logger.info("Default-classified as GENERAL_KNOWLEDGE")
+        return result
+
+    def _fast_classify(self, raw_text: str, cleaned: str) -> IntentObject | None:
+        """Instant regex-based classification for obvious patterns."""
+        for pattern, intent_type in _FAST_PATTERNS:
+            if pattern.search(cleaned):
+                model_key = _MODEL_MAP.get(intent_type, "general")
+                model_override = self._models.get(model_key, self._fast_model)
+                result = IntentObject(
+                    intent_type=intent_type,
+                    raw_text=raw_text,
+                    cleaned_text=cleaned,
+                    entities={},
+                    model_override=model_override,
+                    requires_rag=False,
+                    confidence=0.85,
+                )
+                bus.emit(
+                    EventType.INTENT_CLASSIFIED,
+                    {
+                        "intent_type": result.intent_type.value,
+                        "confidence": result.confidence,
+                        "raw_text": raw_text,
+                        "fast_path": True,
+                    },
+                )
+                return result
+        return None
 
     def _parse_response(self, text: str) -> dict[str, Any] | None:
         """Parse JSON from LLM response, returning None on failure."""

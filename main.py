@@ -34,6 +34,71 @@ BANNER = r"""
 """
 
 
+_VOICE_SYSTEM_PROMPT = "Answer in 1 sentence. Be concise."
+
+
+def _stream_to_tts(
+    ollama: OllamaClient,
+    tts: TTSEngine,
+    model: str,
+    prompt: str,
+    system_prompt: str = _VOICE_SYSTEM_PROMPT,
+) -> None:
+    """Stream LLM tokens and send complete sentences to TTS as they form.
+
+    This gives the user audible feedback within 1-3 seconds of the first
+    generated sentence, instead of waiting for the entire response.
+    """
+    sentence_buf = ""
+    full_text = ""
+    sent_count = 0
+    start = time.perf_counter()
+
+    for token in ollama.chat_stream(
+        model=model, prompt=prompt,
+        system_prompt=system_prompt, num_predict=200,
+    ):
+        sentence_buf += token
+        full_text += token
+
+        while _has_complete_sentence(sentence_buf):
+            sentence, sentence_buf = _split_first_sentence(sentence_buf)
+            sentence = sentence.strip()
+            if sentence:
+                if sent_count == 0:
+                    ttfb = int((time.perf_counter() - start) * 1000)
+                    print(f"[PIPELINE] First sentence in {ttfb}ms")
+                tts.speak(sentence)
+                sent_count += 1
+
+    leftover = sentence_buf.strip()
+    if leftover:
+        tts.speak(leftover)
+
+    total = int((time.perf_counter() - start) * 1000)
+    print(f"[PIPELINE] Streamed {len(full_text)} chars in {total}ms ({sent_count + (1 if leftover else 0)} segments)")
+
+
+def _has_complete_sentence(text: str) -> bool:
+    """Check if text contains at least one sentence-ending delimiter."""
+    for ch in ".!?\n":
+        idx = text.find(ch)
+        if idx >= 0 and idx < len(text) - 1:
+            return True
+    return False
+
+
+def _split_first_sentence(text: str) -> tuple[str, str]:
+    """Split text at the first sentence boundary. Returns (sentence, remainder)."""
+    best = len(text)
+    for ch in ".!?\n":
+        idx = text.find(ch)
+        if 0 <= idx < best:
+            best = idx
+    split_at = best + 1
+    return text[:split_at], text[split_at:]
+
+
 def _dispatch(
     intent: IntentObject,
     tts: TTSEngine,
@@ -47,18 +112,9 @@ def _dispatch(
         IntentType.PROJECT_CONTEXT,
         IntentType.UNKNOWN,
     ):
-        print("[PIPELINE] Waiting for Ollama response...")
-        response = ollama.chat(
-            model=intent.model_override or config["models"]["general"],
-            prompt=intent.cleaned_text,
-            system_prompt=(
-                "You are AURA, a voice assistant. Reply in 1-2 sentences maximum. "
-                "Be direct and concise — your answer will be spoken aloud."
-            ),
-        )
-        print(f"[PIPELINE] LLM replied ({len(response.text)} chars, {response.duration_ms}ms)")
-        print(f"[PIPELINE] Speaking: {response.text[:100]}...")
-        tts.speak(response.text)
+        model = intent.model_override or config["models"]["general"]
+        print(f"[PIPELINE] Streaming from {model}...")
+        _stream_to_tts(ollama, tts, model, intent.cleaned_text)
 
     elif intent.intent_type == IntentType.SYSTEM_COMMAND:
         tts.speak(
@@ -67,11 +123,12 @@ def _dispatch(
         )
 
     elif intent.intent_type == IntentType.CODE_GENERATION:
-        response = ollama.chat(
-            model=intent.model_override or config["models"]["code"],
-            prompt=intent.cleaned_text,
+        model = intent.model_override or config["models"]["code"]
+        print(f"[PIPELINE] Streaming code response from {model}...")
+        _stream_to_tts(
+            ollama, tts, model, intent.cleaned_text,
+            system_prompt="Summarize the code solution in 1 sentence.",
         )
-        tts.speak("Code generated. Opening in editor.")
 
     elif intent.intent_type == IntentType.DEV_TASK:
         tts.speak(
@@ -83,14 +140,8 @@ def _dispatch(
         tts.speak("Screen vision is available from Phase 4.")
 
     elif intent.intent_type == IntentType.REALTIME_QUERY:
-        routing_cfg = config.get("routing", {})
-        if routing_cfg.get("realtime_warning", True):
-            tts.speak("Note: my knowledge may be outdated for this query.")
-        response = ollama.chat(
-            model=intent.model_override or config["models"]["general"],
-            prompt=intent.cleaned_text,
-        )
-        tts.speak(response.text)
+        model = intent.model_override or config["models"]["general"]
+        _stream_to_tts(ollama, tts, model, intent.cleaned_text)
 
 
 def startup() -> None:
@@ -118,14 +169,18 @@ def startup() -> None:
         sys.exit(1)
     print("[4/8] Ollama reachable")
 
-    # 5. Verify models are pulled
+    # 5. Verify models and pre-warm the primary model
     available = ollama.list_models()
     models_cfg = config.get("models", {})
+    primary_model = models_cfg.get("general", models_cfg.get("fast", "llama3.2:1b"))
     required = [models_cfg.get("fast"), models_cfg.get("general"), models_cfg.get("code")]
     for m in required:
         if m and m not in available:
             print(f"  [WARN] Model not pulled: {m} — run: ollama pull {m}")
     print(f"[5/8] Model check complete ({len(available)} models available)")
+    print(f"[5/8] Pre-warming {primary_model}...")
+    ollama.warmup(primary_model)
+    print(f"[5/8] {primary_model} ready in RAM")
 
     # 6. Build pipeline components
     router = IntentRouter(config, ollama)
@@ -141,21 +196,36 @@ def startup() -> None:
         wake.pause()
         try:
             tts.interrupt()
-            print("[PIPELINE] Recording... speak now")
-            result = stt.listen_and_transcribe()
-            print(
-                f"[PIPELINE] Transcription: \"{result.text}\" "
-                f"(empty={result.is_empty})"
-            )
-            if result.is_empty:
-                tts.speak("I didn't catch that. Try again.")
-                print("[PIPELINE] Ready — say 'Hey Jarvis' or press CTRL+SPACE")
-                return
+
+            # Check if the wake transcript already contains a command
+            wake_data = payload.data if hasattr(payload, "data") else payload
+            wake_command = wake_data.get("command", "").strip() if isinstance(wake_data, dict) else ""
+
+            if wake_command:
+                # Command was embedded in the wake phrase (e.g. "Hey Jarvis, what is python?")
+                command_text = wake_command
+                print(f'[PIPELINE] Command from wake: "{command_text}"')
+            else:
+                # Keyboard trigger or wake-only phrase — record separately
+                print("[PIPELINE] Recording... speak now")
+                result = stt.listen_and_transcribe()
+                print(
+                    f'[PIPELINE] Transcription: "{result.text}" '
+                    f"(empty={result.is_empty})"
+                )
+                if result.is_empty:
+                    tts.speak("I didn't catch that. Try again.")
+                    print("[PIPELINE] Ready — say 'Hey Jarvis' or press CTRL+SPACE")
+                    return
+                command_text = result.text
+
             print("[PIPELINE] Classifying intent...")
-            intent = router.classify(result.text)
+            t_classify = time.perf_counter()
+            intent = router.classify(command_text)
+            classify_ms = int((time.perf_counter() - t_classify) * 1000)
             print(
                 f"[PIPELINE] Intent: {intent.intent_type.value} "
-                f"(confidence={intent.confidence})"
+                f"(confidence={intent.confidence}, {classify_ms}ms)"
             )
             print(f"[PIPELINE] Dispatching to model: {intent.model_override}")
             _dispatch(intent, tts, ollama, config)

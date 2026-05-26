@@ -362,11 +362,10 @@ class TestWakeWordListenerAdversarial:
             listener.stop()
 
     def test_no_access_key_skips_porcupine_silently(self, config):
-        """Missing Porcupine key → Tier 2 is skipped, no crash, no error"""
+        """Missing Porcupine key → no crash, no error"""
         from aura.modules.wake_word import WakeWordListener
         with patch.dict(os.environ, {"PICOVOICE_ACCESS_KEY": ""}, clear=False):
             listener = WakeWordListener(config)
-            assert listener._porcupine_key == ""
             listener.start()
             time.sleep(0.3)
             listener.stop()

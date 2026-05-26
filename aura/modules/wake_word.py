@@ -222,9 +222,10 @@ class WakeWordListener:
                             print(f'[WakeWord] Heard: "{text}"')
 
                         if self._matches_wake_phrase(text):
-                            logger.info('[WakeWord] DETECTED via Whisper: "%s"', text)
+                            command = self._strip_wake_phrase(text)
+                            logger.info('[WakeWord] DETECTED via Whisper: "%s" (cmd: "%s")', text, command)
                             print(f'[WakeWord] Wake phrase detected: "{text}"')
-                            self._emit_detected("whisper")
+                            self._emit_detected("whisper", transcript=text, command=command)
                             self._cooldown(1.5)
                             speech_count = 0
                         else:
@@ -332,10 +333,32 @@ class WakeWordListener:
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
-    def _emit_detected(self, source: str) -> None:
+    def _strip_wake_phrase(self, text: str) -> str:
+        """Remove the wake phrase from the transcript to extract the command.
+
+        'hey jarvis what is python' → 'what is python'
+        'jarvis open chrome'        → 'open chrome'
+        'hey jarvis'                → ''
+        """
+        t = text.lower().strip()
+        for phrase in sorted(self._phrases, key=len, reverse=True):
+            idx = t.find(phrase)
+            if idx >= 0:
+                t = t[idx + len(phrase):]
+                break
+        for alt in sorted(self._fuzzy_alts, key=len, reverse=True):
+            idx = t.find(alt)
+            if idx >= 0:
+                t = t[idx + len(alt):]
+                break
+        return t.strip(" ,.:!?")
+
+    def _emit_detected(self, source: str, transcript: str = "", command: str = "") -> None:
         bus.emit(EventType.WAKE_WORD_DETECTED, {
             "timestamp": datetime.now().isoformat(),
             "source": source,
+            "transcript": transcript,
+            "command": command,
         })
 
     def _emit_error(self, message: str) -> None:

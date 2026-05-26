@@ -3,13 +3,17 @@ AURA — Ollama HTTP Client (Phase 2).
 
 Thin, reliable wrapper around the Ollama REST API. All LLM calls in AURA
 go through this single client — nothing else talks to Ollama directly.
+
+Supports both blocking and streaming responses.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from dataclasses import dataclass
+from typing import Generator
 
 import httpx
 
@@ -37,26 +41,19 @@ class OllamaClient:
     def __init__(self, config: dict) -> None:
         ollama_cfg = config.get("ollama", {})
         self._base_url: str = ollama_cfg.get("base_url", "http://localhost:11434")
-        self._timeout: int = ollama_cfg.get("timeout", 60)
-        self._retries: int = ollama_cfg.get("retries", 3)
+        self._timeout: int = ollama_cfg.get("timeout", 120)
+        self._retries: int = ollama_cfg.get("retries", 2)
+        self._keep_alive: str = ollama_cfg.get("keep_alive", "10m")
 
     def chat(
         self,
         model: str,
         prompt: str,
         system_prompt: str = "",
+        num_predict: int = 150,
     ) -> OllamaResponse:
-        """Send a chat completion request to Ollama.
-
-        Retries up to config.ollama.retries times with exponential backoff.
-        Emits LLM_REQUEST_SENT before and LLM_RESPONSE_RECEIVED after.
-        Raises OllamaUnavailableError if all retries fail.
-        """
-        messages: list[dict[str, str]] = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-
+        """Send a blocking chat completion request to Ollama."""
+        messages = self._build_messages(prompt, system_prompt)
         bus.emit(EventType.LLM_REQUEST_SENT, {"model": model, "prompt_len": len(prompt)})
 
         last_exc: Exception | None = None
@@ -69,8 +66,9 @@ class OllamaClient:
                         "model": model,
                         "messages": messages,
                         "stream": False,
+                        "keep_alive": self._keep_alive,
                         "options": {
-                            "num_predict": 150,
+                            "num_predict": num_predict,
                             "temperature": 0.7,
                         },
                     },
@@ -78,13 +76,9 @@ class OllamaClient:
                 )
                 response.raise_for_status()
                 duration_ms = int((time.perf_counter() - start) * 1000)
+                text = response.json().get("message", {}).get("content", "")
 
-                data = response.json()
-                text = data.get("message", {}).get("content", "")
-
-                result = OllamaResponse(
-                    text=text, model=model, duration_ms=duration_ms
-                )
+                result = OllamaResponse(text=text, model=model, duration_ms=duration_ms)
                 bus.emit(
                     EventType.LLM_RESPONSE_RECEIVED,
                     {"model": model, "duration_ms": duration_ms, "text_len": len(text)},
@@ -97,19 +91,83 @@ class OllamaClient:
                     backoff = 2 ** (attempt + 1)
                     logger.warning(
                         "Ollama request failed (attempt %d/%d), retrying in %ds: %s",
-                        attempt + 1,
-                        self._retries,
-                        backoff,
-                        exc,
+                        attempt + 1, self._retries, backoff, exc,
                     )
                     time.sleep(backoff)
 
-        bus.emit(
-            EventType.SYSTEM_ERROR,
-            {"module": "ollama_client", "error": str(last_exc)},
-        )
+        bus.emit(EventType.SYSTEM_ERROR, {"module": "ollama_client", "error": str(last_exc)})
         raise OllamaUnavailableError(
             f"Ollama unavailable after {self._retries} retries: {last_exc}"
+        )
+
+    def warmup(self, model: str) -> None:
+        """Send a minimal request to load the model into RAM."""
+        try:
+            httpx.post(
+                f"{self._base_url}/api/chat",
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": "hi"}],
+                    "stream": False,
+                    "keep_alive": self._keep_alive,
+                    "options": {"num_predict": 1},
+                },
+                timeout=self._timeout,
+            )
+            logger.info("Model '%s' warmed up", model)
+        except Exception as exc:
+            logger.warning("Warmup failed for '%s': %s", model, exc)
+
+    def chat_stream(
+        self,
+        model: str,
+        prompt: str,
+        system_prompt: str = "",
+        num_predict: int = 80,
+    ) -> Generator[str, None, None]:
+        """Stream chat tokens from Ollama. Yields text chunks as they arrive."""
+        messages = self._build_messages(prompt, system_prompt)
+        bus.emit(EventType.LLM_REQUEST_SENT, {"model": model, "prompt_len": len(prompt)})
+
+        start = time.perf_counter()
+        try:
+            with httpx.stream(
+                "POST",
+                f"{self._base_url}/api/chat",
+                json={
+                    "model": model,
+                    "messages": messages,
+                    "stream": True,
+                    "keep_alive": self._keep_alive,
+                    "options": {
+                        "num_predict": num_predict,
+                        "temperature": 0,
+                    },
+                },
+                timeout=self._timeout,
+            ) as resp:
+                resp.raise_for_status()
+                for line in resp.iter_lines():
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    token = chunk.get("message", {}).get("content", "")
+                    if token:
+                        yield token
+                    if chunk.get("done", False):
+                        break
+
+        except Exception as exc:
+            logger.error("Streaming failed: %s", exc)
+            raise
+
+        duration_ms = int((time.perf_counter() - start) * 1000)
+        bus.emit(
+            EventType.LLM_RESPONSE_RECEIVED,
+            {"model": model, "duration_ms": duration_ms, "streamed": True},
         )
 
     def health_check(self) -> bool:
@@ -125,8 +183,15 @@ class OllamaClient:
         try:
             r = httpx.get(f"{self._base_url}/api/tags", timeout=5)
             r.raise_for_status()
-            data = r.json()
-            return [m["name"] for m in data.get("models", [])]
+            return [m["name"] for m in r.json().get("models", [])]
         except Exception as exc:
             logger.error("Failed to list models: %s", exc)
             return []
+
+    @staticmethod
+    def _build_messages(prompt: str, system_prompt: str) -> list[dict[str, str]]:
+        messages: list[dict[str, str]] = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        return messages
