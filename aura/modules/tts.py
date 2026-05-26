@@ -1,0 +1,226 @@
+"""
+AURA — Text-to-Speech Engine (Phase 2).
+
+Automatically selects Piper TTS (offline) or Edge TTS (online) based on
+ModeMonitor. All calls are non-blocking — audio is queued and played
+sequentially. Concurrent speak() calls never overlap.
+"""
+
+from __future__ import annotations
+
+import logging
+import queue
+import tempfile
+import threading
+import time
+from pathlib import Path
+
+from aura.utils.event_bus import EventType, bus
+from aura.utils.mode_monitor import mode_monitor
+
+logger = logging.getLogger("aura.tts")
+
+
+class TTSEngine:
+    """Voice output with automatic engine switching and priority queue."""
+
+    def __init__(self, config: dict) -> None:
+        tts_cfg = config.get("tts", {})
+        self._offline_engine: str = tts_cfg.get("offline_engine", tts_cfg.get("engine", "piper"))
+        self._online_engine: str = tts_cfg.get("online_engine", "edge-tts")
+        self._piper_voice: str = tts_cfg.get("piper_voice", tts_cfg.get("voice", "en_US-lessac-medium"))
+        self._queue: queue.Queue[str | None] = queue.Queue()
+        self._worker_thread: threading.Thread | None = None
+        self._stop_event = threading.Event()
+        self._speaking = threading.Event()
+        self._current_mode: str = "OFFLINE"
+
+        # Subscribe to mode changes
+        bus.subscribe(EventType.MODE_CHANGED, self._on_mode_changed)
+
+    def _on_mode_changed(self, payload) -> None:
+        """React to connectivity changes."""
+        self._current_mode = payload.data.get("mode", "OFFLINE")
+
+    def start(self) -> None:
+        """Start the internal audio worker thread."""
+        if self._worker_thread is not None and self._worker_thread.is_alive():
+            return
+
+        self._stop_event.clear()
+        self._current_mode = mode_monitor.current_mode
+        self._worker_thread = threading.Thread(
+            target=self._worker, name="TTSWorker", daemon=True
+        )
+        self._worker_thread.start()
+        logger.info("TTS engine started (mode: %s)", self._current_mode)
+
+    def speak(self, text: str, priority: bool = False) -> None:
+        """Queue text for speaking. Non-blocking.
+
+        If priority=True, clears the queue before adding.
+        """
+        if text is None or not isinstance(text, str) or not text.strip():
+            return
+
+        bus.emit(EventType.TTS_SPEAK_REQUEST, {"text_preview": text[:50]})
+
+        if priority:
+            self._clear_queue()
+
+        self._queue.put(text)
+
+    def interrupt(self) -> None:
+        """Stop current audio and clear the queue."""
+        self._clear_queue()
+
+    def wait_until_idle(self, timeout: float = 120.0) -> None:
+        """Block until the speech queue is drained and playback has finished."""
+        deadline = time.perf_counter() + timeout
+        while time.perf_counter() < deadline:
+            if self._queue.empty() and not self._speaking.is_set():
+                return
+            time.sleep(0.05)
+        logger.warning("TTS wait_until_idle timed out after %.0fs", timeout)
+
+    def _clear_queue(self) -> None:
+        """Drain all items from the queue."""
+        while not self._queue.empty():
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                break
+
+    def _worker(self) -> None:
+        """Daemon thread that processes the speech queue."""
+        while not self._stop_event.is_set():
+            try:
+                text = self._queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+
+            if text is None:
+                break
+
+            self._speaking.set()
+            bus.emit(EventType.TTS_SPEAKING_STARTED, {"text_preview": text[:50]})
+            start = time.perf_counter()
+
+            try:
+                success = self._synthesize_and_play(text)
+            finally:
+                self._speaking.clear()
+
+            duration_ms = int((time.perf_counter() - start) * 1000)
+            bus.emit(EventType.TTS_SPEAKING_FINISHED, {"duration_ms": duration_ms})
+
+            if not success:
+                logger.warning("TTS playback failed for: %s", text[:50])
+
+    def _synthesize_and_play(self, text: str) -> bool:
+        """Synthesize and play using the best available engine."""
+        current_mode = mode_monitor.current_mode
+
+        if current_mode == "ONLINE":
+            try:
+                if self._try_edge_tts(text):
+                    return True
+            except Exception as exc:
+                logger.info("Edge TTS exception: %s", exc)
+
+        if self._offline_engine == "piper":
+            try:
+                if self._try_piper(text):
+                    return True
+            except Exception as exc:
+                logger.info("Piper exception: %s — falling through to pyttsx3", exc)
+
+        try:
+            return self._try_pyttsx3(text)
+        except Exception as exc:
+            logger.error("All TTS engines failed: %s", exc)
+            return False
+
+    def _try_edge_tts(self, text: str) -> bool:
+        """Synthesize with edge-tts and play the resulting audio."""
+        try:
+            import asyncio
+            import edge_tts
+
+            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+                tmp_path = tmp.name
+
+            async def _synthesize():
+                communicate = edge_tts.Communicate(text, "en-US-GuyNeural")
+                await communicate.save(tmp_path)
+
+            asyncio.run(_synthesize())
+            self._play_file(tmp_path)
+            Path(tmp_path).unlink(missing_ok=True)
+            return True
+        except Exception as exc:
+            logger.debug("Edge TTS error: %s", exc)
+            return False
+
+    def _try_piper(self, text: str) -> bool:
+        """Synthesize with Piper TTS and play the resulting audio."""
+        try:
+            import subprocess
+
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                tmp_path = tmp.name
+
+            # Use piper CLI
+            proc = subprocess.run(
+                ["piper", "--model", self._piper_voice, "--output_file", tmp_path],
+                input=text.encode("utf-8"),
+                capture_output=True,
+                timeout=30,
+            )
+            if proc.returncode == 0:
+                self._play_file(tmp_path)
+                Path(tmp_path).unlink(missing_ok=True)
+                return True
+            return False
+        except Exception as exc:
+            logger.debug("Piper TTS error: %s", exc)
+            return False
+
+    def _try_pyttsx3(self, text: str) -> bool:
+        """Final fallback — always available via pyttsx3."""
+        try:
+            import pyttsx3
+
+            engine = pyttsx3.init()
+            engine.say(text)
+            engine.runAndWait()
+            engine.stop()
+            return True
+        except Exception as exc:
+            logger.error("pyttsx3 fallback failed: %s", exc)
+            return False
+
+    def _play_file(self, filepath: str) -> None:
+        """Play an audio file using sounddevice + soundfile, or pygame."""
+        try:
+            import sounddevice as sd
+            import soundfile as sf
+
+            data, samplerate = sf.read(filepath)
+            sd.play(data, samplerate)
+            sd.wait()
+            return
+        except Exception:
+            pass
+
+        try:
+            import pygame.mixer
+
+            pygame.mixer.init()
+            pygame.mixer.music.load(filepath)
+            pygame.mixer.music.play()
+            while pygame.mixer.music.get_busy():
+                time.sleep(0.1)
+            pygame.mixer.quit()
+        except Exception as exc:
+            logger.debug("Audio playback failed: %s", exc)

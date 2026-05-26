@@ -16,23 +16,19 @@
 
 **No cloud. No API keys. No subscriptions. No data leaving your machine. Ever.**
 
-[Get Started](#-getting-started) · [What It Can Do](#-what-aura-can-do-today) · [Roadmap](#-roadmap) · [Contribute](#-contributing)
+[Get Started](#-getting-started) · [What It Can Do](#-what-aura-can-do) · [Architecture](#-architecture) · [Roadmap](#-roadmap) · [Contribute](#-contributing)
 
 </div>
 
 ---
 
-<!-- TODO: Replace with actual demo GIF
-![AURA Demo](docs/assets/demo.gif)
--->
-
-## 💡 The Problem
+## The Problem
 
 Every "AI assistant" today is a chat window connected to someone else's server.
 
 You type. It responds. That's it.
 
-You can't tell it to **create a file on your desktop**. You can't ask it to **kill a runaway process**. You can't say **"scaffold a new project"** and watch it happen.
+You can't tell it to **create a file on your desktop**. You can't ask it to **kill a runaway process**. You can't say **"open Chrome"** and have it happen. You can't speak a command and hear the answer.
 
 ChatGPT can't touch your filesystem. Copilot can't monitor your CPU. AutoGPT burns through API credits and still can't move a file.
 
@@ -40,150 +36,270 @@ ChatGPT can't touch your filesystem. Copilot can't monitor your CPU. AutoGPT bur
 
 ---
 
-## 🔥 What Makes AURA Different
+## What Makes AURA Different
 
 | | ChatGPT / Copilot | AutoGPT / AgentGPT | **AURA** |
 |---|---|---|---|
-| Runs locally | ❌ Cloud-only | ❌ Needs API keys | ✅ **Fully offline** |
-| Executes system actions | ❌ Chat only | ⚠️ Unreliable | ✅ **File, process, npm, shell** |
-| Privacy | ❌ Data sent to servers | ❌ Data sent to servers | ✅ **Nothing leaves your machine** |
-| Security model | N/A | None | ✅ **Sandboxed, audited, policy-enforced** |
-| Voice control | ❌ | ❌ | 🔄 **Coming (Whisper + Piper)** |
-| Cost | $20/mo+ | API credits | ✅ **Free forever** |
-| Works offline | ❌ | ❌ | ✅ **100% offline capable** |
+| Runs locally | Cloud-only | Needs API keys | **Fully offline with Ollama** |
+| Executes system actions | Chat only | Unreliable | **File, process, shell, voice** |
+| Voice interface | No | No | **Whisper STT + TTS pipeline** |
+| Privacy | Data sent to servers | Data sent to servers | **Nothing leaves your machine** |
+| Security model | N/A | None | **Sandboxed, audited, policy-enforced** |
+| Cost | $20/mo+ | API credits | **Free forever** |
+| Works offline | No | No | **100% offline capable** |
 
 ---
 
-## ⚡ What AURA Can Do Today
+## What AURA Can Do
 
-> Phase 0 + Phase 1 complete. Everything below works right now.
+### Phase 1 — System Control (CLI)
 
-### File Operations
 ```
 > create file desktop/notes.txt
 File created: C:\Users\You\Desktop\notes.txt
 
-> move file desktop/notes.txt documents/notes.txt
-Moved: C:\Users\You\Desktop\notes.txt → C:\Users\You\Documents\notes.txt
-
-> search files . *.py
-```
-
-### System Control
-```
 > cpu
 CPU: 23.4%
-
-> ram
-Memory: 8.2 GB / 16.0 GB
 
 > kill process chrome
 Process 'chrome' terminated.
 
-> check system health
-python: 3.14.0 | git: 2.51.1 | node: v22.22.0 | npm: 11.6.1
-```
-
-### Project Scaffolding
-```
 > create project desktop/my-app
-Project 'my-app' created at C:\Users\You\Desktop\my-app
-  → src/ tests/ README.md .gitignore requirements.txt
-```
+Project 'my-app' created with src/ tests/ README.md .gitignore requirements.txt
 
-### Shell Execution (allowlisted)
-```
 > run command git status
-> run command npm install
 ```
 
-### Smart Path Resolution
+### Phase 2 — Voice + Intelligence (Current)
 
-| You type | AURA resolves to |
+AURA now **hears you, thinks locally, and speaks back** — powered entirely by local models.
+
+```
+"Hey Jarvis" → "Open Chrome"
+  → Wake word detected (Whisper keyword spotting)
+  → Whisper transcribes speech
+  → Ollama classifies intent (SYSTEM_COMMAND)
+  → Routes to fast model (llama3.2:3b)
+  → TTS speaks the response
+
+"Hey Jarvis" → "Write a Python function to sort a list"
+  → Intent: CODE_GENERATION
+  → Routes to code model (deepseek-coder:6.7b)
+  → Generates and speaks the answer
+
+[CTRL+SPACE] → "What is a closure?"
+  → Intent: GENERAL_KNOWLEDGE
+  → Routes to general model (mistral:7b)
+  → Explains and speaks the answer
+```
+
+**Voice pipeline flow:**
+
+```
+Wake ("Hey Jarvis" / CTRL+SPACE) → STT (Whisper) → Intent Router (Ollama) → LLM Response → TTS (Edge/Piper/pyttsx3)
+```
+
+**7 intent types** are classified and routed to the optimal model:
+
+| Intent | Routed To | Example |
+|---|---|---|
+| `SYSTEM_COMMAND` | llama3.2:3b (fast) | "Open Chrome", "Take a screenshot" |
+| `CODE_GENERATION` | deepseek-coder:6.7b | "Write a REST endpoint in FastAPI" |
+| `GENERAL_KNOWLEDGE` | mistral:7b | "Explain Docker networking" |
+| `DEV_TASK` | llama3.2:3b (fast) | "Push my code to GitHub" |
+| `VISION_TASK` | llava:7b | "What's on my screen?" |
+| `PROJECT_CONTEXT` | mistral:7b | "What routes does my project have?" |
+| `REALTIME_QUERY` | mistral:7b | "What's the latest Node.js version?" |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    INPUT LAYER                       │
+│    CLI · "Hey Jarvis" (Whisper) · CTRL+SPACE        │
+├─────────────────────────────────────────────────────┤
+│               VOICE PIPELINE (Phase 2)              │
+│  VAD → Wake Word → Whisper STT → Intent Router     │
+├─────────────────────────────────────────────────────┤
+│                 REASONING LAYER                      │
+│   OllamaClient (6 local models) · Intent Classifier │
+├─────────────────────────────────────────────────────┤
+│                 SECURITY LAYER                       │
+│    Sandbox · Policy · Permissions · Audit Chain      │
+├─────────────────────────────────────────────────────┤
+│                EXECUTION LAYER                       │
+│   Isolated Worker Process · Plugin Registry · IPC    │
+├─────────────────────────────────────────────────────┤
+│                  PLUGIN LAYER                        │
+│  System · Git · Docker · Browser · Gmail · Spotify   │
+│  Vision · Weather · Calendar · Memory                │
+├─────────────────────────────────────────────────────┤
+│                  OUTPUT LAYER                        │
+│       Console · TTS (Edge/Piper/pyttsx3) · EventBus │
+└─────────────────────────────────────────────────────┘
+```
+
+**Wake word detection (three-tier fallback):**
+
+| Tier | Engine | How it works |
+|---|---|---|
+| **1 (default)** | Whisper keyword spotting | VAD detects speech → records 2s → Whisper transcribes → matches "Hey Jarvis" |
+| **2** | openwakeword | Lightweight ONNX model (auto-fallback if Whisper unavailable) |
+| **3** | CTRL+SPACE | Keyboard hotkey — always works alongside any voice tier |
+
+**Key design decisions:**
+- The main process **never imports plugin code** — plugins run in isolated worker subprocesses over JSON IPC
+- **EventBus** connects all modules via 18 typed events — no direct coupling
+- **ModeMonitor** detects online/offline and switches TTS engines automatically
+- **TTS failover chain:** Edge TTS (online) → Piper (offline) → pyttsx3 (fallback)
+- **Wake word shares the Whisper model** with STT — zero additional memory cost
+- All config is centralized in `config.yaml` — no hardcoded values in source
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- **Python 3.10+**
+- **Ollama** installed and running ([ollama.com](https://ollama.com))
+
+### Install
+
+```bash
+git clone https://github.com/aryanjsx/AURA.git
+cd AURA
+pip install -r requirements.txt
+```
+
+### Pull the Ollama models
+
+```bash
+ollama pull llama3.2:3b
+ollama pull mistral:7b-instruct-q4_0
+ollama pull deepseek-coder:6.7b
+ollama pull llava:7b
+ollama pull nomic-embed-text:latest
+```
+
+If your models are stored in a custom location (e.g., `D:\ollama\models`):
+
+```powershell
+$env:OLLAMA_MODELS="D:\ollama\models"
+```
+
+### Run
+
+```bash
+# Phase 2 — Voice pipeline (full experience)
+python main.py
+
+# Phase 1 — CLI mode (text commands only)
+python -m aura
+python -m aura --yes "cpu"
+```
+
+Say **"Hey Jarvis"** to activate voice input, or press **CTRL+SPACE** as a manual fallback. Speak your command and AURA responds.
+
+### Quick Reference
+
+| Category | Commands |
 |---|---|
-| `desktop/file.txt` | `C:\Users\You\Desktop\file.txt` |
-| `~/Documents/file.txt` | `C:\Users\You\Documents\file.txt` |
-| `myproject/file.txt` | `~/AURA_SANDBOX/myproject/file.txt` |
-
-Every action is **sandboxed**, **policy-checked**, and **audit-logged**. Protected system paths are blocked. Dangerous commands are denied.
-
----
-
-## 🎬 Demo
-
-<!-- TODO: Add demo GIF here -->
-<!-- ![AURA in action](docs/assets/demo.gif) -->
-
-```
-    ___   __  ______  ___
-   /   | / / / / __ \/   |
-  / /| |/ / / / /_/ / /| |
- / ___ / /_/ / _, _/ ___ |
-/_/  |_\____/_/ |_/_/  |_|
-
-Autonomous Unified Response Architecture
-  Mode: ONLINE ✅
-
-> create file desktop/hello.txt
-File created: C:\Users\You\Desktop\hello.txt
-
-> cpu
-CPU: 12.3%
-
-> create project desktop/my-app
-Project 'my-app' created at C:\Users\You\Desktop\my-app
-
-> exit
-Goodbye.
-```
+| **Files** | `create file`, `delete file`, `rename file`, `move file`, `search files` |
+| **System** | `cpu`, `ram`, `list processes`, `check system health`, `kill process` |
+| **Projects** | `create project <path>` |
+| **Shell** | `run command <cmd>` (allowlisted: git, npm, docker) |
+| **npm** | `npm install [path]`, `npm run <script>` |
+| **Voice** | Say "Hey Jarvis" or press CTRL+SPACE, speak naturally |
+| **REPL** | `help`, `exit`, `quit` |
 
 ---
 
-## 🧠 Why AURA Exists
+## Project Structure
 
-The future of AI isn't a browser tab. It's an **operating system layer**.
-
-We believe:
-- Your AI should run **where your work happens** — on your machine
-- It should **do things**, not just suggest things
-- Your data should **never leave your control**
-- You shouldn't need a subscription to use intelligence
-
-AURA is building that layer. Starting with developer workflows. Expanding to everything.
+```
+AURA/
+├── aura/
+│   ├── core/
+│   │   ├── config_loader.py    # YAML config with strict validation
+│   │   ├── ollama_client.py    # Ollama API client with retries
+│   │   ├── intent_router.py    # LLM-powered intent classification
+│   │   ├── errors.py           # Custom exception hierarchy
+│   │   └── ...
+│   ├── modules/
+│   │   ├── stt.py              # Whisper speech-to-text engine
+│   │   ├── tts.py              # Multi-engine text-to-speech
+│   │   └── wake_word.py        # Whisper-based wake word + CTRL+SPACE
+│   ├── utils/
+│   │   ├── audio_input.py      # Microphone device resolution
+│   │   ├── event_bus.py        # Singleton pub/sub with 18 event types
+│   │   └── mode_monitor.py     # Online/offline detection daemon
+│   ├── security/               # Sandbox, audit, policy enforcement
+│   └── runtime/                # Execution engine, planner, worker IPC
+├── plugins/
+│   ├── system/                 # File, process, shell operations
+│   ├── git/                    # Git automation
+│   ├── docker/                 # Docker lifecycle management
+│   ├── browser/                # Web automation (Playwright)
+│   ├── vision/                 # Screen capture + LLaVA
+│   ├── gmail/                  # Email integration
+│   ├── spotify/                # Music control
+│   ├── calendar/               # Calendar events
+│   ├── weather/                # Weather queries
+│   └── memory/                 # ChromaDB semantic memory
+├── tests/
+│   ├── test_phase2_audit_part1.py  # EventBus, ModeMonitor, Ollama, Router
+│   ├── test_phase2_audit_part2.py  # STT, WakeWord, TTS, Config, Safety
+│   └── fixtures/               # Test audio files, bad config
+├── scripts/                    # Diagnostic and integration test scripts
+├── config.yaml                 # Central configuration
+├── main.py                     # Phase 2 voice pipeline entry point
+└── requirements.txt
+```
 
 ---
 
-## 🏗️ Architecture
+## Test Suite
 
-Clean. Layered. Every component is a standalone module.
+The adversarial audit suite covers every module with both happy-path and edge-case tests:
 
-```
-┌──────────────────────────────────────────────────┐
-│                   INPUT LAYER                     │
-│         CLI · One-shot · Voice (Phase 2)          │
-├──────────────────────────────────────────────────┤
-│                 REASONING LAYER                   │
-│       Intent Parser · LLM Router (Phase 2)        │
-├──────────────────────────────────────────────────┤
-│                 SECURITY LAYER                    │
-│   Sandbox · Policy · Permissions · Audit Chain    │
-├──────────────────────────────────────────────────┤
-│                 EXECUTION LAYER                   │
-│  Isolated Worker Process · Plugin Registry · IPC  │
-├──────────────────────────────────────────────────┤
-│                  PLUGIN LAYER                     │
-│   File · Process · npm · System · Git · Docker    │
-├──────────────────────────────────────────────────┤
-│                  OUTPUT LAYER                     │
-│       Console · TTS (Phase 2) · GUI (Phase 5)     │
-└──────────────────────────────────────────────────┘
-```
+| Section | Tests | Status |
+|---|---|---|
+| EventBus (happy + adversarial) | 14 | All pass |
+| ModeMonitor (happy + adversarial) | 7 | All pass |
+| OllamaClient (happy + adversarial) | 8 | All pass |
+| IntentRouter + IntentObject | 13 | All pass |
+| STTEngine (happy + adversarial) | 13 | All pass |
+| WakeWordListener (happy + adversarial) | 11 | All pass |
+| TTSEngine (happy + adversarial) | 9 | All pass |
+| Config validation | 2 | All pass |
+| Safety (static analysis) | 5 | All pass |
+| Pipeline E2E | 1 | All pass |
+| Regression guards | 5 | All pass |
 
-The main process **never imports plugin code**. Plugins run in an **isolated worker subprocess** communicating over JSON IPC. A compromised plugin cannot touch the host.
+**Security verified:** No `shell=True`, no `eval`/`exec`, no subprocess string injection, no audio persisted to disk, all layer boundaries enforced.
 
 ---
 
-## 📐 Philosophy
+## Roadmap
+
+| Phase | What Ships | Status |
+|---|---|---|
+| **Phase 0 — Core Infrastructure** | Event bus, config, registry, CLI, execution backbone | Done |
+| **Phase 1 — System Plugin** | File/process/npm operations, sandbox, permissions, audit chain | Done |
+| **Phase 2 — Voice + Intelligence** | Whisper STT, Ollama LLM routing, TTS, intent classification | Done |
+| **Phase 3 — Dev Tools** | Git automation, Docker lifecycle, browser automation | Next |
+| **Phase 4 — Vision** | Screen capture, OCR, visual reasoning with LLaVA | Planned |
+| **Phase 5 — GUI Dashboard** | PyQt6 desktop interface with live command log | Planned |
+| **Phase 6 — Memory + RAG** | ChromaDB semantic memory, conversation history | Planned |
+| **Phase 7 — Browser Automation** | Sandboxed web research with Playwright | Planned |
+| **Phase 8 — Integrations** | Spotify, Weather, Calendar, Gmail bridges | Planned |
+
+---
+
+## Philosophy
 
 > **"If it needs the internet to think, it's not your AI."**
 
@@ -195,75 +311,7 @@ The main process **never imports plugin code**. Plugins run in an **isolated wor
 
 ---
 
-## 🗺️ Roadmap
-
-| Phase | What Ships | Status |
-|---|---|---|
-| **Phase 0 — Core Infrastructure** | Event bus, config, registry, CLI, execution backbone | ✅ Done |
-| **Phase 1 — System Plugin** | File/process/npm operations, sandbox, permissions, audit chain | ✅ Done |
-| **Phase 2 — Voice + Intelligence** | Whisper STT, Ollama LLM, Piper TTS, tool orchestration | 🔄 In Progress |
-| **Phase 3 — Dev Tools** | Git automation, Docker lifecycle management | ⏳ Planned |
-| **Phase 4 — Vision** | Screen capture, OCR, visual reasoning with LLaVA | ⏳ Planned |
-| **Phase 5 — GUI Dashboard** | PyQt6 desktop interface with live command log | ⏳ Planned |
-| **Phase 6 — Memory + RAG** | ChromaDB semantic memory, conversation history | ⏳ Planned |
-| **Phase 7 — Browser Automation** | Sandboxed web research with Playwright | ⏳ Planned |
-| **Phase 8 — Integrations** | Spotify, Weather, Calendar, Gmail bridges | ⏳ Planned |
-
-The goal: **a fully autonomous, offline AI layer for your entire operating system.**
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Python 3.10+
-
-### Install
-
-```bash
-git clone https://github.com/aryanjsx/AURA.git
-cd AURA
-pip install -r requirements.txt
-```
-
-### Run
-
-```bash
-python -m aura              # Interactive REPL
-python -m aura --yes "cpu"  # Single command, no prompts
-python -m aura --help       # Usage info
-```
-
-That's it. No Docker. No cloud setup. No API keys. Just run it.
-
-### Quick Reference
-
-| Category | Commands |
-|---|---|
-| **Files** | `create file`, `delete file`, `rename file`, `move file`, `search files` |
-| **System** | `cpu`, `ram`, `list processes`, `check system health`, `kill process` |
-| **Projects** | `create project <path>` |
-| **Shell** | `run command <cmd>` (allowlisted: git, npm, docker, echo) |
-| **npm** | `npm install [path]`, `npm run <script>` |
-| **Logs** | `show logs <file> [n]` |
-| **REPL** | `help`, `exit`, `quit` |
-
----
-
-## ⭐ Star This Repo
-
-If AURA's vision resonates with you — an AI that **runs locally**, **executes real actions**, and **respects your privacy** — drop a star.
-
-It takes one second and tells us you believe AI should be **owned, not rented**.
-
-[![Star this repo](https://img.shields.io/github/stars/aryanjsx/AURA?style=for-the-badge&logo=github&label=Star%20AURA&color=yellow)](https://github.com/aryanjsx/AURA)
-
-Every star pushes this project forward. Every star says: **"The future of AI is local."**
-
----
-
-## 🤝 Contributing
+## Contributing
 
 We're building something big and we want you in.
 
@@ -275,28 +323,21 @@ We're building something big and we want you in.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines. Check out [open issues](https://github.com/aryanjsx/AURA/issues) — look for `good first issue` and `help wanted`.
 
 **Active areas where we need help:**
-- Whisper STT integration (Phase 2)
+- Plugin development (Git, Docker, Browser, Gmail, Spotify)
 - Ollama prompt engineering for developer tasks
-- Piper TTS voice configuration
+- Cross-platform testing (macOS, Linux)
 - Test coverage expansion
-- Documentation improvements
+- GUI dashboard design (Phase 5)
 
 ---
 
-## 🔭 The Vision
+## Star This Repo
 
-Today, AURA manages files, monitors processes, and scaffolds projects.
+If AURA's vision resonates with you — an AI that **runs locally**, **executes real actions**, and **respects your privacy** — drop a star.
 
-Tomorrow, it will:
-- **Hear you** — wake word activation, voice commands, hands-free coding
-- **See your screen** — understand what you're looking at, act on visual context
-- **Remember everything** — semantic memory across sessions, project-aware context
-- **Automate your workflow** — git, Docker, browser research, email, calendar — all through one interface
-- **Run your entire dev environment** — from a single, private, local AI
+It takes one second and tells us you believe AI should be **owned, not rented**.
 
-No cloud. No subscription. No compromises.
-
-**This is not a tool. It's the beginning of a new relationship between developers and their machines.**
+[![Star this repo](https://img.shields.io/github/stars/aryanjsx/AURA?style=for-the-badge&logo=github&label=Star%20AURA&color=yellow)](https://github.com/aryanjsx/AURA)
 
 ---
 

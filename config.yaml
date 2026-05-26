@@ -92,33 +92,53 @@ audit:
 # ──────────────────────────────────────────────────────────
 
 models:
-  fast: "llama3.2:3b"
-  general: "mistral:7b-instruct-q4_0"
-  code: "deepseek-coder:6.7b"
-  reasoning: "llama3.1:8b"
-  vision: "llava:7b"
-  embeddings: "nomic-embed-text"
-
-stt:
-  engine: "whisper"
-  model: "base"
-  silence_timeout: 2.0
-  max_recording: 30
-
-tts:
-  engine: "piper"
-  voice: "en_US-lessac-medium"
-  fallback: "pyttsx3"
+  fast:       "llama3.2:3b"
+  general:    "llama3.2:3b"
+  reasoning:  "mistral:7b-instruct-q4_0"
+  code:       "deepseek-coder:6.7b"
+  vision:     "llava:7b"
+  embeddings: "nomic-embed-text:latest"
 
 routing:
-  complexity_threshold: 50
-  rag_confidence_threshold: 0.72
-  realtime_warning: true
-  fallback_model: "mistral:7b-instruct-q4_0"
-  intent_timeout_seconds: 10
-  intent_max_retries: 3
+  complexity_threshold:      50
+  rag_confidence_threshold:  0.72
+  realtime_warning:          true
+  intent_timeout_seconds:    10
+  intent_max_retries:        3
+
+stt:
+  model:           "tiny"
+  silence_timeout: 1.5
+  max_recording:   15
+
+wake_word:
+  engine:            "whisper"      # "whisper" (recommended) or "oww" (openwakeword)
+  phrases:                          # what to say to wake AURA (Whisper engine)
+    - "hey jarvis"
+    - "jarvis"
+  listen_duration:   2.0            # seconds to record when voice detected
+  vad_threshold:     0.008          # mic RMS above this = speech detected
+  vad_pre_frames:    3              # consecutive speech frames before recording
+  input_device:      null           # null = auto-pick; or device index
+  debug_scores:      true           # print voice-activity and transcription
+
+  # openwakeword fallback (Tier 2)
+  oww_model:         "hey_jarvis"
+  oww_threshold:     0.05
+  oww_patience:      1
+  oww_chunk_ms:      80
+
+tts:
+  offline_engine: "piper"
+  online_engine:  "edge-tts"
+  piper_voice:    "en_US-lessac-medium"
+
+memory:
+  persist_path: ".aura/memory"
+  max_results:  3
+  purge_days:   90
 
 ollama:
   base_url: "http://localhost:11434"
-  timeout: 60
-  retries: 3
+  timeout:  30
+  retries:  2

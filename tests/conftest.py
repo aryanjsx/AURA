@@ -77,8 +77,3 @@ def event_bus():
     from aura.core.event_bus import EventBus
     return EventBus()
 
-
-@pytest.fixture()
-def fixtures_dir():
-    """Return the path to the tests/fixtures directory."""
-    return Path(__file__).resolve().parent / "fixtures"

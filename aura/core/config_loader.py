@@ -44,6 +44,19 @@ REQUIRED_KEYS: tuple[str, ...] = (
     "rate_limit.repeat_threshold",
     "safety.confirm_timeout",
     "audit.file",
+    # Phase 2 — Voice Pipeline
+    "models.fast",
+    "models.general",
+    "models.code",
+    "routing.intent_timeout_seconds",
+    "routing.intent_max_retries",
+    "stt.model",
+    "stt.silence_timeout",
+    "stt.max_recording",
+    "tts.offline_engine",
+    "ollama.base_url",
+    "ollama.timeout",
+    "ollama.retries",
 )
 
 # Built-in defaults merged under user config (never used as required-key fallback).

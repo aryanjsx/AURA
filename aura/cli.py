@@ -227,8 +227,8 @@ def bootstrap(
 def _mode_line() -> str:
     """Return a human-readable mode indicator line."""
     try:
-        from aura.core.mode_monitor import ModeMonitor
-        online = ModeMonitor().is_online()
+        from aura.utils.mode_monitor import ModeMonitor
+        online = ModeMonitor.is_online()
     except Exception:
         online = False
     return "  Mode: ONLINE \u2705" if online else "  Mode: OFFLINE \U0001f534"
