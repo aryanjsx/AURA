@@ -17,6 +17,7 @@ import time
 from aura.core.config_loader import load_config
 from aura.core.intent_router import IntentObject, IntentRouter, IntentType
 from aura.core.ollama_client import OllamaClient
+from aura.core.voice_executor import execute as execute_system_command
 from aura.modules.stt import STTEngine
 from aura.modules.tts import TTSEngine
 from aura.modules.wake_word import WakeWordListener
@@ -117,10 +118,13 @@ def _dispatch(
         _stream_to_tts(ollama, tts, model, intent.cleaned_text)
 
     elif intent.intent_type == IntentType.SYSTEM_COMMAND:
-        tts.speak(
-            f"System command recognized: {intent.cleaned_text}. "
-            "Execution via safety gate is pending Phase 3 integration."
-        )
+        result = execute_system_command(intent.cleaned_text)
+        if result:
+            print(f"[PIPELINE] Executed: {result}")
+            tts.speak(result)
+        else:
+            model = intent.model_override or config["models"]["fast"]
+            _stream_to_tts(ollama, tts, model, intent.cleaned_text)
 
     elif intent.intent_type == IntentType.CODE_GENERATION:
         model = intent.model_override or config["models"]["code"]

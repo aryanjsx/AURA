@@ -94,7 +94,8 @@ _MODEL_MAP: dict[IntentType, str] = {
 
 
 _FAST_PATTERNS: list[tuple[re.Pattern, IntentType]] = [
-    (re.compile(r"\b(open|close|launch|start|kill|shutdown|restart|screenshot|volume|brightness)\b", re.I), IntentType.SYSTEM_COMMAND),
+    (re.compile(r"\b(create|make|delete|remove|rename|move|copy)\b.+\b(file|folder|directory)\b", re.I), IntentType.SYSTEM_COMMAND),
+    (re.compile(r"\b(open|close|launch|start|kill|shutdown|restart|screenshot|volume|brightness|cpu|ram|memory|process)\b", re.I), IntentType.SYSTEM_COMMAND),
     (re.compile(r"\b(write|code|function|class|implement|refactor|debug|fix bug|script)\b.*\b(in|for|using|with)?\b", re.I), IntentType.CODE_GENERATION),
     (re.compile(r"\b(git |docker |npm |pip |yarn |push|pull|commit|deploy|build)\b", re.I), IntentType.DEV_TASK),
     (re.compile(r"\b(screen|see|look at|what.s on my|describe my)\b", re.I), IntentType.VISION_TASK),

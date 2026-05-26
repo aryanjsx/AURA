@@ -72,44 +72,57 @@ Project 'my-app' created with src/ tests/ README.md .gitignore requirements.txt
 
 ### Phase 2 — Voice + Intelligence (Current)
 
-AURA now **hears you, thinks locally, and speaks back** — powered entirely by local models.
+AURA now **hears you, thinks locally, speaks back, and executes real actions** — powered entirely by local models.
 
 ```
-"Hey Jarvis" → "Open Chrome"
-  → Wake word detected (Whisper keyword spotting)
-  → Whisper transcribes speech
-  → Ollama classifies intent (SYSTEM_COMMAND)
-  → Routes to fast model (llama3.2:3b)
-  → TTS speaks the response
+"Hey Jarvis, create a folder named project on desktop"
+  → Wake word + command extracted in one step
+  → Intent: SYSTEM_COMMAND (regex, 0ms)
+  → Folder created instantly
+  → TTS: "Folder project created on Desktop."
 
-"Hey Jarvis" → "Write a Python function to sort a list"
+"Hey Jarvis, what is Python?"
+  → Intent: GENERAL_KNOWLEDGE (regex, 0ms)
+  → Streams response from llama3.2:1b
+  → TTS speaks first sentence in ~3s
+
+"Hey Jarvis, open Chrome"
+  → Intent: SYSTEM_COMMAND
+  → Chrome opens immediately
+  → TTS: "Opening Chrome."
+
+[CTRL+SPACE] → "Write a Python function to sort a list"
   → Intent: CODE_GENERATION
-  → Routes to code model (deepseek-coder:6.7b)
-  → Generates and speaks the answer
-
-[CTRL+SPACE] → "What is a closure?"
-  → Intent: GENERAL_KNOWLEDGE
-  → Routes to general model (mistral:7b)
-  → Explains and speaks the answer
+  → Streams from deepseek-coder:6.7b
 ```
 
 **Voice pipeline flow:**
 
 ```
-Wake ("Hey Jarvis" / CTRL+SPACE) → STT (Whisper) → Intent Router (Ollama) → LLM Response → TTS (Edge/Piper/pyttsx3)
+Wake ("Hey Jarvis") → Command Extraction → Regex Intent (0ms) → Execute / Stream LLM → TTS
 ```
 
-**7 intent types** are classified and routed to the optimal model:
+**System commands execute directly — no LLM round-trip:**
+
+| Voice Command | What Happens |
+|---|---|
+| "Create a folder named X on desktop" | Creates the folder instantly |
+| "Delete file X from documents" | Deletes the file |
+| "Open Chrome / Notepad / any app" | Launches the application |
+| "Kill process chrome" | Terminates the process |
+| "CPU" / "RAM" | Speaks current system usage |
+
+**7 intent types** classified instantly via regex (no LLM call):
 
 | Intent | Routed To | Example |
 |---|---|---|
-| `SYSTEM_COMMAND` | llama3.2:3b (fast) | "Open Chrome", "Take a screenshot" |
+| `SYSTEM_COMMAND` | Direct execution | "Create folder", "Open Chrome", "Kill process" |
 | `CODE_GENERATION` | deepseek-coder:6.7b | "Write a REST endpoint in FastAPI" |
-| `GENERAL_KNOWLEDGE` | mistral:7b | "Explain Docker networking" |
-| `DEV_TASK` | llama3.2:3b (fast) | "Push my code to GitHub" |
+| `GENERAL_KNOWLEDGE` | llama3.2:1b (streamed) | "Explain Docker networking" |
+| `DEV_TASK` | llama3.2:1b | "Push my code to GitHub" |
 | `VISION_TASK` | llava:7b | "What's on my screen?" |
-| `PROJECT_CONTEXT` | mistral:7b | "What routes does my project have?" |
-| `REALTIME_QUERY` | mistral:7b | "What's the latest Node.js version?" |
+| `PROJECT_CONTEXT` | llama3.2:1b | "What routes does my project have?" |
+| `REALTIME_QUERY` | llama3.2:1b | "What's the latest Node.js version?" |
 
 ---
 
@@ -145,9 +158,16 @@ Wake ("Hey Jarvis" / CTRL+SPACE) → STT (Whisper) → Intent Router (Ollama) �
 
 | Tier | Engine | How it works |
 |---|---|---|
-| **1 (default)** | Whisper keyword spotting | VAD detects speech → records 2s → Whisper transcribes → matches "Hey Jarvis" |
+| **1 (default)** | Whisper keyword spotting | VAD detects speech → records 1.5s → Whisper transcribes → matches "Hey Jarvis" + extracts command |
 | **2** | openwakeword | Lightweight ONNX model (auto-fallback if Whisper unavailable) |
 | **3** | CTRL+SPACE | Keyboard hotkey — always works alongside any voice tier |
+
+**Performance optimizations:**
+- **Single-shot wake + command** — "Hey Jarvis, what is Python?" is captured in one recording, no second prompt
+- **Regex-only intent classification** — 0ms classification, no LLM round-trip
+- **Streaming LLM responses** — TTS speaks the first sentence while the model is still generating
+- **Model pre-warming** — primary model is loaded into RAM at startup for instant inference
+- **System commands bypass LLM entirely** — file/folder/app operations execute directly
 
 **Key design decisions:**
 - The main process **never imports plugin code** — plugins run in isolated worker subprocesses over JSON IPC
@@ -177,11 +197,11 @@ pip install -r requirements.txt
 ### Pull the Ollama models
 
 ```bash
-ollama pull llama3.2:3b
-ollama pull mistral:7b-instruct-q4_0
-ollama pull deepseek-coder:6.7b
-ollama pull llava:7b
-ollama pull nomic-embed-text:latest
+ollama pull llama3.2:1b            # Primary (fast voice responses)
+ollama pull llama3.2:3b            # Reasoning fallback
+ollama pull deepseek-coder:6.7b    # Code generation
+ollama pull llava:7b               # Vision (Phase 4)
+ollama pull nomic-embed-text:latest # Embeddings (Phase 6)
 ```
 
 If your models are stored in a custom location (e.g., `D:\ollama\models`):
@@ -205,6 +225,18 @@ Say **"Hey Jarvis"** to activate voice input, or press **CTRL+SPACE** as a manua
 
 ### Quick Reference
 
+**Voice commands** (say "Hey Jarvis" then speak naturally):
+
+| Category | Voice Examples |
+|---|---|
+| **Files** | "Create a folder named project on desktop", "Delete file notes.txt from documents" |
+| **Apps** | "Open Chrome", "Open Notepad", "Launch VS Code" |
+| **System** | "CPU", "RAM", "Kill process chrome" |
+| **Questions** | "What is Python?", "Explain Docker networking" |
+| **Code** | "Write a function to sort a list" |
+
+**CLI commands** (via `python -m aura`):
+
 | Category | Commands |
 |---|---|
 | **Files** | `create file`, `delete file`, `rename file`, `move file`, `search files` |
@@ -212,8 +244,6 @@ Say **"Hey Jarvis"** to activate voice input, or press **CTRL+SPACE** as a manua
 | **Projects** | `create project <path>` |
 | **Shell** | `run command <cmd>` (allowlisted: git, npm, docker) |
 | **npm** | `npm install [path]`, `npm run <script>` |
-| **Voice** | Say "Hey Jarvis" or press CTRL+SPACE, speak naturally |
-| **REPL** | `help`, `exit`, `quit` |
 
 ---
 
@@ -224,8 +254,9 @@ AURA/
 ├── aura/
 │   ├── core/
 │   │   ├── config_loader.py    # YAML config with strict validation
-│   │   ├── ollama_client.py    # Ollama API client with retries
-│   │   ├── intent_router.py    # LLM-powered intent classification
+│   │   ├── ollama_client.py    # Ollama API client with streaming
+│   │   ├── intent_router.py    # Regex-based intent classification
+│   │   ├── voice_executor.py   # Direct system command execution
 │   │   ├── errors.py           # Custom exception hierarchy
 │   │   └── ...
 │   ├── modules/
