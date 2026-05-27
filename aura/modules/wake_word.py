@@ -380,7 +380,7 @@ class WakeWordListener:
 
     def _emit_detected(self, source: str, transcript: str = "", command: str = "") -> None:
         bus.emit(EventType.WAKE_WORD_DETECTED, {
-            "timestamp": datetime.now(),
+            "timestamp": datetime.now().isoformat(),
             "source": source,
             "transcript": transcript,
             "command": command,

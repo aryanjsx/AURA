@@ -135,9 +135,7 @@ class IntentRouter:
     def classify(self, raw_text: str) -> IntentObject:
         """Classify a voice-transcribed command.
 
-        Two-tier strategy:
-          1. Fast regex for obvious commands (no LLM call)
-          2. LLM classification with retry + UNKNOWN fallback
+        Regex-only classification with GENERAL_KNOWLEDGE fallback (no LLM call).
         """
         cleaned = raw_text.lower().strip()
 
@@ -147,52 +145,23 @@ class IntentRouter:
             logger.info("Fast-classified as %s", fast_result.intent_type.value)
             return fast_result
 
-        # Tier 2: LLM classification with retries
-        for attempt in range(self._max_retries):
-            try:
-                response = self._ollama.chat(
-                    model=self._models.get("general", ""),
-                    prompt=raw_text,
-                    system_prompt=ROUTER_CLASSIFY_V1_PROMPT,
-                    num_predict=150,
-                )
-                parsed = self._parse_response(response.text, raw_text)
-                if parsed:
-                    self._event_bus.emit(EventType.INTENT_CLASSIFIED, {
-                        "intent_type": parsed.intent_type.value,
-                        "confidence": parsed.confidence,
-                        "raw_text": raw_text,
-                        "llm_path": True,
-                    })
-                    logger.info(
-                        "LLM-classified as %s (confidence=%.2f, attempt=%d)",
-                        parsed.intent_type.value, parsed.confidence, attempt + 1,
-                    )
-                    return parsed
-            except Exception as exc:
-                logger.warning(
-                    "LLM classification attempt %d/%d failed: %s",
-                    attempt + 1, self._max_retries, exc,
-                )
-
-        # All retries failed — return UNKNOWN, never raise
+        # Fallback to GENERAL_KNOWLEDGE (no LLM call)
         fallback = IntentObject(
-            intent_type=IntentType.UNKNOWN,
+            intent_type=IntentType.GENERAL_KNOWLEDGE,
             raw_text=raw_text,
             cleaned_text=cleaned,
             entities={},
             model_override=self._models.get("general"),
             requires_rag=True,
-            confidence=0.0,
-            timestamp=datetime.now(),
+            confidence=0.7,
         )
         self._event_bus.emit(EventType.INTENT_CLASSIFIED, {
             "intent_type": fallback.intent_type.value,
             "confidence": fallback.confidence,
             "raw_text": raw_text,
-            "fallback": True,
+            "fast_path": True,
         })
-        logger.info("All LLM retries failed — classified as UNKNOWN")
+        logger.info("Unrecognized input — fallback to GENERAL_KNOWLEDGE")
         return fallback
 
     def _fast_classify(self, raw_text: str, cleaned: str) -> IntentObject | None:

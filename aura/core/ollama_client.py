@@ -53,6 +53,7 @@ class OllamaClient:
         num_predict: int = 150,
     ) -> OllamaResponse:
         """Send a blocking chat completion request to Ollama."""
+        model = self._resolve_model(model)
         messages = self._build_messages(prompt, system_prompt)
         bus.emit(EventType.LLM_REQUEST_SENT, {"model": model, "prompt_len": len(prompt)})
 
@@ -102,6 +103,7 @@ class OllamaClient:
 
     def warmup(self, model: str) -> None:
         """Send a minimal request to load the model into RAM."""
+        model = self._resolve_model(model)
         try:
             httpx.post(
                 f"{self._base_url}/api/chat",
@@ -126,6 +128,7 @@ class OllamaClient:
         num_predict: int = 80,
     ) -> Generator[str, None, None]:
         """Stream chat tokens from Ollama. Yields text chunks as they arrive."""
+        model = self._resolve_model(model)
         messages = self._build_messages(prompt, system_prompt)
         bus.emit(EventType.LLM_REQUEST_SENT, {"model": model, "prompt_len": len(prompt)})
 
@@ -187,6 +190,30 @@ class OllamaClient:
         except Exception as exc:
             logger.error("Failed to list models: %s", exc)
             return []
+
+    def _resolve_model(self, model: str) -> str:
+        """Resolve the requested model to one that is actually available in Ollama."""
+        try:
+            available = self.list_models()
+            if not available:
+                return model
+            if model in available:
+                return model
+            # Strip tags and try prefix matches
+            # e.g., "llama3.2:3b-q4_0" -> base name "llama3.2:3b" or "llama3.2"
+            base_requested = model.split("-")[0]
+            for m in available:
+                if m.startswith(base_requested) or base_requested.startswith(m.split("-")[0]):
+                    return m
+            # Try to match the family prefix, e.g. "llama3.2" in "llama3.2:1b"
+            family_requested = model.split(":")[0]
+            for m in available:
+                if m.startswith(family_requested) or family_requested.startswith(m.split(":")[0]):
+                    return m
+            # If no match, return the original model name
+            return model
+        except Exception:
+            return model
 
     @staticmethod
     def _build_messages(prompt: str, system_prompt: str) -> list[dict[str, str]]:
