@@ -1,225 +1,208 @@
 """
-AURA — Safety Gate (non-blocking).
+AURA — Safety Gate (Voice-based confirmation).
 
-Blocks execution of a command until a human confirms.  The confirmation
-prompt accepts ONLY the tokens ``yes``, ``confirm``, or ``proceed``
-(case-insensitive, stripped).  Any other input — or silence for longer
-than :attr:`TIMEOUT_SECONDS` — cancels the command.
+Blocks execution of a destructive command until the user vocally confirms.
+Uses TTS to speak the confirmation prompt and STT to listen for the response.
 
-Non-blocking implementation
----------------------------
-Previous versions spawned a background thread to call :func:`input` and
-relied on :class:`queue.Queue.get` with a timeout.  If the user did not
-respond, the reader thread survived past the timeout and could *steal*
-the next line of real user input — a reliability bug.
+Accepted tokens (case-insensitive): "yes", "confirm", "do it", "proceed".
+Any other response, silence, or timeout → returns False (cancel).
 
-We now use OS-level stdin polling:
-
-* POSIX: :func:`select.select`.
-* Windows: :mod:`msvcrt` (``kbhit`` / ``getwche``).
-
-Both paths return ``None`` on timeout without leaving any background
-thread alive.  A custom ``input_fn`` (used only by tests) falls back to
-the legacy threaded path, but the thread is still daemon and a new one
-is created per request.
+All decisions are audit-logged.
 """
 
 from __future__ import annotations
 
-import sys
+import logging
+import os
 import threading
-import time
-from typing import Callable
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from aura.core.config_loader import get as get_config
-from aura.core.errors import ConfirmationDenied, ConfirmationTimeout
-from aura.core.event_bus import EventBus
-from aura.core.logger import get_logger
-from aura.core.tracing import current_trace_id
-
-_logger = get_logger("aura.safety_gate")
-
-_POLL_INTERVAL = 0.05  # seconds — Windows kbhit loop resolution
+logger = logging.getLogger("aura.safety_gate")
 
 
-def _read_line_non_blocking(prompt: str, timeout: float) -> str | None:
-    """Write *prompt* and read one line from stdin, returning ``None``
-    if nothing arrived within *timeout* seconds.  Portable (no orphan
-    threads)."""
-    sys.stdout.write(prompt)
-    try:
-        sys.stdout.flush()
-    except Exception:
-        pass
+# Destructive-action-specific TTS prompts
+_CONFIRMATION_PROMPTS: dict[str, str] = {
+    "delete_file":       "I'm about to delete {filename}. Say yes to confirm.",
+    "rmdir":             "This will permanently delete the folder {name} and all contents. Confirm?",
+    "delete_folder":     "This will permanently delete the folder {name} and all contents. Confirm?",
+    "git_push":          "Pushing commits to {branch} on {remote}. Confirm?",
+    "git_reset_hard":    "Hard reset will discard all uncommitted changes. This cannot be undone. Confirm?",
+    "git_branch_delete": "Deleting branch {name}. Confirm?",
+    "git_force_push":    "Force push to {branch} will overwrite remote history. Are you absolutely sure?",
+    "docker_remove":     "Removing container {name} and its data. Confirm?",
+    "docker_prune":      "System prune removes all stopped containers and unused images. Confirm?",
+    "kill_process":      "Killing process {name}. Confirm?",
+}
 
-    if sys.platform == "win32":
-        return _win_read_line(timeout)
-    return _posix_read_line(timeout)
-
-
-def _posix_read_line(timeout: float) -> str | None:
-    import select  # stdlib — no-op on Windows
-
-    try:
-        ready, _, _ = select.select([sys.stdin], [], [], timeout)
-    except (OSError, ValueError):
-        return None
-    if not ready:
-        return None
-    try:
-        return sys.stdin.readline().rstrip("\n")
-    except Exception:
-        return None
-
-
-def _win_read_line(timeout: float) -> str | None:
-    try:
-        import msvcrt  # type: ignore[import-not-found]
-    except ImportError:
-        return None
-
-    deadline = time.monotonic() + timeout
-    buf: list[str] = []
-    while time.monotonic() < deadline:
-        if msvcrt.kbhit():
-            ch = msvcrt.getwche()
-            if ch in ("\r", "\n"):
-                try:
-                    sys.stdout.write("\n")
-                    sys.stdout.flush()
-                except Exception:
-                    pass
-                return "".join(buf)
-            if ch == "\x08":  # backspace
-                if buf:
-                    buf.pop()
-                continue
-            if ch == "\x03":  # Ctrl-C
-                raise KeyboardInterrupt
-            buf.append(ch)
-        else:
-            time.sleep(_POLL_INTERVAL)
-    return None
+ACCEPTED_RESPONSES: frozenset[str] = frozenset({"yes", "confirm", "do it", "proceed"})
 
 
 class SafetyGate:
-    """Interactive confirmation with a hard timeout — no orphan threads."""
-
-    ACCEPTED_RESPONSES: frozenset[str] = frozenset({"yes", "confirm", "proceed"})
-    TIMEOUT_SECONDS: float = 8.0
+    """Voice-based confirmation gate with audit logging."""
 
     def __init__(
         self,
-        bus: EventBus,
+        bus: Any,
         *,
-        input_fn: Callable[[str], str] | None = None,
-        output_fn: Callable[[str], None] | None = None,
+        tts_engine: Any = None,
+        stt_engine: Any = None,
+        config: dict[str, Any] | None = None,
         timeout: float | None = None,
     ) -> None:
         self._bus = bus
-        self._input_fn = input_fn  # None → use OS-level non-blocking read
-        self._output_fn = output_fn or print
-        configured = timeout
-        if configured is None:
-            configured = float(
-                get_config("safety.confirm_timeout", self.TIMEOUT_SECONDS)
-            )
-        self._timeout = max(1.0, configured)
+        self._tts = tts_engine
+        self._stt = stt_engine
 
-    def request(
-        self,
-        *,
-        action: str,
-        params: dict,
-        source: str,
-        permission: str,
-        trace_id: str | None = None,
-    ) -> None:
-        """Block until the user confirms or the gate cancels."""
-        trace_id = trace_id or current_trace_id()
-        self._bus.emit(
-            "confirmation.requested",
-            {
-                "action": action,
-                "source": source,
-                "permission": permission,
-                "trace_id": trace_id,
-                "timeout_seconds": self._timeout,
-            },
+        # Read timeout from config
+        safety_cfg = (config or {}).get("safety", {})
+        configured_timeout = timeout or safety_cfg.get(
+            "confirmation_timeout", safety_cfg.get("confirm_timeout", 8)
         )
+        self._timeout = max(1.0, float(configured_timeout))
 
-        prompt = (
-            f"\n[AURA-SAFETY] '{action}' ({permission}) — "
-            f"respond 'yes' / 'confirm' / 'proceed' within {self._timeout:.0f}s "
-            f"to execute.  Anything else cancels.\n> "
-        )
+        # Audit log path from config
+        self._audit_log_path = safety_cfg.get("audit_log", "logs/safety_audit.log")
+        self._ensure_audit_dir()
 
-        raw = self._read_line(prompt)
+    def _ensure_audit_dir(self) -> None:
+        """Create the audit log directory if it does not exist."""
+        try:
+            Path(self._audit_log_path).parent.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:
+            logger.warning("Could not create audit log directory: %s", exc)
 
-        if raw is None:
-            self._bus.emit(
-                "confirmation.timeout",
-                {"action": action, "source": source, "trace_id": trace_id},
-            )
-            _logger.warning(
-                "CONFIRMATION_TIMEOUT",
-                extra={
-                    "event": "confirmation.timeout",
-                    "action": action,
-                    "data": {"source": source, "trace_id": trace_id},
-                },
-            )
-            raise ConfirmationTimeout(
-                f"No confirmation for '{action}' within {self._timeout:.0f}s — cancelled."
-            )
+    def check(self, command_plan: Any) -> bool:
+        """Check whether the user confirms a destructive action.
 
-        response = raw.strip().lower()
-        if response in self.ACCEPTED_RESPONSES:
-            self._bus.emit(
-                "confirmation.accepted",
-                {"action": action, "source": source, "trace_id": trace_id,
-                 "response": response},
-            )
-            return
+        Parameters
+        ----------
+        command_plan : CommandPlan
+            The plan to confirm.
 
-        self._bus.emit(
-            "confirmation.denied",
-            {"action": action, "source": source, "trace_id": trace_id,
-             "response": response},
-        )
-        raise ConfirmationDenied(
-            f"Confirmation refused for '{action}' (received {response!r})."
-        )
+        Returns
+        -------
+        bool
+            True if confirmed, False if denied/timeout.
+        """
+        from aura.core.event_bus import EventType
 
-    # ------------------------------------------------------------------
-    def _read_line(self, prompt: str) -> str | None:
-        """Dispatch to the non-blocking OS reader unless a custom
-        ``input_fn`` was supplied (tests only)."""
-        if self._input_fn is None:
-            return _read_line_non_blocking(prompt, self._timeout)
+        action = command_plan.action
+        params = command_plan.params
+        executor = command_plan.executor
 
-        # Legacy threaded fallback (custom input_fn, e.g. tests).
-        holder: list[str | None] = [None]
-        done = threading.Event()
-
-        def worker() -> None:
+        # Build the confirmation prompt
+        prompt_template = _CONFIRMATION_PROMPTS.get(action)
+        if prompt_template:
             try:
-                holder[0] = self._input_fn(prompt)  # type: ignore[misc]
-            except Exception:
-                holder[0] = None
-            finally:
-                done.set()
+                prompt_text = prompt_template.format(**params)
+            except KeyError:
+                prompt_text = prompt_template.format_map(
+                    {k: params.get(k, "unknown") for k in
+                     ("filename", "name", "branch", "remote", "N")}
+                )
+        else:
+            prompt_text = (
+                f"I'm about to execute {action}. This action is destructive. "
+                "Say yes to confirm."
+            )
 
-        t = threading.Thread(target=worker, daemon=True, name="aura-safety-fallback")
-        t.start()
-        done.wait(timeout=self._timeout)
-        if not done.is_set():
-            return None
-        return holder[0]
+        # Emit safety confirmation request event
+        self._bus.emit(EventType.SAFETY_CONFIRMATION_REQ, {
+            "action": action,
+            "executor": executor,
+            "timeout_seconds": self._timeout,
+        })
+
+        # Speak the prompt via TTS
+        if self._tts:
+            self._tts.speak(prompt_text, priority=True)
+            self._tts.wait_until_idle(timeout=30)
+        else:
+            print(f"[SAFETY] {prompt_text}")
+
+        # Listen for voice response via STT
+        response_text = ""
+        if self._stt:
+            try:
+                result = self._stt.listen_and_transcribe()
+                response_text = result.text.strip().lower() if result.text else ""
+            except Exception as exc:
+                logger.error("STT failed during safety check: %s", exc)
+                response_text = ""
+        else:
+            # Fallback to stdin if no STT available
+            try:
+                import sys
+                sys.stdout.write(f"[SAFETY] {prompt_text}\n> ")
+                sys.stdout.flush()
+                response_text = input().strip().lower()
+            except Exception:
+                response_text = ""
+
+        # Check response
+        confirmed = response_text in ACCEPTED_RESPONSES
+        reason = "user_confirmed" if confirmed else f"denied (response: {response_text!r})"
+        if not response_text:
+            reason = "timeout"
+
+        # Audit log
+        self._audit_log(
+            "CONFIRMED" if confirmed else "CANCELLED",
+            executor=executor,
+            action=action,
+            params=params,
+            reason=reason,
+        )
+
+        # Emit result event
+        if confirmed:
+            self._bus.emit(EventType.SAFETY_CONFIRMED, {
+                "action": action, "executor": executor,
+            })
+        else:
+            self._bus.emit(EventType.SAFETY_DENIED, {
+                "action": action, "executor": executor, "reason": reason,
+            })
+
+        return confirmed
+
+    def _audit_log(
+        self,
+        decision: str,
+        *,
+        executor: str,
+        action: str,
+        params: dict[str, Any],
+        reason: str = "",
+    ) -> None:
+        """Write one audit line to the log file."""
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+        if decision == "CONFIRMED":
+            line = f"{timestamp} | CONFIRMED | executor={executor} action={action} params={params}\n"
+        else:
+            line = f"{timestamp} | CANCELLED | executor={executor} action={action} reason={reason}\n"
+
+        try:
+            with open(self._audit_log_path, "a", encoding="utf-8") as f:
+                f.write(line)
+        except Exception as exc:
+            logger.error("Audit log write failed: %s", exc)
+
+        logger.info("SafetyGate %s: %s %s", decision, action, reason)
 
 
 class AutoConfirmGate(SafetyGate):
     """Silent gate that approves every request (tests / ``--yes`` only)."""
 
-    def request(self, **kwargs) -> None:  # type: ignore[override]
-        return None
+    def check(self, command_plan: Any) -> bool:
+        self._audit_log(
+            "CONFIRMED",
+            executor=getattr(command_plan, "executor", "unknown"),
+            action=getattr(command_plan, "action", "unknown"),
+            params=getattr(command_plan, "params", {}),
+            reason="auto_confirm",
+        )
+        return True

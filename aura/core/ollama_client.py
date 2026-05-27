@@ -17,7 +17,7 @@ from typing import Generator
 
 import httpx
 
-from aura.utils.event_bus import EventType, bus
+from aura.core.event_bus import EventType, bus
 
 logger = logging.getLogger("aura.ollama_client")
 
@@ -40,9 +40,9 @@ class OllamaClient:
 
     def __init__(self, config: dict) -> None:
         ollama_cfg = config.get("ollama", {})
-        self._base_url: str = ollama_cfg.get("base_url", "http://localhost:11434")
-        self._timeout: int = ollama_cfg.get("timeout", 120)
-        self._retries: int = ollama_cfg.get("retries", 2)
+        self._base_url: str = ollama_cfg.get("base_url", "")
+        self._timeout: int = ollama_cfg.get("timeout", 60)
+        self._retries: int = ollama_cfg.get("retries", 3)
         self._keep_alive: str = ollama_cfg.get("keep_alive", "10m")
 
     def chat(

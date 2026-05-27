@@ -42,7 +42,7 @@ REQUIRED_KEYS: tuple[str, ...] = (
     "permissions.source_limits",
     "rate_limit.max_per_minute",
     "rate_limit.repeat_threshold",
-    "safety.confirm_timeout",
+    "safety.confirmation_timeout",
     "audit.file",
     # Phase 2 — Voice Pipeline
     "models.fast",
@@ -111,8 +111,9 @@ _DEFAULTS: dict[str, Any] = {
         "repeat_threshold": 10,
     },
     "safety": {
-        "confirm_timeout": 8,
+        "confirmation_timeout": 8,
         "auto_confirm": False,
+        "audit_log": "logs/safety_audit.log",
     },
     "audit": {
         "file": "logs/audit.log",
@@ -235,7 +236,7 @@ _NUMERIC_BOUNDS: tuple[tuple[str, tuple[type, ...], float, float, str], ...] = (
     ("shell.timeout",              (int, float), 0, 3600, "seconds"),
     ("rate_limit.max_per_minute",  (int,),       0, 10000, "calls/min"),
     ("rate_limit.repeat_threshold",(int,),       1, 10000, "repeats"),
-    ("safety.confirm_timeout",     (int, float), 0, 600,   "seconds"),
+    ("safety.confirmation_timeout", (int, float), 0, 600,   "seconds"),
     ("logging.max_bytes",          (int,),       0, 1024 * 1024 * 1024, "bytes"),
     ("logging.backup_count",       (int,),      -1, 1000,  "files"),
     ("audit.max_bytes",            (int,),       0, 1024 * 1024 * 1024, "bytes"),

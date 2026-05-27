@@ -11,9 +11,10 @@ from __future__ import annotations
 import logging
 import threading
 
+# pyrefly: ignore [missing-import]
 import httpx
 
-from aura.utils.event_bus import EventType, bus
+from aura.core.event_bus import EventType, bus
 
 logger = logging.getLogger("aura.mode_monitor")
 
@@ -21,13 +22,16 @@ logger = logging.getLogger("aura.mode_monitor")
 class ModeMonitor:
     """Daemon-threaded connectivity monitor with event-bus integration."""
 
-    _POLL_INTERVAL = 30  # seconds
+    _DEFAULT_POLL_INTERVAL = 30  # seconds
 
-    def __init__(self) -> None:
+    def __init__(self, config: dict | None = None) -> None:
         self._current_mode: str = "OFFLINE"
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
-        self._poll_interval: int | float = self._POLL_INTERVAL
+        conn_cfg = (config or {}).get("connectivity", {})
+        self._poll_interval: int | float = conn_cfg.get(
+            "poll_interval", self._DEFAULT_POLL_INTERVAL
+        )
 
     @staticmethod
     def is_online() -> bool:
@@ -70,7 +74,7 @@ class ModeMonitor:
         logger.info("ModeMonitor stopped")
 
     def _poll(self) -> None:
-        """Background loop — checks connectivity every _POLL_INTERVAL seconds."""
+        """Background loop — checks connectivity every poll_interval seconds."""
         while not self._stop_event.is_set():
             self._stop_event.wait(timeout=self._poll_interval)
             if self._stop_event.is_set():

@@ -15,11 +15,11 @@ from dataclasses import dataclass
 import numpy as np
 
 from aura.utils.audio_input import resolve_input_device
-from aura.utils.event_bus import EventType, bus
+from aura.core.event_bus import EventType, bus
 
 logger = logging.getLogger("aura.stt")
 
-_RMS_SILENCE_THRESHOLD = 0.003
+_DEFAULT_RMS_SILENCE_THRESHOLD = 0.003
 _CHUNK_DURATION_MS = 100  # 100ms chunks for silence detection
 
 
@@ -41,6 +41,9 @@ class STTEngine:
         self._model_name: str = stt_cfg.get("model", "base")
         self._silence_timeout: float = stt_cfg.get("silence_timeout", 2.0)
         self._max_recording: int = stt_cfg.get("max_recording", 30)
+        self._rms_silence_threshold: float = stt_cfg.get(
+            "rms_silence_threshold", _DEFAULT_RMS_SILENCE_THRESHOLD
+        )
         self._model = None
         self._sample_rate = 16000
         self._config = config
@@ -137,7 +140,7 @@ class STTEngine:
                     audio_chunks.append(chunk.flatten())
 
                     rms = float(np.sqrt(np.mean(chunk**2)))
-                    if rms < _RMS_SILENCE_THRESHOLD:
+                    if rms < self._rms_silence_threshold:
                         silence_count += 1
                     else:
                         silence_count = 0
@@ -163,8 +166,17 @@ class STTEngine:
         audio_data = np.concatenate(audio_chunks)
         result = self.transcribe(audio_data, self._sample_rate)
 
+        # Include duration_ms in the payload (recording + transcription time)
+        total_duration_ms = int((time.perf_counter() - recording_start) * 1000)
+        result = TranscriptionResult(
+            text=result.text,
+            confidence=result.confidence,
+            duration_ms=total_duration_ms,
+            is_empty=result.is_empty,
+        )
+
         bus.emit(
             EventType.TRANSCRIPTION_COMPLETE,
-            {"text": result.text, "confidence": result.confidence},
+            {"text": result.text, "confidence": result.confidence, "duration_ms": result.duration_ms},
         )
         return result

@@ -6,7 +6,7 @@ selects the right model, and decides whether RAG memory retrieval is needed.
 
 Uses a two-tier classification strategy:
   1. Fast regex patterns for obvious intents (instant, no LLM call)
-  2. LLM-based classification for ambiguous commands
+  2. LLM-based classification for ambiguous commands (with retry + fallback)
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from enum import Enum
 from typing import Any
 
 from aura.core.ollama_client import OllamaClient, OllamaUnavailableError
-from aura.utils.event_bus import EventType, bus
+from aura.core.event_bus import EventType, bus
 
 logger = logging.getLogger("aura.router")
 
@@ -53,32 +53,23 @@ class IntentObject:
     timestamp: datetime = field(default_factory=datetime.now)
 
 
-_CLASSIFICATION_SYSTEM_PROMPT = """\
-You are AURA's intent classifier. Classify the user's command into exactly one intent type.
+# Exact system prompt per spec — do NOT modify
+ROUTER_CLASSIFY_V1_PROMPT = """\
+You are AURA's intent classifier. Classify the user's command.
 
-Return ONLY valid JSON. No explanation. No markdown fences. No preamble. No trailing text.
+Return ONLY valid JSON. No explanation. No markdown. No preamble.
 
 Schema:
 {
   "intent_type": "<INTENT_TYPE>",
-  "confidence": <float between 0.0 and 1.0>,
+  "confidence": <float 0.0-1.0>,
   "entities": { "<key>": "<value>" },
-  "requires_rag": <true or false>
+  "requires_rag": <true|false>
 }
 
-Valid intent_type values (choose exactly one):
-- GENERAL_KNOWLEDGE  — factual questions, explanations, concepts
-- CODE_GENERATION    — write, fix, or review code
-- SYSTEM_COMMAND     — open/close apps, take screenshot, system control
-- DEV_TASK           — git, docker, npm operations
-- PROJECT_CONTEXT    — questions about the user's own project files or code
-- VISION_TASK        — describe screen, read text on screen
-- REALTIME_QUERY     — current prices, latest versions, live data
-- UNKNOWN            — anything you cannot confidently classify
+Valid intent types: GENERAL_KNOWLEDGE, CODE_GENERATION, SYSTEM_COMMAND,
+DEV_TASK, PROJECT_CONTEXT, VISION_TASK, REALTIME_QUERY, UNKNOWN"""
 
-Entity keys to extract when present:
-- app_name, window_title, action, branch_name, container_name,
-  repo_path, language, function_name, filename, task_type"""
 
 # Model selection map: IntentType -> config key under "models"
 _MODEL_MAP: dict[IntentType, str] = {
@@ -93,89 +84,147 @@ _MODEL_MAP: dict[IntentType, str] = {
 }
 
 
-_FAST_PATTERNS: list[tuple[re.Pattern, IntentType]] = [
-    (re.compile(r"\b(create|make|delete|remove|rename|move|copy)\b.+\b(file|folder|directory)\b", re.I), IntentType.SYSTEM_COMMAND),
-    (re.compile(r"\b(open|close|launch|start|kill|shutdown|restart|screenshot|volume|brightness|cpu|ram|memory|process)\b", re.I), IntentType.SYSTEM_COMMAND),
-    (re.compile(r"\b(write|code|function|class|implement|refactor|debug|fix bug|script)\b.*\b(in|for|using|with)?\b", re.I), IntentType.CODE_GENERATION),
-    (re.compile(r"\b(git |docker |npm |pip |yarn |push|pull|commit|deploy|build)\b", re.I), IntentType.DEV_TASK),
-    (re.compile(r"\b(screen|see|look at|what.s on my|describe my)\b", re.I), IntentType.VISION_TASK),
-    (re.compile(r"\b(latest|current|today|price|stock|weather|news)\b", re.I), IntentType.REALTIME_QUERY),
-    (re.compile(r"\b(what is|who is|explain|how does|why does|tell me about|define|meaning of|difference between)\b", re.I), IntentType.GENERAL_KNOWLEDGE),
+_FAST_PATTERNS: list[tuple[re.Pattern, IntentType, dict[str, str]]] = [
+    # System commands with entity extraction
+    (re.compile(r"\b(create|make|delete|remove|rename|move|copy)\b.+\b(file|folder|directory)\b", re.I),
+     IntentType.SYSTEM_COMMAND, {}),
+    (re.compile(r"\b(open|launch|start)\b\s+(.+)", re.I),
+     IntentType.SYSTEM_COMMAND, {"action": "open_app"}),
+    (re.compile(r"\b(kill|stop|close|end)\b\s+(?:the\s+)?(?:process\s+)?(.+)", re.I),
+     IntentType.SYSTEM_COMMAND, {"action": "kill_process"}),
+    (re.compile(r"\b(screenshot|volume|brightness)\b", re.I),
+     IntentType.SYSTEM_COMMAND, {}),
+    # CPU/RAM/system stats
+    (re.compile(r"\b(cpu|processor|ram|memory|battery|disk)\b", re.I),
+     IntentType.SYSTEM_COMMAND, {"action": "get_stats"}),
+    # Code generation
+    (re.compile(r"\b(write|code|function|class|implement|refactor|debug|fix bug|script)\b.*\b(in|for|using|with)?\b", re.I),
+     IntentType.CODE_GENERATION, {}),
+    # Dev tasks
+    (re.compile(r"\b(git |docker |npm |pip |yarn |push|pull|commit|deploy|build)\b", re.I),
+     IntentType.DEV_TASK, {}),
+    # Vision
+    (re.compile(r"\b(screen|see|look at|what.s on my|describe my)\b", re.I),
+     IntentType.VISION_TASK, {}),
+    # Realtime
+    (re.compile(r"\b(latest|current|today|price|stock|weather|news)\b", re.I),
+     IntentType.REALTIME_QUERY, {}),
+    # General knowledge
+    (re.compile(r"\b(what is|who is|explain|how does|why does|tell me about|define|meaning of|difference between)\b", re.I),
+     IntentType.GENERAL_KNOWLEDGE, {}),
 ]
 
 
 class IntentRouter:
     """Classifies user intent via fast regex then LLM fallback."""
 
-    def __init__(self, config: dict, ollama_client: OllamaClient) -> None:
+    def __init__(
+        self,
+        config: dict,
+        ollama_client: OllamaClient,
+        event_bus: Any = None,
+    ) -> None:
         self._config = config
         self._ollama = ollama_client
+        self._event_bus = event_bus or bus
         self._models: dict[str, str] = config.get("models", {})
         routing_cfg = config.get("routing", {})
-        self._timeout: int = routing_cfg.get("intent_timeout_seconds", 10)
-        self._max_retries: int = routing_cfg.get("intent_max_retries", 2)
-        self._fast_model: str = self._models.get("fast", "llama3.2:3b")
+        self._intent_timeout: int = routing_cfg.get("intent_timeout_seconds", 10)
+        self._max_retries: int = routing_cfg.get("intent_max_retries", 3)
 
     def classify(self, raw_text: str) -> IntentObject:
         """Classify a voice-transcribed command.
 
-        Pure regex — no LLM call. Unmatched input defaults to
-        GENERAL_KNOWLEDGE so the response pipeline starts immediately.
+        Two-tier strategy:
+          1. Fast regex for obvious commands (no LLM call)
+          2. LLM classification with retry + UNKNOWN fallback
         """
         cleaned = raw_text.lower().strip()
 
+        # Tier 1: Fast-path regex
         fast_result = self._fast_classify(raw_text, cleaned)
         if fast_result is not None:
-            logger.info("Classified as %s", fast_result.intent_type.value)
+            logger.info("Fast-classified as %s", fast_result.intent_type.value)
             return fast_result
 
-        # No regex matched — default to GENERAL_KNOWLEDGE (instant, no LLM)
-        model_override = self._models.get("general", self._fast_model)
-        result = IntentObject(
-            intent_type=IntentType.GENERAL_KNOWLEDGE,
+        # Tier 2: LLM classification with retries
+        for attempt in range(self._max_retries):
+            try:
+                response = self._ollama.chat(
+                    model=self._models.get("general", ""),
+                    prompt=raw_text,
+                    system_prompt=ROUTER_CLASSIFY_V1_PROMPT,
+                    num_predict=150,
+                )
+                parsed = self._parse_response(response.text, raw_text)
+                if parsed:
+                    self._event_bus.emit(EventType.INTENT_CLASSIFIED, {
+                        "intent_type": parsed.intent_type.value,
+                        "confidence": parsed.confidence,
+                        "raw_text": raw_text,
+                        "llm_path": True,
+                    })
+                    logger.info(
+                        "LLM-classified as %s (confidence=%.2f, attempt=%d)",
+                        parsed.intent_type.value, parsed.confidence, attempt + 1,
+                    )
+                    return parsed
+            except Exception as exc:
+                logger.warning(
+                    "LLM classification attempt %d/%d failed: %s",
+                    attempt + 1, self._max_retries, exc,
+                )
+
+        # All retries failed — return UNKNOWN, never raise
+        fallback = IntentObject(
+            intent_type=IntentType.UNKNOWN,
             raw_text=raw_text,
             cleaned_text=cleaned,
             entities={},
-            model_override=model_override,
-            requires_rag=False,
-            confidence=0.7,
+            model_override=self._models.get("general"),
+            requires_rag=True,
+            confidence=0.0,
+            timestamp=datetime.now(),
         )
-        bus.emit(
-            EventType.INTENT_CLASSIFIED,
-            {"intent_type": result.intent_type.value, "confidence": result.confidence, "raw_text": raw_text},
-        )
-        logger.info("Default-classified as GENERAL_KNOWLEDGE")
-        return result
+        self._event_bus.emit(EventType.INTENT_CLASSIFIED, {
+            "intent_type": fallback.intent_type.value,
+            "confidence": fallback.confidence,
+            "raw_text": raw_text,
+            "fallback": True,
+        })
+        logger.info("All LLM retries failed — classified as UNKNOWN")
+        return fallback
 
     def _fast_classify(self, raw_text: str, cleaned: str) -> IntentObject | None:
         """Instant regex-based classification for obvious patterns."""
-        for pattern, intent_type in _FAST_PATTERNS:
+        for pattern, intent_type, default_entities in _FAST_PATTERNS:
             if pattern.search(cleaned):
                 model_key = _MODEL_MAP.get(intent_type, "general")
-                model_override = self._models.get(model_key, self._fast_model)
+                model_override = self._models.get(model_key)
+
+                # Merge default entities (e.g. {"action": "get_stats"} for CPU queries)
+                entities = dict(default_entities)
+
                 result = IntentObject(
                     intent_type=intent_type,
                     raw_text=raw_text,
                     cleaned_text=cleaned,
-                    entities={},
+                    entities=entities,
                     model_override=model_override,
                     requires_rag=False,
                     confidence=0.85,
                 )
-                bus.emit(
-                    EventType.INTENT_CLASSIFIED,
-                    {
-                        "intent_type": result.intent_type.value,
-                        "confidence": result.confidence,
-                        "raw_text": raw_text,
-                        "fast_path": True,
-                    },
-                )
+                self._event_bus.emit(EventType.INTENT_CLASSIFIED, {
+                    "intent_type": result.intent_type.value,
+                    "confidence": result.confidence,
+                    "raw_text": raw_text,
+                    "fast_path": True,
+                })
                 return result
         return None
 
-    def _parse_response(self, text: str) -> dict[str, Any] | None:
-        """Parse JSON from LLM response, returning None on failure."""
+    def _parse_response(self, text: str, raw_text: str) -> IntentObject | None:
+        """Parse JSON from LLM response, returning IntentObject or None."""
         # Strip markdown fences if the model included them
         cleaned = text.strip()
         if cleaned.startswith("```"):
@@ -208,9 +257,22 @@ class IntentRouter:
             confidence = 0.5
         confidence = max(0.0, min(1.0, float(confidence)))
 
-        return {
-            "intent_type": intent_type,
-            "confidence": confidence,
-            "entities": data.get("entities", {}),
-            "requires_rag": bool(data.get("requires_rag", False)),
-        }
+        # Pass LLM-returned entities directly — do NOT override with {}
+        entities = data.get("entities", {})
+        if not isinstance(entities, dict):
+            entities = {}
+
+        requires_rag = bool(data.get("requires_rag", False))
+        model_key = _MODEL_MAP.get(intent_type, "general")
+        model_override = self._models.get(model_key)
+
+        return IntentObject(
+            intent_type=intent_type,
+            raw_text=raw_text,
+            cleaned_text=raw_text.lower().strip(),
+            entities=entities,
+            model_override=model_override,
+            requires_rag=requires_rag,
+            confidence=confidence,
+            timestamp=datetime.now(),
+        )

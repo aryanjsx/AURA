@@ -8,7 +8,8 @@ Wake Word Listener  —  Three-tier fallback architecture
   Tier 3 → CTRL+SPACE     (keyboard hotkey, always works)
 
 Events emitted on EventBus:
-  WAKE_WORD_DETECTED  — { "timestamp": ISO str, "source": tier name }
+  WAKE_WORD_DETECTED  — { "timestamp": datetime, "source": tier name }
+  WAKE_WORD_ERROR     — { "error": str, "module": "WakeWordListener" }
   SYSTEM_ERROR        — { "error": str, "module": "WakeWordListener",
                           "severity": "warning" }
 ─────────────────────────────────────────────────────────────────────────────
@@ -28,8 +29,19 @@ import numpy as np
 import sounddevice as sd
 from dotenv import load_dotenv
 
-from aura.utils.audio_input import resolve_input_device
-from aura.utils.event_bus import EventType, bus
+from aura.core.event_bus import EventType, bus
+
+
+def _resolve_input_device(config):
+    """Resolve the microphone device index (inlined from audio_input)."""
+    ww = config.get("wake_word", {}) if isinstance(config, dict) else {}
+    explicit = ww.get("input_device") if isinstance(ww, dict) else None
+    if explicit is not None:
+        return int(explicit)
+    default_in = sd.default.device[0]
+    if default_in is None or default_in < 0:
+        return 0
+    return int(default_in)
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -54,7 +66,7 @@ class WakeWordListener:
         _get = lambda key, default: ww.get(key, default) if isinstance(ww, dict) else getattr(ww, key, default)
 
         self._engine = _get("engine", "whisper")
-        self._phrases: list[str] = _get("phrases", ["hey jarvis", "jarvis"])
+        self._phrases: list[str] = _get("phrases", ["hey aura", "aura"])
         self._listen_duration: float = float(_get("listen_duration", 2.0))
         self._vad_threshold: float = float(_get("vad_threshold", 0.008))
         self._vad_pre_frames: int = int(_get("vad_pre_frames", 3))
@@ -73,11 +85,10 @@ class WakeWordListener:
         # Precompile phrase patterns + common Whisper mishearings
         self._phrase_patterns = [re.compile(re.escape(p), re.IGNORECASE) for p in self._phrases]
         self._fuzzy_alts = [
-            "hey jarvis", "jarvis", "hey travis", "hey jervis",
-            "hey javis", "hey jarves", "a jarvis", "hey jaris",
-            "hey jarbus", "yeah jarvis", "he jarvis", "hay jarvis",
-            "hey chavez", "hey jarvi", "hey jarvas",
-            "hey tres", "yeah tres", "hey dres", "hey dress",
+            "hey aura", "aura", "hey ora", "hey laura",
+            "hey orra", "a aura", "hey aora", "hey ara",
+            "yeah aura", "he aura", "hay aura",
+            "hey aurora", "hey auro", "hey auras",
         ]
 
         # Whisper model reference (set by main.py before start)
@@ -159,7 +170,7 @@ class WakeWordListener:
         """
         chunk_samples = int(SAMPLE_RATE * 0.1)  # 100ms
         record_chunks = int(self._listen_duration / 0.1)
-        inp = resolve_input_device(self._config) if self._input_device is None else self._input_device
+        inp = _resolve_input_device(self._config) if self._input_device is None else self._input_device
         try:
             dev_name = sd.query_devices(inp)["name"]
         except Exception:
@@ -234,7 +245,14 @@ class WakeWordListener:
             except Exception as exc:
                 if self._pause_event.is_set() or self._stop_event.is_set():
                     continue
-                raise exc
+                bus.emit(EventType.WAKE_WORD_ERROR, {
+                    "error": str(exc),
+                    "module": "WakeWordListener",
+                    "timestamp": datetime.now(),
+                })
+                logger.warning("[WakeWord] Mic/stream error: %s — retrying in 2s", exc)
+                time.sleep(2)
+                continue
 
     def _whisper_transcribe(self, audio: np.ndarray) -> str:
         """Run Whisper tiny on a short audio buffer. Returns lowercase text."""
@@ -244,7 +262,7 @@ class WakeWordListener:
             result = self._whisper_model.transcribe(
                 audio, fp16=False, language="en",
                 no_speech_threshold=0.3,
-                initial_prompt="Hey Jarvis.",
+                initial_prompt="Hey AURA.",
             )
             return result.get("text", "").strip().lower()
         except Exception as exc:
@@ -253,7 +271,7 @@ class WakeWordListener:
 
     def _matches_wake_phrase(self, text: str) -> bool:
         """Check if text matches a wake phrase, with fuzzy tolerance for
-        common Whisper mishearings of 'Hey Jarvis'."""
+        common Whisper mishearings of 'Hey AURA'."""
         if not text:
             return False
         if any(p.search(text) for p in self._phrase_patterns):
@@ -280,7 +298,7 @@ class WakeWordListener:
             inference_framework=inference_framework,
         )
 
-        inp = resolve_input_device(self._config) if self._input_device is None else self._input_device
+        inp = _resolve_input_device(self._config) if self._input_device is None else self._input_device
         print(
             f"[WakeWord] openwakeword on mic [{inp}] — "
             f"model: {self._oww_model}, threshold: {self._oww_threshold}"
@@ -311,7 +329,14 @@ class WakeWordListener:
             except Exception as exc:
                 if self._pause_event.is_set() or self._stop_event.is_set():
                     continue
-                raise exc
+                bus.emit(EventType.WAKE_WORD_ERROR, {
+                    "error": str(exc),
+                    "module": "WakeWordListener",
+                    "timestamp": datetime.now(),
+                })
+                logger.warning("[WakeWord] OWW error: %s — retrying in 2s", exc)
+                time.sleep(2)
+                continue
 
     # ── Tier 3: CTRL+SPACE ────────────────────────────────────────────────────
 
@@ -336,9 +361,9 @@ class WakeWordListener:
     def _strip_wake_phrase(self, text: str) -> str:
         """Remove the wake phrase from the transcript to extract the command.
 
-        'hey jarvis what is python' → 'what is python'
-        'jarvis open chrome'        → 'open chrome'
-        'hey jarvis'                → ''
+        'hey aura what is python' → 'what is python'
+        'aura open chrome'        → 'open chrome'
+        'hey aura'                → ''
         """
         t = text.lower().strip()
         for phrase in sorted(self._phrases, key=len, reverse=True):
@@ -355,7 +380,7 @@ class WakeWordListener:
 
     def _emit_detected(self, source: str, transcript: str = "", command: str = "") -> None:
         bus.emit(EventType.WAKE_WORD_DETECTED, {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(),
             "source": source,
             "transcript": transcript,
             "command": command,
