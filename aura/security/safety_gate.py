@@ -135,7 +135,7 @@ class SafetyGate:
             )
         if configured_timeout is None:
             configured_timeout = float(
-                get_config("safety.confirm_timeout", self.TIMEOUT_SECONDS)
+                get_config("safety.confirmation_timeout", self.TIMEOUT_SECONDS)
             )
         self._timeout = max(1.0, float(configured_timeout))
 

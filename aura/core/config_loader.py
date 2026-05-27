@@ -184,6 +184,13 @@ _REQUIRED_SECTIONS: tuple[str, ...] = (
 )
 
 
+def _normalize_aliases(cfg: dict[str, Any]) -> None:
+    """Map legacy / alternate keys to their canonical names."""
+    safety = cfg.get("safety")
+    if isinstance(safety, dict) and "confirm_timeout" in safety:
+        safety["confirmation_timeout"] = safety.pop("confirm_timeout")
+
+
 def _validate_required_sections(raw: dict[str, Any]) -> None:
     """Fail if any required top-level section is absent from the raw config."""
     missing = [s for s in _REQUIRED_SECTIONS if s not in raw]
@@ -345,6 +352,7 @@ def load_config() -> dict[str, Any]:
     _validate_required_sections(raw)
     merged = _deep_merge(_DEFAULTS, raw)
     merged = _apply_env_overrides(merged)
+    _normalize_aliases(merged)
     _validate_required(merged)
     _validate_ranges(merged)
     _cache = merged
