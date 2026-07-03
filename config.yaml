@@ -81,6 +81,7 @@ safety:
   confirmation_timeout: 8
   auto_confirm: false
   audit_log: "logs/safety_audit.log"
+  confirm_words: ["yes", "confirm", "do it", "proceed"]
 
 # [REQUIRED]
 audit:
@@ -149,3 +150,19 @@ ollama:
 
 connectivity:
   poll_interval: 30
+
+# ── Session management ────────────────────────────────────────────────
+session:
+  inactivity_timeout_minutes: 10     # go to sleep after this many minutes of silence
+  echo_prevention_seconds:    0.5    # pause after TTS before listening for next command
+  wake_rearm_delay_seconds:   3.0    # delay before WakeWordListener re-arms after sleep
+
+# ── Executor settings ──────────────────────────────────────────────────
+executors:
+  shell_timeout:   30      # seconds before a shell command is killed
+  system_timeout:  10      # seconds before a system command is killed
+
+# ── System command settings ───────────────────────────────────────────
+system:
+  screenshots_dir: "~/Pictures/AURA/screenshots"
+  shutdown_delay:  0       # seconds delay before shutdown/restart executes

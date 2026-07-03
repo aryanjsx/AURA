@@ -1,173 +1,329 @@
-"""
-AURA — Command Engine (Phase 2).
-
-Receives a CommandPlan from BrainController, validates it through
-SafetyGate if destructive, routes to the appropriate executor, and
-returns an ExecutionResult.
-
-Events emitted:
-  EXECUTION_STARTED  — { executor, action }
-  EXECUTION_COMPLETE — { result: ExecutionResult }
-"""
+# aura/core/command_engine.py
+# AURA Command Engine — maps IntentObjects to CommandPlans and dispatches
+# them to the correct executor. The SafetyGate is called here — never skip it.
 
 from __future__ import annotations
-
 import logging
 import time
 from typing import Any
 
-from aura.core.schemas import CommandPlan, ExecutionResult
+from aura.schemas.intent import IntentObject, IntentType
+from aura.schemas.command import CommandPlan, ExecutionResult, ExecutorType
+from aura.core.safety_gate import SafetyGate
+from aura.core.event_bus import bus, EventType
+from aura.executors.system_executor import SystemExecutor
+from aura.executors.system_monitor import SystemMonitor
+from aura.executors.shell_executor import ShellExecutor
 
 logger = logging.getLogger("aura.command_engine")
 
+# -----------------------------------------------------------------------
+# Destructive actions — must always go through SafetyGate
+# -----------------------------------------------------------------------
+_DESTRUCTIVE_ACTIONS: frozenset[tuple[ExecutorType, str]] = frozenset({
+    (ExecutorType.SYSTEM,  "shutdown"),
+    (ExecutorType.SYSTEM,  "restart"),
+    (ExecutorType.SYSTEM,  "log_off"),
+    (ExecutorType.SYSTEM,  "kill_process"),
+    (ExecutorType.SHELL,   "run_command"),   # shell commands always confirm
+})
+
+# -----------------------------------------------------------------------
+# Actions that require confirmation but are not strictly "destructive"
+# (e.g., closing apps the user might not want closed)
+# -----------------------------------------------------------------------
+_CONFIRM_ACTIONS: frozenset[tuple[ExecutorType, str]] = frozenset({
+    (ExecutorType.SYSTEM,  "close_app"),
+}) | _DESTRUCTIVE_ACTIONS
+
 
 class CommandEngine:
-    """Routes CommandPlans to executors and manages execution lifecycle."""
+    """
+    Central dispatcher.
 
-    def __init__(self, config: dict[str, Any], event_bus: Any, safety_gate: Any) -> None:
+    Flow:
+        IntentObject → CommandPlan → SafetyGate.check() → Executor.run() → ExecutionResult
+    """
+
+    def __init__(self, config: dict[str, Any], event_bus: Any = None, safety_gate: Any = None) -> None:
         self._config = config
-        self._event_bus = event_bus
-        self._safety_gate = safety_gate
+        self._bus = event_bus  # kept for external callers; internal code uses module-level bus
+        self._safety  = safety_gate if safety_gate is not None else SafetyGate(config)
+        self._system  = SystemExecutor(config)
+        self._monitor = SystemMonitor(config)
+        self._shell   = ShellExecutor(config)
 
-    def execute(self, command_plan: CommandPlan) -> ExecutionResult:
-        """Execute a command plan, emitting lifecycle events.
-
-        Parameters
-        ----------
-        command_plan : CommandPlan
-            Plan from BrainController.handle_intent().
-
-        Returns
-        -------
-        ExecutionResult
-            Result with success/output/error fields.
+    def receive_safety_confirmation(self, spoken_text: str) -> None:
         """
-        from aura.core.event_bus import EventType
+        Called by STTEngine when it captures a response during
+        the AWAITING_CONFIRM pipeline state.
+        Forwards to SafetyGate.
+        """
+        self._safety.receive_confirmation(spoken_text)
 
-        self._event_bus.emit(EventType.EXECUTION_STARTED, {
-            "executor": command_plan.executor,
-            "action": command_plan.action,
+    # ------------------------------------------------------------------
+    # Main entry point
+    # ------------------------------------------------------------------
+
+    def execute(self, intent_or_plan: Any) -> ExecutionResult:
+        """
+        Accepts either an IntentObject (builds a CommandPlan internally)
+        or a CommandPlan directly (from BrainController).
+
+        Runs through SafetyGate if needed, then dispatches to the executor.
+        """
+        start = time.monotonic()
+
+        # Support both IntentObject and CommandPlan inputs
+        if isinstance(intent_or_plan, IntentObject):
+            plan = self._build_plan(intent_or_plan)
+            if plan is None:
+                return ExecutionResult(
+                    success=False,
+                    output="I understood what you want, but I don't have an executor for that yet.",
+                    executor=None,
+                )
+        else:
+            plan = self._normalize_plan(intent_or_plan)
+
+        executor_name = plan.executor.name if isinstance(plan.executor, ExecutorType) else str(plan.executor)
+
+        bus.emit(EventType.COMMAND_PLAN_READY, {
+            "executor": executor_name,
+            "action": plan.action,
+            "is_destructive": plan.is_destructive,
         })
 
-        start = time.perf_counter()
-
-        # Safety gate check for destructive operations
-        was_confirmed = False
-        if command_plan.is_destructive:
-            try:
-                confirmed = self._safety_gate.check(command_plan)
-                if not confirmed:
-                    result = ExecutionResult(
-                        success=False,
-                        output="Action cancelled — confirmation was denied.",
-                        error="Safety gate denied",
-                        executor=command_plan.executor,
-                        duration_ms=int((time.perf_counter() - start) * 1000),
-                        was_confirmed=False,
-                    )
-                    self._event_bus.emit(EventType.EXECUTION_COMPLETE, {"result": result})
-                    return result
-                was_confirmed = True
-            except Exception as exc:
-                logger.error("Safety gate error: %s", exc)
+        # 2. Safety gate — MUST run before any destructive action
+        if plan.is_destructive or plan.requires_confirm:
+            bus.emit(EventType.EXECUTION_STARTED, {
+                "executor": executor_name,
+                "action": plan.action,
+                "state": "AWAITING_CONFIRM",
+            })
+            approved = self._safety.check(plan)
+            if not approved:
                 result = ExecutionResult(
                     success=False,
-                    output="Action cancelled due to a safety check error.",
-                    error=str(exc),
-                    executor=command_plan.executor,
-                    duration_ms=int((time.perf_counter() - start) * 1000),
-                    was_confirmed=False,
+                    output="Cancelled.",
+                    executor=plan.executor,
+                    duration_ms=int((time.monotonic() - start) * 1000),
                 )
-                self._event_bus.emit(EventType.EXECUTION_COMPLETE, {"result": result})
+                bus.emit(EventType.EXECUTION_COMPLETE, {"success": False, "output": "Cancelled."})
                 return result
+        else:
+            bus.emit(EventType.EXECUTION_STARTED, {
+                "executor": executor_name,
+                "action": plan.action,
+            })
 
-        # Route to executor
-        try:
-            result = self._route_to_executor(command_plan)
-            result.was_confirmed = was_confirmed
-        except Exception as exc:
-            logger.exception("Executor failed: %s", exc)
-            result = ExecutionResult(
-                success=False,
-                output=f"Execution failed: {exc}",
-                error=str(exc),
-                executor=command_plan.executor,
-                duration_ms=int((time.perf_counter() - start) * 1000),
-                was_confirmed=was_confirmed,
-            )
+        # 3. Dispatch to executor
+        result = self._dispatch(plan)
+        result.duration_ms = int((time.monotonic() - start) * 1000)
 
-        result.duration_ms = int((time.perf_counter() - start) * 1000)
-        self._event_bus.emit(EventType.EXECUTION_COMPLETE, {"result": result})
+        result_executor_name = None
+        if result.executor:
+            result_executor_name = result.executor.name if isinstance(result.executor, ExecutorType) else str(result.executor)
+
+        bus.emit(EventType.EXECUTION_COMPLETE, {
+            "success": result.success,
+            "output": result.output,
+            "executor": result_executor_name,
+            "duration_ms": result.duration_ms,
+        })
+
         return result
 
-    def _route_to_executor(self, plan: CommandPlan) -> ExecutionResult:
-        """Dispatch to the correct executor based on plan.executor."""
-        executor = plan.executor.upper()
+    # ------------------------------------------------------------------
+    # Plan normalizer — handles old-style plans (string executor) from BrainController
+    # ------------------------------------------------------------------
 
-        if executor == "SYSTEM":
-            return self._execute_system(plan)
-        elif executor in ("GIT", "DOCKER", "NPM", "SHELL"):
-            return self._execute_shell(plan)
-        elif executor == "VISION":
-            return ExecutionResult(
-                success=False,
-                output="Vision tasks are available from Phase 4.",
-                executor=plan.executor,
-            )
-        elif executor == "BROWSER":
-            return ExecutionResult(
-                success=False,
-                output="Browser tasks are not yet implemented.",
-                executor=plan.executor,
-            )
-        elif executor == "LLM_ONLY":
-            return self._execute_llm_only(plan)
-        else:
-            return ExecutionResult(
-                success=False,
-                output=f"Unknown executor: {plan.executor}",
-                error=f"No handler for executor '{plan.executor}'",
-                executor=plan.executor,
-            )
+    def _normalize_plan(self, plan: Any) -> CommandPlan:
+        """Convert an old-style CommandPlan (string executor) to the new format."""
+        if isinstance(plan, CommandPlan) and isinstance(plan.executor, ExecutorType):
+            return plan
 
-    def _execute_system(self, plan: CommandPlan) -> ExecutionResult:
-        """Execute system commands (app launch, stats, file ops)."""
-        from aura.core.voice_executor import execute as execute_voice_command
+        executor_str = plan.executor.upper() if isinstance(plan.executor, str) else plan.executor.name
+        executor_map = {e.name: e for e in ExecutorType}
+        executor = executor_map.get(executor_str, ExecutorType.LLM_ONLY)
 
-        result_text = execute_voice_command(plan.params.get("raw_text", plan.params.get("prompt", "")))
-
-        if result_text:
-            return ExecutionResult(
-                success=True,
-                output=result_text,
-                data={"raw_output": result_text},
-                executor=plan.executor,
-            )
-
-        # System executor returned nothing — fall back to LLM
-        return self._execute_llm_only(plan)
-
-    def _execute_shell(self, plan: CommandPlan) -> ExecutionResult:
-        """Execute shell/git/docker/npm commands.
-
-        Pending full integration — currently returns a status message.
-        """
-        return ExecutionResult(
-            success=True,
-            output=f"Dev task recognized: {plan.action}. "
-                   "Full shell execution is pending Phase 3 integration.",
-            executor=plan.executor,
+        return CommandPlan(
+            executor=executor,
+            action=plan.action,
+            params=plan.params if hasattr(plan, "params") else {},
+            requires_confirm=getattr(plan, "requires_confirm", False),
+            is_destructive=getattr(plan, "is_destructive", False),
+            timeout_seconds=getattr(plan, "timeout_seconds", 30),
         )
 
-    def _execute_llm_only(self, plan: CommandPlan) -> ExecutionResult:
-        """Mark as LLM-only — the caller (main.py pipeline) handles streaming."""
+    # ------------------------------------------------------------------
+    # Plan builder — maps IntentType + entities → CommandPlan
+    # ------------------------------------------------------------------
+
+    def _build_plan(self, intent: IntentObject) -> CommandPlan | None:
+        itype    = intent.intent_type
+        entities = intent.entities
+
+        # ── SESSION CONTROL ───────────────────────────────────────────
+        if itype == IntentType.DEACTIVATE_SESSION:
+            return self._make_plan(
+                ExecutorType.SESSION,
+                "end_session",
+                {},
+            )
+
+        # ── SYSTEM_COMMAND ────────────────────────────────────────────
+        if itype == IntentType.SYSTEM_COMMAND:
+            action: str = entities.get("action", "").lower().replace(" ", "_")
+
+            # App launching
+            if action in ("open", "open_app", "launch", "start"):
+                app = entities.get("app_name", entities.get("target", ""))
+                return self._make_plan(
+                    ExecutorType.SYSTEM, "open_app",
+                    {"app_name": app},
+                )
+            # URL opening
+            if action in ("open_url", "browse", "go_to", "navigate"):
+                url = entities.get("url", entities.get("target", ""))
+                return self._make_plan(
+                    ExecutorType.SYSTEM, "open_url",
+                    {"url": url},
+                )
+            # Closing apps
+            if action in ("close", "close_app", "quit", "exit"):
+                app = entities.get("app_name", entities.get("process_name", ""))
+                return self._make_plan(
+                    ExecutorType.SYSTEM, "close_app",
+                    {"process_name": app},
+                    requires_confirm=True,
+                )
+            # Screenshot
+            if action in ("screenshot", "take_screenshot", "capture_screen"):
+                return self._make_plan(
+                    ExecutorType.SYSTEM, "screenshot", {}
+                )
+            # Volume
+            if action in ("set_volume", "volume"):
+                level = int(entities.get("level", entities.get("volume", 50)))
+                return self._make_plan(
+                    ExecutorType.SYSTEM, "set_volume", {"level": level}
+                )
+            if action == "mute":
+                return self._make_plan(ExecutorType.SYSTEM, "mute", {})
+
+            # Power management — ALL destructive
+            if action in ("shutdown", "shut_down", "turn_off", "power_off"):
+                return self._make_plan(
+                    ExecutorType.SYSTEM, "shutdown", {},
+                    is_destructive=True, requires_confirm=True,
+                )
+            if action in ("restart", "reboot"):
+                return self._make_plan(
+                    ExecutorType.SYSTEM, "restart", {},
+                    is_destructive=True, requires_confirm=True,
+                )
+            if action in ("log_off", "logoff", "sign_out", "logout"):
+                return self._make_plan(
+                    ExecutorType.SYSTEM, "log_off", {},
+                    is_destructive=True, requires_confirm=True,
+                )
+            if action in ("sleep", "hibernate"):
+                return self._make_plan(ExecutorType.SYSTEM, "sleep", {})
+            if action in ("lock", "lock_screen", "lock_pc"):
+                return self._make_plan(ExecutorType.SYSTEM, "lock", {})
+            if action in ("minimize_all", "show_desktop"):
+                return self._make_plan(ExecutorType.SYSTEM, "minimize_all", {})
+            if action in ("kill_process", "kill", "force_quit"):
+                return self._make_plan(
+                    ExecutorType.SYSTEM, "kill_process",
+                    {
+                        "process_name": entities.get("process_name", ""),
+                        "pid": entities.get("pid"),
+                    },
+                    is_destructive=True, requires_confirm=True,
+                )
+
+            # ── SYSTEM MONITORING ─────────────────────────────────────
+            if action in ("get_stats", "system_stats", "status", "health"):
+                return self._make_plan(ExecutorType.MONITOR, "get_stats", {})
+            if action in ("cpu", "cpu_usage", "processor"):
+                return self._make_plan(ExecutorType.MONITOR, "get_cpu", {})
+            if action in ("ram", "memory", "ram_usage"):
+                return self._make_plan(ExecutorType.MONITOR, "get_ram", {})
+            if action in ("battery", "battery_level"):
+                return self._make_plan(ExecutorType.MONITOR, "get_battery", {})
+            if action in ("disk", "disk_space", "storage"):
+                return self._make_plan(ExecutorType.MONITOR, "get_disk", {})
+            if action in ("processes", "list_processes", "running"):
+                return self._make_plan(ExecutorType.MONITOR, "list_processes", {})
+
+        # ── LLM_ONLY intents — no executor needed ─────────────────────
+        if itype in (
+            IntentType.GENERAL_KNOWLEDGE,
+            IntentType.CODE_GENERATION,
+            IntentType.PROJECT_CONTEXT,
+            IntentType.UNKNOWN,
+        ):
+            return self._make_plan(ExecutorType.LLM_ONLY, "llm_response", {})
+
+        return None
+
+    # ------------------------------------------------------------------
+    # Executor dispatcher
+    # ------------------------------------------------------------------
+
+    def _dispatch(self, plan: CommandPlan) -> ExecutionResult:
+        executor = plan.executor
+
+        if executor == ExecutorType.LLM_ONLY:
+            return ExecutionResult(
+                success=True,
+                output="",   # BrainController fills this
+                executor=ExecutorType.LLM_ONLY,
+            )
+        if executor == ExecutorType.SESSION:
+            bus.emit(EventType.SESSION_ENDED, {"reason": "manual_voice_command"})
+            return ExecutionResult(
+                success=True,
+                output="Goodbye. Say Hey AURA when you need me again.",
+                executor=ExecutorType.SESSION,
+            )
+        if executor == ExecutorType.SYSTEM:
+            return self._system.run(plan.action, plan.params)
+        if executor == ExecutorType.MONITOR:
+            return self._monitor.run(plan.action, plan.params)
+        if executor == ExecutorType.SHELL:
+            return self._shell.run(plan.action, plan.params)
+
+        executor_name = executor.name if isinstance(executor, ExecutorType) else str(executor)
         return ExecutionResult(
-            success=True,
-            output="",  # empty signals caller to stream from LLM
-            data={
-                "mode": "llm_stream",
-                "model": plan.params.get("model", ""),
-                "prompt": plan.params.get("prompt", ""),
-            },
-            executor=plan.executor,
+            success=False,
+            output=f"Executor {executor_name} not implemented yet.",
+            executor=executor,
+        )
+
+    # ------------------------------------------------------------------
+    # Helper
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _make_plan(
+        executor: ExecutorType,
+        action: str,
+        params: dict[str, Any],
+        is_destructive: bool = False,
+        requires_confirm: bool = False,
+        timeout: int = 30,
+    ) -> CommandPlan:
+        key = (executor, action)
+        is_dest = is_destructive or key in _DESTRUCTIVE_ACTIONS
+        needs_confirm = requires_confirm or key in _CONFIRM_ACTIONS
+        return CommandPlan(
+            executor=executor,
+            action=action,
+            params=params,
+            is_destructive=is_dest,
+            requires_confirm=needs_confirm,
+            timeout_seconds=timeout,
         )

@@ -9,6 +9,7 @@ transcription result.
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from dataclasses import dataclass
 
@@ -49,6 +50,8 @@ class STTEngine:
         self._config = config
         self._input_device: int | None = None
 
+        bus.subscribe(EventType.LISTEN_NOW, self._on_listen_now)
+
     def preload(self) -> None:
         """Load the Whisper model into RAM. Must be called at startup."""
         import whisper
@@ -58,6 +61,20 @@ class STTEngine:
         self._model = whisper.load_model(self._model_name)
         elapsed = int((time.perf_counter() - start) * 1000)
         logger.info("Whisper model '%s' loaded in %dms", self._model_name, elapsed)
+
+    def _on_listen_now(self, payload: dict) -> None:
+        """
+        Called by SessionController when AURA should start listening
+        for the next command in an active session.
+
+        Runs in the event bus caller's thread — immediately hands off to a
+        worker thread so we never block the bus.
+        """
+        threading.Thread(
+            target=self.listen_and_transcribe,
+            daemon=True,
+            name="stt-session-listen",
+        ).start()
 
     def transcribe(
         self, audio_data: np.ndarray, sample_rate: int = 16000
@@ -113,6 +130,9 @@ class STTEngine:
         Emits RECORDING_STARTED, RECORDING_STOPPED, TRANSCRIPTION_COMPLETE.
         """
         import sounddevice as sd
+
+        # Brief delay to let wake word stream close and release the device
+        time.sleep(0.15)
 
         bus.emit(EventType.RECORDING_STARTED, {})
 

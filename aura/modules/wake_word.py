@@ -61,6 +61,7 @@ class WakeWordListener:
         self._thread: Optional[threading.Thread] = None
         self._started = False
         self._pause_event = threading.Event()
+        self._paused: bool = False
 
         ww = config.get("wake_word", {}) if isinstance(config, dict) else {}
         _get = lambda key, default: ww.get(key, default) if isinstance(ww, dict) else getattr(ww, key, default)
@@ -120,10 +121,23 @@ class WakeWordListener:
         logger.info("[WakeWord] Listener stopped")
 
     def pause(self) -> None:
+        """
+        Pause wake word detection during an active session.
+        The detection thread keeps running — it just suppresses events.
+        This avoids the latency of stopping and restarting the engine.
+        """
+        self._paused = True
         self._pause_event.set()
+        logger.info("WakeWordListener paused — session active.")
 
     def resume(self) -> None:
+        """
+        Resume detection after a session ends.
+        Safe to call from any thread.
+        """
+        self._paused = False
         self._pause_event.clear()
+        logger.info("WakeWordListener resumed — waiting for wake word.")
 
     # ── Engine dispatcher ─────────────────────────────────────────────────────
 
@@ -379,6 +393,8 @@ class WakeWordListener:
         return t.strip(" ,.:!?")
 
     def _emit_detected(self, source: str, transcript: str = "", command: str = "") -> None:
+        if self._paused:
+            return
         bus.emit(EventType.WAKE_WORD_DETECTED, {
             "timestamp": datetime.now().isoformat(),
             "source": source,
@@ -396,6 +412,6 @@ class WakeWordListener:
     def _cooldown(self, seconds: float) -> None:
         end = time.time() + seconds
         while time.time() < end:
-            if self._stop_event.is_set():
+            if self._stop_event.is_set() or self._pause_event.is_set():
                 break
             time.sleep(0.05)
