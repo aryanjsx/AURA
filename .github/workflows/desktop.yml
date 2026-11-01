@@ -269,7 +269,8 @@ jobs:
       matrix:
         include:
           - platform: ubuntu-22.04
-            args: ''
+            # Verbose so a linuxdeploy (AppImage) failure shows its cause.
+            args: '--verbose'
           - platform: macos-14
             args: '--target universal-apple-darwin'
           - platform: windows-latest
@@ -400,7 +401,10 @@ jobs:
             librsvg2-dev \
             patchelf \
             libxdo-dev \
-            libdbus-1-dev
+            libdbus-1-dev \
+            libvulkan1
+          # linuxdeploy resolves the bundled Ollama libraries' dependencies
+          # while building the AppImage; libggml-vulkan.so needs libvulkan.
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -480,8 +484,11 @@ jobs:
             windows-11-arm)
               ./download-uv.sh aarch64-pc-windows-msvc
               UV_SIDECAR=../binaries/uv-aarch64-pc-windows-msvc.exe
-              # The Python stack runs under x64 emulation on Windows ARM64.
-              ./build-runtime.sh cpython-3.12-windows-x86_64-none x86_64-pc-windows-msvc
+              # The Python stack runs under x64 emulation on Windows ARM64, so
+              # the extension is cross-compiled; PyO3 can't infer the target
+              # interpreter's ABI across host architectures.
+              PYO3_CROSS_PYTHON_VERSION=3.12 PYO3_CROSS_PYTHON_IMPLEMENTATION=CPython \
+                ./build-runtime.sh cpython-3.12-windows-x86_64-none x86_64-pc-windows-msvc
               ;;
             windows-latest)
               ./download-uv.sh x86_64-pc-windows-msvc
@@ -648,6 +655,10 @@ jobs:
           # anon key are set (see src/lib/supabase.ts).
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # linuxdeploy's bundled strip can't handle libraries built with newer
+          # toolchains (such as Ollama's), which fails the AppImage. Release
+          # libraries are already stripped.
+          NO_STRIP: ${{ matrix.platform == 'ubuntu-22.04' && 'true' || '' }}
         with:
           projectPath: frontend
           tauriScript: npx tauri
