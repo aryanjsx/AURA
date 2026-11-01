@@ -63,10 +63,12 @@ case "$TARGET" in
     *windows*) SUFFIX=".exe" ;;
 esac
 OUT_FILE="$BINARIES_DIR/ollama-${TARGET}${SUFFIX}"
+# Inference runs in helper binaries and libraries that ship beside the CLI
+# (llama-server, libllama, the ggml CPU backends). Without them Ollama starts
+# but can't load a model, so every target bundles this runtime directory.
 RUNTIME_DIR="$BINARIES_DIR/ollama-runtime-${TARGET}"
 
-# ARM64 inference also needs the archive's DLLs and lib/ollama runners.
-if [ -f "$OUT_FILE" ] && { [ "$TARGET" != "aarch64-pc-windows-msvc" ] || [ -d "$RUNTIME_DIR/lib/ollama" ]; }; then
+if [ -f "$OUT_FILE" ] && [ -d "$RUNTIME_DIR" ]; then
     echo "Already exists: $OUT_FILE"
     echo "Delete it first to re-download."
     exit 0
@@ -151,22 +153,58 @@ if [ "$TARGET" = "universal-apple-darwin" ]; then
     fi
 fi
 
-if [ "$TARGET" = "aarch64-pc-windows-msvc" ]; then
-    if [ ! -d "$OLLAMA_TMP_DIR/lib/ollama" ]; then
-        echo "Windows Ollama archive is missing its lib/ollama inference runtime"
-        exit 1
-    fi
-    # Preserve the release layout beside the renamed sidecar. The release
-    # config maps this directory beside the installed ollama.exe.
-    rm -rf "$RUNTIME_DIR"
-    mkdir -p "$RUNTIME_DIR"
-    for resource in "$OLLAMA_TMP_DIR"/*; do
-        case "$(basename "$resource")" in
-            ollama.exe|ollama-archive) continue ;;
-        esac
-        cp -R "$resource" "$RUNTIME_DIR/"
-    done
-fi
+# CUDA and ROCm add 1-2 GB; CPU and Vulkan cover most machines. Users who want
+# CUDA can install Ollama themselves, and the app prefers that install.
+drop_heavy_gpu_backends() {
+    find "$1" -maxdepth 1 -type d \( -name 'cuda*' -o -name 'rocm*' -o -name 'mlx_cuda*' \) \
+        -exec rm -rf {} +
+}
+
+rm -rf "$RUNTIME_DIR"
+mkdir -p "$RUNTIME_DIR"
+case "$TARGET" in
+    *windows*)
+        if [ ! -d "$OLLAMA_TMP_DIR/lib/ollama" ]; then
+            echo "Windows Ollama archive is missing its lib/ollama inference runtime"
+            exit 1
+        fi
+        # Preserve the release layout beside the renamed sidecar. The release
+        # config maps this directory beside the installed ollama.exe, where
+        # Ollama looks for lib/ollama.
+        for resource in "$OLLAMA_TMP_DIR"/*; do
+            case "$(basename "$resource")" in
+                ollama.exe|ollama-archive) continue ;;
+            esac
+            cp -R "$resource" "$RUNTIME_DIR/"
+        done
+        drop_heavy_gpu_backends "$RUNTIME_DIR/lib/ollama"
+        ;;
+    *apple-darwin)
+        # The macOS archive keeps its helpers beside the CLI. The app starts
+        # Ollama with this directory as its working directory, and Ollama
+        # searches dist/darwin there. Copy symlinks as files so the bundle
+        # doesn't depend on them surviving packaging.
+        mkdir -p "$RUNTIME_DIR/dist/darwin"
+        for resource in "$OLLAMA_TMP_DIR"/*; do
+            case "$(basename "$resource")" in
+                ollama|ollama-archive|*LICENSE*) continue ;;
+            esac
+            cp -RL "$resource" "$RUNTIME_DIR/dist/darwin/"
+        done
+        ;;
+    *linux*)
+        if [ ! -d "$OLLAMA_TMP_DIR/lib/ollama" ]; then
+            echo "Linux Ollama archive is missing its lib/ollama inference runtime"
+            exit 1
+        fi
+        # Ollama searches build/lib/ollama under its working directory, which
+        # the app sets to this directory.
+        mkdir -p "$RUNTIME_DIR/build/lib"
+        cp -RL "$OLLAMA_TMP_DIR/lib/ollama" "$RUNTIME_DIR/build/lib/"
+        drop_heavy_gpu_backends "$RUNTIME_DIR/build/lib/ollama"
+        ;;
+esac
+echo "Bundled runtime: $RUNTIME_DIR ($(du -sh "$RUNTIME_DIR" | cut -f1))"
 
 cp "$OLLAMA_BIN" "$OUT_FILE"
 chmod +x "$OUT_FILE"

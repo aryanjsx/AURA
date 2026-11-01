@@ -1,10 +1,17 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::TrayIconBuilder;
 use tauri::Manager;
 use tauri_plugin_autostart::MacosLauncher;
 use tokio::sync::Mutex;
+
+mod runtime;
+
+/// The app's resource directory, recorded at startup. Release bundles keep
+/// the Python runtime (`runtime/`) and Ollama's libraries (`ollama-runtime/`)
+/// here.
+static RESOURCE_DIR: OnceLock<std::path::PathBuf> = OnceLock::new();
 
 const OLLAMA_PORT: u16 = 11434;
 const JARVIS_PORT: u16 = 8000;
@@ -188,6 +195,19 @@ fn home_dir() -> String {
         .unwrap_or_default()
 }
 
+/// A sidecar binary (`ollama`, `uv`) that Tauri installed beside the desktop
+/// executable.
+fn sidecar_beside_exe(name: &str) -> Option<String> {
+    let exe = std::env::current_exe().ok()?;
+    let file = if cfg!(target_os = "windows") {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
+    };
+    let path = exe.parent()?.join(file);
+    path.is_file().then(|| path.to_string_lossy().into_owned())
+}
+
 /// Resolve full path to a binary by checking common locations.
 /// macOS .app bundles don't inherit the shell PATH, so we probe manually.
 fn resolve_bin(name: &str) -> String {
@@ -197,13 +217,8 @@ fn resolve_bin(name: &str) -> String {
     // Prefer the bundled runtime over an unrelated Ollama install on PATH.
     #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
     if name == "ollama" {
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(dir) = exe.parent() {
-                let sidecar = dir.join("ollama.exe");
-                if sidecar.is_file() {
-                    return sidecar.to_string_lossy().into_owned();
-                }
-            }
+        if let Some(sidecar) = sidecar_beside_exe(name) {
+            return sidecar;
         }
     }
 
@@ -245,6 +260,12 @@ fn resolve_bin(name: &str) -> String {
         if std::path::Path::new(path).exists() {
             return path.clone();
         }
+    }
+
+    // A user-installed copy (above) wins; otherwise use the bundled sidecar,
+    // which isn't on PATH inside a macOS .app or a Linux package.
+    if let Some(sidecar) = sidecar_beside_exe(name) {
+        return sidecar;
     }
 
     // Fallback: ask the OS to find it on PATH.
@@ -389,6 +410,143 @@ fn project_root_near_executable(exe: &std::path::Path) -> Option<std::path::Path
     }
 
     None
+}
+
+/// How `locus serve` is provided on this machine.
+#[derive(Debug, PartialEq, Eq)]
+enum BackendRuntime {
+    /// A source checkout: `uv sync`, then `uv run locus` in the project root.
+    Source,
+    /// The runtime bundled with a packaged release, installed on first launch.
+    Managed(runtime::BundledRuntime),
+}
+
+/// Packaged releases use their bundled runtime unless the user points the
+/// app at a checkout (`LOCUS_ROOT`) or the app runs from inside one.
+fn choose_backend_runtime(
+    explicit_root: bool,
+    inside_checkout: bool,
+    bundled: Option<Result<runtime::BundledRuntime, String>>,
+) -> Result<BackendRuntime, String> {
+    if explicit_root || inside_checkout {
+        return Ok(BackendRuntime::Source);
+    }
+    match bundled {
+        Some(Ok(rt)) => Ok(BackendRuntime::Managed(rt)),
+        Some(Err(err)) => Err(err),
+        None => Ok(BackendRuntime::Source),
+    }
+}
+
+fn select_backend_runtime() -> Result<BackendRuntime, String> {
+    let explicit_root = std::env::var("LOCUS_ROOT")
+        .map(|root| std::path::Path::new(&root).join("pyproject.toml").exists())
+        .unwrap_or(false);
+    let inside_checkout = std::env::current_exe()
+        .ok()
+        .and_then(|exe| project_root_near_executable(&exe))
+        .is_some();
+    let bundled = RESOURCE_DIR.get().and_then(|dir| runtime::bundled_runtime(dir));
+    choose_backend_runtime(explicit_root, inside_checkout, bundled)
+}
+
+/// Ollama's bundled CPU/GPU libraries on macOS and Linux. Ollama looks for
+/// them under its working directory (`build/lib/ollama`, or `dist/darwin` on
+/// macOS); Windows bundles keep them beside the executable instead.
+fn bundled_ollama_runtime_dir() -> Option<std::path::PathBuf> {
+    let dir = RESOURCE_DIR.get()?.join("ollama-runtime");
+    dir.is_dir().then_some(dir)
+}
+
+/// The program, leading arguments and working directory that run `locus`.
+struct ServeTarget {
+    program: String,
+    prefix: Vec<String>,
+    cwd: std::path::PathBuf,
+    managed: bool,
+}
+
+impl ServeTarget {
+    fn source(uv_bin: &str, root: std::path::PathBuf) -> Self {
+        Self {
+            program: uv_bin.to_string(),
+            prefix: vec!["run".into(), "locus".into()],
+            cwd: root,
+            managed: false,
+        }
+    }
+
+    fn managed(runtime_home: &std::path::Path) -> Self {
+        Self {
+            program: runtime::venv_locus(&runtime::venv_dir(runtime_home))
+                .display()
+                .to_string(),
+            prefix: Vec::new(),
+            cwd: runtime_home.to_path_buf(),
+            managed: true,
+        }
+    }
+
+    /// The `locus` invocation to show users, e.g. `uv run locus serve ...`.
+    fn display_command(&self, args: &[String]) -> String {
+        let program = if self.managed { self.program.as_str() } else { "uv" };
+        std::iter::once(program)
+            .chain(self.prefix.iter().map(String::as_str))
+            .chain(args.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    /// What to check when the server won't start.
+    fn checklist(&self) -> String {
+        if self.managed {
+            format!(
+                "1. First-launch setup finished in {}\n\
+                 2. If it keeps failing, delete that folder and relaunch Locus to reinstall it",
+                self.cwd.display(),
+            )
+        } else {
+            format!(
+                "1. uv is installed ({})\n\
+                 2. The Locus repo is at {}\n\
+                 3. 'uv sync' completes in that directory",
+                self.program,
+                self.cwd.display(),
+            )
+        }
+    }
+}
+
+/// Install the bundled runtime on first launch (or after an app update) and
+/// return how to run its `locus`.
+async fn prepare_managed_runtime(
+    rt: &runtime::BundledRuntime,
+    uv_bin: &str,
+    status: &SharedStatus,
+) -> Result<ServeTarget, String> {
+    let home = runtime::runtime_home(&home_dir());
+    if !runtime::is_installed(&home, rt) {
+        runtime::reset_install(&home)?;
+        let uv = std::path::PathBuf::from(uv_bin);
+        for step in runtime::install_steps(rt, &home) {
+            status.lock().await.detail = step.detail.into();
+            runtime::run_step(&uv, &step.args, &home, prepare_subprocess_for_appimage)
+                .await
+                .map_err(|out| runtime::format_install_failure(&home, step.name, &out))?;
+        }
+        status.lock().await.detail = "Checking the installation...".into();
+        let python = runtime::venv_python(&runtime::venv_dir(&home));
+        runtime::run_step(
+            &python,
+            &runtime::verify_args(),
+            &home,
+            prepare_subprocess_for_appimage,
+        )
+        .await
+        .map_err(|out| runtime::format_install_failure(&home, "checking the installation", &out))?;
+        runtime::mark_installed(&home, rt)?;
+    }
+    Ok(ServeTarget::managed(&home))
 }
 
 // ---------------------------------------------------------------------------
@@ -1049,6 +1207,78 @@ fn check_jarvis_port_available() -> Result<(), String> {
 // Backend boot sequence (runs in background after app launch)
 // ---------------------------------------------------------------------------
 
+/// Prepare a source checkout for `uv run locus`: check for Rust, run
+/// `uv sync`, and confirm the native extension imports.
+async fn prepare_source_runtime(
+    root: &std::path::Path,
+    uv_bin: &str,
+    status: &SharedStatus,
+) -> Result<(), String> {
+    let cargo_bin = resolve_bin("cargo");
+    if !std::path::Path::new(&cargo_bin).exists() && cargo_bin == "cargo" {
+        return Err(format_missing_rust_toolchain());
+    }
+
+    // Install dependencies automatically (handles fresh clones).
+    //
+    // Previously we ran `uv sync` with both stdout AND stderr piped to
+    // /dev/null and discarded the exit code (`let _ = …`). When `uv sync`
+    // failed — Windows path issues, network problems, lockfile conflicts —
+    // the user saw no error, the boot continued, `uv run locus serve`
+    // then ran in an under-provisioned venv, and the user waited the full
+    // 600s health-check window before getting "Locus server did not
+    // become healthy in time" with no actionable detail (issue #331).
+    //
+    // Now: capture stderr, check the exit status, surface a useful error
+    // to the user BEFORE the long server-start wait. The status detail
+    // message also indicates this can take a couple of minutes on first
+    // boot so users don't restart the app thinking it's stuck.
+    {
+        let mut s = status.lock().await;
+        s.detail = "Installing dependencies (uv sync — may take 1-2 min on first boot)...".into();
+    }
+    let mut sync_cmd = tokio::process::Command::new(uv_bin);
+    sync_cmd
+        .args([
+            "sync",
+            "--extra",
+            "desktop",
+            "--extra",
+            "inference-cloud",
+            "--extra",
+            "inference-google",
+            // locus_rust lives in a uv dependency group (not the published
+            // `desktop` extra) so pip installs from PyPI don't require it (#584).
+            "--group",
+            "desktop-native",
+        ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .current_dir(root);
+    // Avoid LD_LIBRARY_PATH leak when running inside an AppImage (#455).
+    prepare_subprocess_for_appimage(&mut sync_cmd);
+    prepare_backend_python(&mut sync_cmd);
+    add_cargo_bin_to_path(&mut sync_cmd);
+    sync_cmd.kill_on_drop(true);
+    let sync_output = sync_cmd.output().await;
+    match sync_output {
+        Ok(out) if !out.status.success() => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            return Err(format_uv_sync_failure(root, out.status.code(), &stderr));
+        }
+        Err(e) => {
+            return Err(format_uv_sync_spawn_error(root, uv_bin, &e.to_string()));
+        }
+        Ok(_) => {} // success — fall through
+    }
+
+    {
+        let mut s = status.lock().await;
+        s.detail = "Verifying Rust extension (locus_rust)...".into();
+    }
+    verify_locus_rust_extension(root, uv_bin).await
+}
+
 async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     // Never infer consent from a missing or malformed config. A fresh desktop
     // install must persist an explicit source choice before this function can
@@ -1091,6 +1321,10 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
                 .env("OLLAMA_HOST", format!("127.0.0.1:{}", OLLAMA_PORT))
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null());
+            if let Some(dir) = bundled_ollama_runtime_dir() {
+                sidecar_cmd.current_dir(dir);
+            }
+            runtime::hide_console_window(&mut sidecar_cmd);
             // Avoid LD_LIBRARY_PATH leak when running inside an AppImage (#455).
             prepare_subprocess_for_appimage(&mut sidecar_cmd);
             match spawn_owned_child(&mut sidecar_cmd) {
@@ -1246,7 +1480,21 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         s.detail = "Starting API server...".into();
     }
 
-    let uv_bin = resolve_bin("uv");
+    let backend_runtime = match select_backend_runtime() {
+        Ok(found) => found,
+        Err(err) => {
+            let mut s = status.lock().await;
+            s.error = Some(err);
+            return;
+        }
+    };
+
+    // Packaged releases install with the uv bundled beside the app so the
+    // install doesn't depend on whatever uv the user may have.
+    let uv_bin = match &backend_runtime {
+        BackendRuntime::Managed(_) => sidecar_beside_exe("uv").unwrap_or_else(|| resolve_bin("uv")),
+        BackendRuntime::Source => resolve_bin("uv"),
+    };
 
     // Verify uv is actually installed. Concrete per-OS instructions —
     // the generic "install it from astral.sh" was the #1 source of
@@ -1278,10 +1526,14 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         return;
     }
 
-    let mut project_root = find_project_root();
+    let mut project_root = match &backend_runtime {
+        BackendRuntime::Managed(_) => None,
+        BackendRuntime::Source => find_project_root(),
+    };
 
-    if project_root.is_none() {
-        // Auto-clone on first launch
+    if project_root.is_none() && backend_runtime == BackendRuntime::Source {
+        // Auto-clone on first launch (development builds without a bundled
+        // runtime).
         let git_bin = resolve_bin("git");
 
         // Check that git is installed
@@ -1497,95 +1749,34 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         return;
     }
 
-    let root = project_root.as_ref().unwrap();
-
-    let cargo_bin = resolve_bin("cargo");
-    if !std::path::Path::new(&cargo_bin).exists() && cargo_bin == "cargo" {
-        let mut s = status.lock().await;
-        s.error = Some(format_missing_rust_toolchain());
-        return;
-    }
-
-    // Install dependencies automatically (handles fresh clones).
-    //
-    // Previously we ran `uv sync` with both stdout AND stderr piped to
-    // /dev/null and discarded the exit code (`let _ = …`). When `uv sync`
-    // failed — Windows path issues, network problems, lockfile conflicts —
-    // the user saw no error, the boot continued, `uv run locus serve`
-    // then ran in an under-provisioned venv, and the user waited the full
-    // 600s health-check window before getting "Locus server did not
-    // become healthy in time" with no actionable detail (issue #331).
-    //
-    // Now: capture stderr, check the exit status, surface a useful error
-    // to the user BEFORE the long server-start wait. The status detail
-    // message also indicates this can take a couple of minutes on first
-    // boot so users don't restart the app thinking it's stuck.
-    {
-        let mut s = status.lock().await;
-        s.detail = "Installing dependencies (uv sync — may take 1-2 min on first boot)...".into();
-    }
-    let mut sync_cmd = tokio::process::Command::new(&uv_bin);
-    sync_cmd
-        .args([
-            "sync",
-            "--extra",
-            "desktop",
-            "--extra",
-            "inference-cloud",
-            "--extra",
-            "inference-google",
-            // locus_rust lives in a uv dependency group (not the published
-            // `desktop` extra) so pip installs from PyPI don't require it (#584).
-            "--group",
-            "desktop-native",
-        ])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .current_dir(root);
-    // Avoid LD_LIBRARY_PATH leak when running inside an AppImage (#455).
-    prepare_subprocess_for_appimage(&mut sync_cmd);
-    prepare_backend_python(&mut sync_cmd);
-    add_cargo_bin_to_path(&mut sync_cmd);
-    sync_cmd.kill_on_drop(true);
-    let sync_output = sync_cmd.output().await;
-    match sync_output {
-        Ok(out) if !out.status.success() => {
-            let stderr = String::from_utf8_lossy(&out.stderr);
-            let mut s = status.lock().await;
-            s.error = Some(format_uv_sync_failure(root, out.status.code(), &stderr));
-            return;
+    let serve = match &backend_runtime {
+        BackendRuntime::Managed(rt) => match prepare_managed_runtime(rt, &uv_bin, &status).await {
+            Ok(target) => target,
+            Err(err) => {
+                let mut s = status.lock().await;
+                s.error = Some(err);
+                return;
+            }
+        },
+        BackendRuntime::Source => {
+            let root = project_root.clone().expect("source runtime has a project root");
+            if let Err(err) = prepare_source_runtime(&root, &uv_bin, &status).await {
+                let mut s = status.lock().await;
+                s.error = Some(err);
+                return;
+            }
+            ServeTarget::source(&uv_bin, root)
         }
-        Err(e) => {
-            let mut s = status.lock().await;
-            s.error = Some(format_uv_sync_spawn_error(root, &uv_bin, &e.to_string()));
-            return;
-        }
-        Ok(_) => {} // success — fall through
-    }
+    };
 
     {
         let mut s = status.lock().await;
-        s.detail = "Verifying Rust extension (locus_rust)...".into();
-    }
-    if let Err(err) = verify_locus_rust_extension(root, &uv_bin).await {
-        let mut s = status.lock().await;
-        s.error = Some(err);
-        return;
+        s.detail = format!("Starting API server from {}...", serve.cwd.display());
     }
 
-    {
-        let mut s = status.lock().await;
-        s.detail = format!("Starting API server from {}...", root.display());
-    }
-
-    let mut cmd = tokio::process::Command::new(&uv_bin);
-    let mut serve_argv: Vec<String> = vec![
-        "run".into(),
-        "locus".into(),
-        "serve".into(),
-        "--port".into(),
-        JARVIS_PORT.to_string(),
-    ];
+    let mut cmd = tokio::process::Command::new(&serve.program);
+    let mut serve_argv: Vec<String> = serve.prefix.clone();
+    serve_argv.extend(["serve".into(), "--port".into(), JARVIS_PORT.to_string()]);
     serve_argv.extend(plan.serve_args.iter().cloned());
     // If the Ollama pull fell back to a different tag than planned, serve the
     // tag that is actually present. boot_plan always emits `--model` followed
@@ -1594,8 +1785,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         match serve_argv.iter().position(|a| a == "--model") {
             Some(i) if i + 1 < serve_argv.len() => serve_argv[i + 1] = m.clone(),
             _ => eprintln!(
-                "Warning: resolved model {:?} could not be applied; \
-                 '--model <value>' not found in serve args {:?}",
+                "Warning: resolved model {:?} could not be applied;                  '--model <value>' not found in serve args {:?}",
                 m, serve_argv
             ),
         }
@@ -1603,12 +1793,15 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     cmd.args(&serve_argv)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
-        .current_dir(root);
+        .current_dir(&serve.cwd);
     // Avoid LD_LIBRARY_PATH leak when running inside an AppImage (#455) —
     // do this BEFORE cmd.env() calls below so our explicit cloud-key env
     // additions aren't accidentally stripped.
     prepare_subprocess_for_appimage(&mut cmd);
-    prepare_backend_python(&mut cmd);
+    if !serve.managed {
+        prepare_backend_python(&mut cmd);
+    }
+    runtime::hide_console_window(&mut cmd);
 
     // Inject cloud API keys from secure desktop storage.
     for (key, value) in cloud_keys_for_inference(&cfg) {
@@ -1634,10 +1827,10 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         Err(e) => {
             let mut s = status.lock().await;
             s.error = Some(format!(
-                "Could not start locus server: {}. \
-                 Make sure uv is installed (https://astral.sh/uv) and the Locus repo is cloned at {}",
+                "Could not start locus server with {}: {}. Check that:\n{}",
+                serve.program,
                 e,
-                root.display(),
+                serve.checklist(),
             ));
             return;
         }
@@ -1651,17 +1844,13 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
             s.error = Some(format!(
                 "Locus server is running but the inference engine is not available \
                  (HTTP 503). This usually means the configured model couldn't be loaded.\n\n\
-                 Check the server logs, or run 'uv run locus serve --port {}{}' \
+                 Check the server logs, or run '{}' \
                  from {} to see the engine error.\n\n\
                  Server response:\n{}",
-                JARVIS_PORT,
-                // Show the args actually passed (after `serve --port <port>`),
-                // including any post-fallback `--model` override.
-                match serve_argv.get(5..) {
-                    Some(rest) if !rest.is_empty() => format!(" {}", rest.join(" ")),
-                    _ => String::new(),
-                },
-                root.display(),
+                // Show the args actually passed, including any post-fallback
+                // `--model` override.
+                serve.display_command(&serve_argv[serve.prefix.len()..]),
+                serve.cwd.display(),
                 body.trim(),
             ));
             return;
@@ -1678,13 +1867,9 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
             s.error = Some(if stderr.is_empty() {
                 format!(
                     "Locus server exited (code {}) before becoming ready.\n\n\
-                     No stderr output. Check that:\n\
-                     1. uv is installed ({})\n\
-                     2. The Locus repo is at {}\n\
-                     3. 'uv sync' completes in that directory",
+                     No stderr output. Check that:\n{}",
                     code_str,
-                    uv_bin,
-                    root.display(),
+                    serve.checklist(),
                 )
             } else {
                 format!(
@@ -1699,12 +1884,8 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
             let mut s = status.lock().await;
             s.error = Some(if stderr.is_empty() {
                 format!(
-                    "Locus server did not become ready within 10 minutes. Check that:\n\
-                     1. uv is installed ({})\n\
-                     2. The Locus repo is at {}\n\
-                     3. Run 'uv sync' in that directory",
-                    uv_bin,
-                    root.display(),
+                    "Locus server did not become ready within 10 minutes. Check that:\n{}",
+                    serve.checklist(),
                 )
             } else {
                 format!(
@@ -1969,21 +2150,32 @@ async fn fetch_models(api_url: String) -> Result<serde_json::Value, String> {
 
 #[tauri::command]
 async fn run_jarvis_command(args: Vec<String>) -> Result<String, String> {
-    let uv_bin = resolve_bin("uv");
-
-    let mut cmd_args = vec!["run".to_string(), "locus".to_string()];
+    let target = match select_backend_runtime() {
+        Ok(BackendRuntime::Managed(rt)) => {
+            let home = runtime::runtime_home(&home_dir());
+            if !runtime::is_installed(&home, &rt) {
+                return Err("Locus is still finishing its first-launch setup. Try again in a moment.".into());
+            }
+            Some(ServeTarget::managed(&home))
+        }
+        // Run from the project root so `uv run locus` resolves the Locus
+        // project regardless of the app's launch cwd. Without this `locus`
+        // isn't found and the backend never starts — the UI then shows
+        // "Failed to get response" (see #531).
+        _ => find_project_root().map(|root| ServeTarget::source(&resolve_bin("uv"), root)),
+    };
+    let (program, mut cmd_args) = match &target {
+        Some(t) => (t.program.clone(), t.prefix.clone()),
+        None => (resolve_bin("uv"), vec!["run".to_string(), "locus".to_string()]),
+    };
     cmd_args.extend(args.iter().cloned());
 
-    let mut cmd = tokio::process::Command::new(&uv_bin);
+    let mut cmd = tokio::process::Command::new(&program);
     cmd.args(&cmd_args);
-    // Run from the project root so `uv run locus` resolves the Locus
-    // project regardless of the app's launch cwd. In a packaged install the
-    // cwd isn't the checkout, so without this `locus` isn't found and the
-    // backend never starts — the UI then shows "Failed to get response"
-    // (see #531).
-    if let Some(ref root) = find_project_root() {
-        cmd.current_dir(root);
+    if let Some(t) = &target {
+        cmd.current_dir(&t.cwd);
     }
+    runtime::hide_console_window(&mut cmd);
 
     let is_serve = args.first().map(|a| a.as_str() == "serve").unwrap_or(false);
 
@@ -3373,6 +3565,12 @@ pub fn run() {
             }
         }))
         .setup(move |app| {
+            // Record where the bundled runtime and Ollama libraries live
+            // before any boot task needs them.
+            if let Ok(dir) = app.path().resource_dir() {
+                let _ = RESOURCE_DIR.set(dir);
+            }
+
             // System tray
             let show = MenuItemBuilder::with_id("show", "Show / Hide").build(app)?;
             let health = MenuItemBuilder::with_id("health", "Health: starting...")
@@ -3494,7 +3692,7 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::{
-        boot_plan, default_local_model, discard_pending_inference_setup_at,
+        boot_plan, choose_backend_runtime, default_local_model, discard_pending_inference_setup_at,
         format_extension_import_failure, format_missing_rust_toolchain, format_port_unavailable,
         format_uv_sync_failure, format_uv_sync_spawn_error, managed_cloud_key_names,
         matching_installed_model, model_names_match, normalize_host,
@@ -3503,12 +3701,76 @@ mod tests {
         project_root_near_executable, reload_cloud_keys_for_owned_backend_at,
         should_persist_resolved_model, spawn_owned_child, stage_pending_inference_config_at,
         startup_installed_model, upsert_engine_host, uv_sync_stderr_tail, BackendManager,
-        InferenceConfig, InferenceCredentialStore, PendingInferenceRollback, SetupStatus,
-        SourceKind, DESKTOP_UV_SYNC_COMMAND, PENDING_INFERENCE_API_KEY,
+        BackendRuntime, InferenceConfig, InferenceCredentialStore, PendingInferenceRollback,
+        ServeTarget, SetupStatus, SourceKind, DESKTOP_UV_SYNC_COMMAND, PENDING_INFERENCE_API_KEY,
     };
+    use crate::runtime::BundledRuntime;
     use std::collections::HashMap;
     use std::path::Path;
     use std::sync::Mutex as StdMutex;
+
+    fn sample_bundled_runtime() -> BundledRuntime {
+        BundledRuntime {
+            manifest: "{}".into(),
+            python: "3.12".into(),
+            requirements: "requirements.txt".into(),
+            wheels: vec!["locus_assistant-1.0.0-py3-none-any.whl".into()],
+        }
+    }
+
+    #[test]
+    fn packaged_builds_use_the_bundled_runtime() {
+        let chosen = choose_backend_runtime(false, false, Some(Ok(sample_bundled_runtime())));
+        assert_eq!(chosen, Ok(BackendRuntime::Managed(sample_bundled_runtime())));
+    }
+
+    #[test]
+    fn a_checkout_overrides_the_bundled_runtime() {
+        for (explicit_root, inside_checkout) in [(true, false), (false, true)] {
+            let chosen = choose_backend_runtime(
+                explicit_root,
+                inside_checkout,
+                Some(Ok(sample_bundled_runtime())),
+            );
+            assert_eq!(chosen, Ok(BackendRuntime::Source));
+        }
+    }
+
+    #[test]
+    fn builds_without_a_bundle_fall_back_to_source() {
+        assert_eq!(choose_backend_runtime(false, false, None), Ok(BackendRuntime::Source));
+    }
+
+    #[test]
+    fn a_broken_bundle_is_reported() {
+        let chosen = choose_backend_runtime(false, false, Some(Err("missing wheel".into())));
+        assert_eq!(chosen, Err("missing wheel".to_string()));
+    }
+
+    #[test]
+    fn managed_serve_target_runs_locus_from_the_runtime_venv() {
+        let home = Path::new("rt-home");
+        let target = ServeTarget::managed(home);
+        let locus = crate::runtime::venv_locus(&crate::runtime::venv_dir(home))
+            .display()
+            .to_string();
+        assert_eq!(target.program, locus);
+        assert!(target.prefix.is_empty());
+        assert_eq!(target.cwd, home);
+        let args = vec!["serve".to_string(), "--port".to_string(), "8000".to_string()];
+        assert_eq!(target.display_command(&args), format!("{} serve --port 8000", locus));
+        assert!(target.checklist().contains("rt-home"));
+    }
+
+    #[test]
+    fn source_serve_target_uses_uv_run() {
+        let target = ServeTarget::source("/opt/uv", Path::new("checkout").to_path_buf());
+        assert_eq!(target.prefix, vec!["run", "locus"]);
+        let args = vec!["serve".to_string()];
+        assert_eq!(target.display_command(&args), "uv run locus serve");
+        assert!(target.checklist().contains("/opt/uv"));
+        assert!(target.checklist().contains("checkout"));
+    }
 
     #[test]
     fn atlas_cloud_key_is_loaded_with_managed_desktop_keys() {

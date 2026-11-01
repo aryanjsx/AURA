@@ -1,3 +1,5 @@
-# Downloaded sidecar binaries — platform-specific, not committed
+# Downloaded sidecar binaries and built runtime — platform-specific, not committed
 ollama-*
+uv-*
+runtime/
 !.gitignore

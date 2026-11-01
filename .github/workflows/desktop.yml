@@ -171,6 +171,52 @@ jobs:
         working-directory: frontend/src-tauri
         run: cargo test
 
+  # Build the Python runtime that release bundles ship, install it the way the
+  # app does on first launch, and check that `locus serve` comes up. Release
+  # builds run the same check on every platform before publishing.
+  runtime-smoke:
+    if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.platform }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The Locus wheel's version comes from git tags.
+          fetch-depth: 0
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: 'rust -> target'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: '0.13.6'
+          enable-cache: true
+
+      - name: Build and smoke-test the bundled runtime
+        shell: bash
+        run: |
+          cd frontend/src-tauri/scripts
+          ./download-uv.sh "${{ matrix.target }}"
+          ./build-runtime.sh 3.12
+          suffix=""
+          [[ "${{ matrix.target }}" == *windows* ]] && suffix=".exe"
+          ./runtime-smoke.sh "../binaries/uv-${{ matrix.target }}${suffix}"
+
   # Remove stale artifacts from the desktop-edge rolling pre-release so that
   # only the current build's files are available for download. (The stable
   # `desktop-latest` channel the installed app polls is never cleaned here.)
@@ -359,12 +405,22 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-14' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          # macOS builds a universal app; Windows ARM64 also builds the x64
+          # locus_rust wheel for its emulated Python backend.
+          targets: ${{ matrix.platform == 'macos-14' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.platform == 'windows-11-arm' && 'x86_64-pc-windows-msvc' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: 'frontend/src-tauri -> target'
+          workspaces: |
+            frontend/src-tauri -> target
+            rust -> target
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: '0.13.6'
+          enable-cache: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -404,6 +460,41 @@ jobs:
           else
             ./download-ollama.sh "$OLLAMA_TARGET"
           fi
+
+      # Packaged installs set up their Python backend on first launch from
+      # these files with the bundled uv, so users need no git, Python or Rust.
+      # The smoke test installs them the same way and starts `locus serve`.
+      - name: Bundle uv and the Python runtime
+        shell: bash
+        run: |
+          cd frontend/src-tauri/scripts
+          case "${{ matrix.platform }}" in
+            macos-14)
+              ./download-uv.sh universal-apple-darwin
+              for arch in aarch64 x86_64; do
+                cp ../binaries/uv-universal-apple-darwin "../binaries/uv-${arch}-apple-darwin"
+              done
+              UV_SIDECAR=../binaries/uv-universal-apple-darwin
+              ./build-runtime.sh 3.12 universal2-apple-darwin
+              ;;
+            windows-11-arm)
+              ./download-uv.sh aarch64-pc-windows-msvc
+              UV_SIDECAR=../binaries/uv-aarch64-pc-windows-msvc.exe
+              # The Python stack runs under x64 emulation on Windows ARM64.
+              ./build-runtime.sh cpython-3.12-windows-x86_64-none x86_64-pc-windows-msvc
+              ;;
+            windows-latest)
+              ./download-uv.sh x86_64-pc-windows-msvc
+              UV_SIDECAR=../binaries/uv-x86_64-pc-windows-msvc.exe
+              ./build-runtime.sh 3.12
+              ;;
+            *)
+              ./download-uv.sh x86_64-unknown-linux-gnu
+              UV_SIDECAR=../binaries/uv-x86_64-unknown-linux-gnu
+              ./build-runtime.sh 3.12
+              ;;
+          esac
+          ./runtime-smoke.sh "$UV_SIDECAR"
 
       - name: Determine release info
         id: release-info
@@ -496,12 +587,21 @@ jobs:
             version: process.env.TAURI_VERSION,
             bundle: {
               createUpdaterArtifacts: true,
-              externalBin: ['binaries/ollama'],
+              externalBin: ['binaries/ollama', 'binaries/uv'],
             },
           };
-          if (process.env.OLLAMA_TARGET === 'aarch64-pc-windows-msvc') {
-            config.bundle.resources = { 'binaries/ollama-runtime-aarch64-pc-windows-msvc/': './' };
-          }
+          // download-ollama.sh names the runtime after the target it fetched.
+          const ollamaTarget = process.env.OLLAMA_TARGET ||
+            { macOS: 'universal-apple-darwin', Linux: 'x86_64-unknown-linux-gnu' }[process.env.RUNNER_OS];
+          assert.ok(ollamaTarget, `No Ollama runtime target for ${process.env.RUNNER_OS}`);
+          config.bundle.resources = {
+            // The Python runtime the app installs on first launch.
+            'binaries/runtime/': 'runtime/',
+            // Ollama's inference libraries: beside ollama.exe on Windows, and
+            // under its working directory on macOS and Linux.
+            [`binaries/ollama-runtime-${ollamaTarget}/`]:
+              process.env.RUNNER_OS === 'Windows' ? './' : 'ollama-runtime/',
+          };
           writeFileSync('frontend/src-tauri/tauri.release.conf.json', JSON.stringify(config));
           NODE
 

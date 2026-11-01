@@ -78,19 +78,11 @@ Then open [http://localhost:5173](http://localhost:5173).
 ## Desktop App
 
 The desktop app is a native window for the Locus chat UI. All inference and backend
-processing happens on your local machine — the app connects to the backend you start locally.
+processing happens on your local machine, and the app sets everything up itself.
 
 ### Setup
 
-**Step 1.** Start the backend (same as Browser App):
-
-```bash
-git clone https://github.com/aryanjsx/Locus.git
-cd Locus
-./scripts/quickstart.sh
-```
-
-**Step 2.** Download and open the desktop app from the
+**Step 1.** Download and open the desktop app from the
 [:material-download: **latest release**](https://github.com/aryanjsx/Locus/releases/latest):
 
 | Platform | File |
@@ -101,6 +93,24 @@ cd Locus
 | Linux (DEB) | `Locus_<version>_amd64.deb` |
 | Linux (RPM) | `Locus-<version>-1.x86_64.rpm` |
 | Linux (AppImage) | `Locus_<version>_amd64.AppImage` |
+
+**Step 2.** On first launch, choose **Ollama** to run models on your PC, or
+point Locus at your own OpenAI-compatible server. Locus then sets itself up:
+
+1. Installs its private Python runtime in `~/.locus/desktop-runtime`, including
+   a Python it downloads for itself.
+2. Starts the bundled Ollama. If you already have Ollama installed, Locus uses
+   that instead, keeping CUDA acceleration if you have it.
+3. Downloads a model sized for your RAM and starts the Locus server.
+
+First launch needs an internet connection and takes a few minutes. Later
+launches start in seconds. You don't need to install git, Python, Rust, or
+Ollama yourself. If setup fails, relaunch Locus to retry; to start over,
+delete `~/.locus/desktop-runtime`.
+
+The bundled Ollama runs models on your CPU, with Vulkan GPU acceleration on
+Windows and Linux and Metal on Apple Silicon Macs. For NVIDIA CUDA acceleration, install
+[Ollama](https://ollama.com/download) yourself; Locus will use it.
 
 The app connects to `http://localhost:8000` automatically.
 

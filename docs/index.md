@@ -53,18 +53,11 @@ Locus is that stack. It is a framework for local-first personal AI, built around
 
 === "Desktop App"
 
-    The desktop app is a native window for the Locus UI.
-    The backend (Ollama + inference) runs on your machine — start it first, then open the app.
+    The desktop app is a native window for the Locus UI. It runs everything
+    on your machine and sets itself up on first launch: its Python runtime,
+    the bundled Ollama, and a model sized for your RAM.
 
-    **Step 1.** Start the backend:
-
-    ```bash
-    git clone https://github.com/aryanjsx/Locus.git
-    cd Locus
-    ./scripts/quickstart.sh
-    ```
-
-    **Step 2.** Download and open the desktop app:
+    Download and open the desktop app:
 
     [Download the desktop app](https://github.com/aryanjsx/Locus/releases/latest){ .md-button .md-button--primary }
 

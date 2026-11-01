@@ -12,14 +12,14 @@ Locus runs entirely on your hardware. Choose the interface that fits your workfl
 ## Desktop App
 
 The desktop app is a native window for the Locus chat UI. All inference and backend
-processing happens on your local machine — the app connects to the backend you start locally.
+processing happens on your local machine, and the app sets everything up itself.
 
-!!! info "Backend required"
-    Start the backend before opening the desktop app. The quickstart script handles everything:
-    ```bash
-    git clone https://github.com/aryanjsx/Locus.git && cd Locus
-    ./scripts/quickstart.sh
-    ```
+!!! info "First launch"
+    On first launch, choose **Ollama** (runs models on your PC) or your own
+    OpenAI-compatible server. Locus then installs its private Python runtime,
+    starts the bundled Ollama, and downloads a model sized for your RAM. This
+    needs an internet connection and takes a few minutes; later launches start
+    in seconds. You don't need to install git, Python, Rust, or Ollama yourself.
 
 ### Download
 
