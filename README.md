@@ -15,7 +15,9 @@
 [![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/aryanjsx/badge.svg)](https://hub.xerj.org/contributors/aryanjsx)
 
 
-[Website](https://aryanjsx.github.io/Locus/) · [Why Locus](#why-locus) · [What it can do](#what-locus-can-do) · [Install](#installation) · [Quick start](#quick-start) · [Privacy](#privacy) · [Docs](https://aryanjsx.github.io/Locus/)
+**[Download for Windows, macOS or Linux](https://aryanjsx.github.io/Locus/#download)**
+
+[Website](https://aryanjsx.github.io/Locus/) · [Why Locus](#why-locus) · [What it can do](#what-locus-can-do) · [Install](#installation) · [Quick start](#quick-start) · [Privacy](#privacy) · [Docs](https://aryanjsx.github.io/Locus/getting-started/installation/)
 
 </div>
 
@@ -39,14 +41,16 @@ Locus is that stack. It is a framework for local-first personal AI, built around
 
 ### Desktop app
 
-Download the installer for your platform from the [**latest release**](https://github.com/aryanjsx/Locus/releases/latest):
+The easiest way is the **[download button on the website](https://aryanjsx.github.io/Locus/#download)**. It detects your system and downloads the right installer directly. You can also pick a file from the [latest release](https://github.com/aryanjsx/Locus/releases/latest):
 
 | Platform | File |
 |---|---|
-| **Windows (64-bit)** | `Locus_<version>_x64-setup.exe` or `Locus_<version>_x64_en-US.msi` |
-| **Windows (ARM64)** | `Locus_<version>_arm64-setup.exe` |
-| **macOS (Apple Silicon and Intel)** | `Locus_<version>_universal.dmg` |
-| **Linux** | `Locus_<version>_amd64.AppImage`, `.deb`, or `.rpm` |
+| **Windows 10 and 11 (64-bit)** | `Locus_<version>_x64-setup.exe` or `Locus_<version>_x64_en-US.msi` |
+| **Windows 11 on ARM** | `Locus_<version>_arm64-setup.exe` |
+| **macOS 10.15 or later (Apple silicon and Intel)** | `Locus_<version>_universal.dmg` |
+| **Linux (x86-64)** | `Locus_<version>_amd64.AppImage`, `.deb`, or `.rpm` |
+
+8 GB of memory is enough for a small model; 16 GB runs noticeably better ones. A graphics card helps but isn't required.
 
 On first launch, choose **Ollama** to run models on your PC (or point Locus at your own OpenAI-compatible server). Locus then sets itself up: it installs its private Python runtime, starts the bundled Ollama, and downloads a model sized for your RAM. You don't need to install git, Python, Rust, or Ollama yourself. First launch needs an internet connection and takes a few minutes; later launches start in seconds.
 
