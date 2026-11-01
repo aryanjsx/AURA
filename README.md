@@ -7,13 +7,15 @@
 
 **Type or speak a command. Locus does it, on your machine, without sending anything to the cloud.**
 
+[![Latest release](https://img.shields.io/github/v/release/aryanjsx/Locus?label=release)](https://github.com/aryanjsx/Locus/releases/latest)
+[![PyPI](https://img.shields.io/pypi/v/locus-assistant)](https://pypi.org/project/locus-assistant/)
 ![Status](https://img.shields.io/badge/status-alpha-orange)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)
 ![License](https://img.shields.io/github/license/aryanjsx/Locus)
 [![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/aryanjsx/badge.svg)](https://hub.xerj.org/contributors/aryanjsx)
 
 
-[Website](https://aryanjsx.github.io/Locus/) · [Why Locus](#why-locus) · [MVP scope](#mvp-scope) · [Safety](#safety) · [Requirements](#system-requirements) · [Tech stack](#tech-stack) · [Roadmap](#roadmap) · [Docs](#documentation)
+[Website](https://aryanjsx.github.io/Locus/) · [Why Locus](#why-locus) · [What it can do](#what-locus-can-do) · [Install](#installation) · [Quick start](#quick-start) · [Privacy](#privacy) · [Docs](https://aryanjsx.github.io/Locus/)
 
 </div>
 
@@ -23,21 +25,60 @@ Personal AI agents are exploding in popularity, but nearly all of them still rou
 
 Locus is that stack. It is a framework for local-first personal AI, built around three core ideas: shared primitives for building on-device agents; evaluations that treat energy, FLOPs, latency, and dollar cost as first-class constraints alongside accuracy; and a learning loop that improves models using local trace data. The goal is simple: make it possible to build personal AI agents that run locally by default, calling the cloud only when truly necessary. Locus aims to be both a research platform and a production foundation for local AI, in the spirit of PyTorch.
 
+## What Locus can do
+
+- **Chat on your PC:** talk to a local AI model in the desktop app, your browser, or the terminal, by typing or by voice.
+- **Work with your files:** read and write files and PDFs, search your own documents, run code in a sandbox, and remember facts between conversations.
+- **Connect your apps:** Gmail, Outlook, Google Calendar, Google Drive, Dropbox, Notion, Obsidian, GitHub, Slack and more, each only after you sign in.
+- **Reply on messaging apps:** run it as a bot on Telegram, Slack, Discord, WhatsApp, Teams, Signal, email, SMS and about 25 other channels.
+- **Do tasks on its own:** deep research reports, a daily morning digest, and agents that run on a schedule.
+- **Measure itself:** dashboards for energy use, speed, cost savings compared with cloud AI, and step-by-step traces of each answer.
+- **Run the AI your way:** Ollama (bundled with the desktop app), llama.cpp, vLLM, or Apple's on-device models, plus optional cloud models with your own API key.
+
 ## Installation
 
-Pick your platform and run one command. Each installer handles [uv](https://docs.astral.sh/uv/), the Python venv, Ollama, and a starter model — about 3 minutes on broadband.
+### Desktop app
+
+Download the installer for your platform from the [**latest release**](https://github.com/aryanjsx/Locus/releases/latest):
+
+| Platform | File |
+|---|---|
+| **Windows (64-bit)** | `Locus_<version>_x64-setup.exe` or `Locus_<version>_x64_en-US.msi` |
+| **Windows (ARM64)** | `Locus_<version>_arm64-setup.exe` |
+| **macOS (Apple Silicon and Intel)** | `Locus_<version>_universal.dmg` |
+| **Linux** | `Locus_<version>_amd64.AppImage`, `.deb`, or `.rpm` |
+
+The desktop app checks for new releases and offers to install them.
+
+> [!NOTE]
+> The installers aren't code-signed yet, so your OS warns you on first launch.
+> - **Windows:** if SmartScreen blocks the installer, choose **More info → Run anyway**.
+> - **macOS:** right-click **Locus.app** and choose **Open**, or allow it in **System Settings → Privacy & Security**. If macOS says the app is damaged, run `xattr -cr /Applications/Locus.app`.
+
+### Command line
+
+Pick your platform and run one command. Each installer handles [uv](https://docs.astral.sh/uv/), the Python venv, Ollama, and a starter model, in about 3 minutes on broadband.
 
 | Platform | One-liner |
 |---|---|
 | **macOS · Linux · WSL2** | `curl -fsSL https://aryanjsx.github.io/Locus/install.sh \| bash` |
-| **Native Windows** | `irm https://aryanjsx.github.io/Locus/install.ps1 \| iex` |
-| **Desktop GUI** | Download `.exe` / `.dmg` / `.deb` / `.rpm` / `.AppImage` from the [latest release](https://github.com/aryanjsx/Locus/releases) |
+| **Native Windows (PowerShell)** | `irm https://aryanjsx.github.io/Locus/install.ps1 \| iex` |
 
-Then `locus` to start. The Rust extension and larger models continue downloading in the background; `locus doctor` shows status.
+Then run `locus` to start. The Rust extension and larger models continue downloading in the background; `locus doctor` shows status.
 
-Platform-specific notes (WSL2 setup, native-Windows scheduled-task service, desktop prerequisites, manual / contributor install): see the [installation docs](https://aryanjsx.github.io/Locus/getting-started/install/).
+### Python package
 
-## Quick Start
+Locus is also on PyPI as [`locus-assistant`](https://pypi.org/project/locus-assistant/). It needs Python 3.10–3.13 and a running [Ollama](https://ollama.com/):
+
+```bash
+pip install locus-assistant
+```
+
+The package installs the `locus` command; the Python import name is `locus`.
+
+Platform-specific notes (WSL2 setup, native-Windows scheduled-task service, desktop prerequisites, manual and contributor installs): see the [installation docs](https://aryanjsx.github.io/Locus/getting-started/install/).
+
+## Quick start
 
 ```bash
 locus                          # start chatting (default: chat-simple)
@@ -118,7 +159,7 @@ Import from [Hermes Agent](https://github.com/NousResearch/hermes-agent) (~150 s
 
 See the [Skills User Guide](https://aryanjsx.github.io/Locus/user-guide/skills/) and [Skills Tutorial](https://aryanjsx.github.io/Locus/tutorials/skills-workflow/) for details.
 
-### Built-in Agents
+### Built-in agents
 
 Locus ships with eight built-in agents across three execution modes (on-demand, scheduled, continuous):
 
@@ -135,7 +176,14 @@ Locus ships with eight built-in agents across three execution modes (on-demand, 
 
 See the [User Guide](https://aryanjsx.github.io/Locus/user-guide/morning-digest/) and [Tutorials](https://aryanjsx.github.io/Locus/tutorials/) for detailed setup instructions.
 
-Full documentation — including Docker deployment, cloud engines, development setup, and tutorials — at **[aryanjsx.github.io/Locus](https://aryanjsx.github.io/Locus/)**.
+Full documentation—including Docker deployment, cloud engines, development setup, and tutorials—is at **[aryanjsx.github.io/Locus](https://aryanjsx.github.io/Locus/)**.
+
+## Privacy
+
+- **Local by default:** models run on your machine through Ollama or another local engine. Nothing goes to a cloud model unless you add your own API key.
+- **No analytics:** Locus ships with no analytics destination, so no usage data is sent anywhere. See [telemetry](https://aryanjsx.github.io/Locus/telemetry/) for details.
+- **Opt-in connections:** email, calendar, messaging and other services only work after you connect them, and the data you index stays on your machine.
+- **Approval for risky actions:** shell commands and similar tools go through an approval step first.
 
 ## Community
 
