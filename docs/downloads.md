@@ -23,22 +23,27 @@ processing happens on your local machine — the app connects to the backend you
 
 ### Download
 
-| Platform | Download | Notes |
-|----------|----------|-------|
-| macOS (Universal) | [:material-download: **Locus.dmg**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_universal.dmg) | Apple Silicon + Intel |
-| Windows (64-bit) | [:material-download: **Locus-setup.exe**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_x64-setup.exe) | Windows 10+ |
-| Linux (DEB) | [:material-download: **Locus.deb**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_amd64.deb) | Ubuntu, Debian |
-| Linux (RPM) | [:material-download: **Locus.rpm**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/Locus-1.0.1-1.x86_64.rpm) | Fedora, RHEL |
-| Linux (AppImage) | [:material-download: **Locus.AppImage**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_amd64.AppImage) | Any distro |
+Download from the [:material-download: **latest release**](https://github.com/aryanjsx/Locus/releases/latest):
+
+| Platform | File | Notes |
+|----------|------|-------|
+| macOS (Universal) | `Locus_<version>_universal.dmg` | Apple Silicon + Intel |
+| Windows (64-bit) | `Locus_<version>_x64-setup.exe` or `.msi` | Windows 10+ |
+| Windows (ARM64) | `Locus_<version>_arm64-setup.exe` | Windows 11 on ARM |
+| Linux (DEB) | `Locus_<version>_amd64.deb` | Ubuntu, Debian |
+| Linux (RPM) | `Locus-<version>-1.x86_64.rpm` | Fedora, RHEL |
+| Linux (AppImage) | `Locus_<version>_amd64.AppImage` | Any distro |
 
 !!! tip "All releases"
     Browse all versions on the [GitHub Releases](https://github.com/aryanjsx/Locus/releases) page.
 
-### macOS: "app is damaged" fix
+### macOS: first launch
 
-macOS Gatekeeper quarantines apps downloaded from the internet that aren't notarized
-by Apple. If you see **"Locus is damaged and can't be opened"**, run this in
-Terminal to clear the quarantine flag:
+The macOS app isn't signed with an Apple Developer ID or notarized yet, so
+Gatekeeper blocks the first launch. Right-click **Locus.app** and choose
+**Open**, or allow it in **System Settings → Privacy & Security**. If you see
+**"Locus is damaged and can't be opened"**, run this in Terminal to clear the
+quarantine flag:
 
 ```bash
 xattr -cr /Applications/Locus.app

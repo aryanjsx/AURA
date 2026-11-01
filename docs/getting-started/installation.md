@@ -90,24 +90,32 @@ cd Locus
 ./scripts/quickstart.sh
 ```
 
-**Step 2.** Download and open the desktop app:
+**Step 2.** Download and open the desktop app from the
+[:material-download: **latest release**](https://github.com/aryanjsx/Locus/releases/latest):
 
-| Platform | Download |
-|----------|----------|
-| macOS (Universal) | [:material-download: **Locus.dmg**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_universal.dmg) |
-| Windows (64-bit) | [:material-download: **Locus-setup.exe**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_x64-setup.exe) |
-| Linux (DEB) | [:material-download: **Locus.deb**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_amd64.deb) |
-| Linux (RPM) | [:material-download: **Locus.rpm**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/Locus-1.0.1-1.x86_64.rpm) |
-| Linux (AppImage) | [:material-download: **Locus.AppImage**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_amd64.AppImage) |
+| Platform | File |
+|----------|------|
+| macOS (Universal) | `Locus_<version>_universal.dmg` |
+| Windows (64-bit) | `Locus_<version>_x64-setup.exe` or `Locus_<version>_x64_en-US.msi` |
+| Windows (ARM64) | `Locus_<version>_arm64-setup.exe` |
+| Linux (DEB) | `Locus_<version>_amd64.deb` |
+| Linux (RPM) | `Locus-<version>-1.x86_64.rpm` |
+| Linux (AppImage) | `Locus_<version>_amd64.AppImage` |
 
 The app connects to `http://localhost:8000` automatically.
 
-!!! warning "macOS: \"app is damaged\""
-    If macOS says the app is damaged, clear the Gatekeeper quarantine flag:
+!!! warning "macOS: the app isn't signed by Apple yet"
+    The macOS app isn't signed with an Apple Developer ID or notarized, so the
+    first launch is blocked. Right-click **Locus.app** and choose **Open**, or
+    allow it in **System Settings → Privacy & Security**. If macOS says the
+    app is damaged, clear the Gatekeeper quarantine flag:
     ```bash
     xattr -cr /Applications/Locus.app
     ```
-    This is normal for open-source apps distributed outside the App Store.
+
+!!! warning "Windows: SmartScreen warning"
+    The Windows installer isn't code-signed yet. If SmartScreen blocks it,
+    choose **More info → Run anyway**.
 
 !!! tip "All releases"
     Browse all versions on the [GitHub Releases](https://github.com/aryanjsx/Locus/releases) page.

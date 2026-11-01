@@ -525,9 +525,12 @@ jobs:
             echo "APPLE_TEAM_ID=$A_TEAM" >> "$GITHUB_ENV"
             echo "Apple signing configured"
           else
+            # Without an Apple Developer ID the app is ad-hoc signed
+            # (tauri.conf.json signingIdentity "-") and not notarized, so
+            # Gatekeeper asks users to approve it on first launch. Updater
+            # artifacts are still signed with the Tauri key.
             if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-              echo "::error::Apple signing secrets are required for release builds"
-              exit 1
+              echo "::warning::No Apple signing secrets; releasing an unsigned, un-notarized macOS build"
             fi
             echo "No Apple certificate configured, skipping code signing"
           fi
