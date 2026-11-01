@@ -66,9 +66,9 @@ Locus is that stack. It is a framework for local-first personal AI, built around
 
     **Step 2.** Download and open the desktop app:
 
-    [Download for macOS](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_universal.dmg){ .md-button .md-button--primary }
+    [Download the desktop app](https://github.com/aryanjsx/Locus/releases/latest){ .md-button .md-button--primary }
 
-    Also available for [Windows](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_x64-setup.exe), [Linux (DEB)](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_amd64.deb), and [Linux (RPM)](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/Locus-1.0.1-1.x86_64.rpm). See the [Downloads](downloads.md) page for details.
+    Available for macOS, Windows and Linux. See the [Downloads](downloads.md) page for which file to pick.
 
     The app connects to `http://localhost:8000` automatically.
 
