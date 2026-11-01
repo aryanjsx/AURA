@@ -32,17 +32,31 @@ from locus.server.models import (
 
 router = APIRouter()
 
+#: ``name`` of the system message that carries web search results. Like
+#: memory context, it doesn't count as a caller-supplied system prompt, so the
+#: server still adds its identity prompt.
+WEB_CONTEXT_NAME = "locus_web_context"
+
 
 def _to_messages(chat_messages) -> list[Message]:
-    """Convert Pydantic ChatMessage objects to core Message objects."""
+    """Convert Pydantic ChatMessage objects to core Message objects.
+
+    Attached documents are folded into each message's content and images are
+    carried over for vision models.
+    """
+    from locus.server.attachments import contents_with_attachments
+
+    chat_messages = list(chat_messages)
+    contents = contents_with_attachments(chat_messages)
     messages = []
-    for m in chat_messages:
+    for m, content in zip(chat_messages, contents):
         role = Role(m.role) if m.role in {r.value for r in Role} else Role.USER
+        is_web_context = role == Role.SYSTEM and m.name == WEB_CONTEXT_NAME
         messages.append(
             Message(
                 role=role,
-                content=m.content or "",
-                name=m.name,
+                content=content,
+                name=None if is_web_context else m.name,
                 tool_calls=[
                     ToolCall(
                         id=tool_call.get("id", ""),
@@ -53,6 +67,8 @@ def _to_messages(chat_messages) -> list[Message]:
                 ]
                 or None,
                 tool_call_id=m.tool_call_id,
+                metadata={"web_context": True} if is_web_context else {},
+                images=list(m.images) if getattr(m, "images", None) else None,
             )
         )
     return messages
@@ -86,7 +102,11 @@ def _ensure_identity_prompt(messages: list[Message], app_config) -> list[Message
     """
 
     def _is_caller_system_prompt(m: Message) -> bool:
-        return m.role == Role.SYSTEM and not m.metadata.get("memory_context")
+        return (
+            m.role == Role.SYSTEM
+            and not m.metadata.get("memory_context")
+            and not m.metadata.get("web_context")
+        )
 
     system_messages = [message for message in messages if message.role == Role.SYSTEM]
     caller_supplied_system = any(
@@ -154,17 +174,131 @@ def _ensure_identity_prompt(messages: list[Message], app_config) -> list[Message
     return [combined_system, *non_system_messages]
 
 
+def _with_web_search_event(response, web_result):
+    """Send the web search sources ahead of a streamed answer.
+
+    The ``web_search`` SSE event lets the client show what was searched and
+    link the answer's ``[n]`` citations before any tokens arrive.
+    """
+    if web_result is None or not isinstance(response, StreamingResponse):
+        return response
+    import json as _json
+
+    body = response.body_iterator
+    event = f"event: web_search\ndata: {_json.dumps(web_result.event())}\n\n"
+
+    async def with_event():
+        yield event
+        async for chunk in body:
+            yield chunk
+
+    response.body_iterator = with_event()
+    return response
+
+
+#: Ollama models known to accept images, keyed by model name.
+_vision_cache: dict[str, bool] = {}
+
+
+async def _model_accepts_images(engine, model: str) -> bool:
+    """Ask Ollama whether ``model`` has the ``vision`` capability.
+
+    Non-Ollama engines are assumed to handle images (or ignore them).
+    """
+    if _uses_direct_cloud_router(engine, model):
+        return True
+    if (_engine_key_for_model(engine, model) or "ollama") != "ollama":
+        return True
+    if model in _vision_cache:
+        return _vision_cache[model]
+    import httpx
+
+    from locus.server.cloud_router import _ollama_host
+
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.post(
+                f"{_ollama_host()}/api/show", json={"model": model}
+            )
+            resp.raise_for_status()
+            capabilities = resp.json().get("capabilities") or []
+    except Exception:
+        # Unknown: send the images and let the model or engine decide.
+        return True
+    _vision_cache[model] = "vision" in capabilities
+    return _vision_cache[model]
+
+
+async def _drop_images_without_vision(request_body, engine, model: str) -> None:
+    """Replace images with a note when the model can't see them.
+
+    Sending images to a text-only Ollama model fails the request outright, so
+    the model is told instead and can suggest switching to a vision model.
+    """
+    with_images = [m for m in request_body.messages if m.images]
+    if not with_images or await _model_accepts_images(engine, model):
+        return
+    from locus.server.models import MessageAttachment
+
+    for m in with_images:
+        note = MessageAttachment(
+            name=f"{len(m.images)} image(s)",
+            format="image",
+            note=(
+                f"The user attached {len(m.images)} image(s), but the current model "
+                f"({model}) can't view images. Tell the user to pick a vision model, "
+                "such as qwen3.5 or gemma3, to ask about images."
+            ),
+        )
+        m.attachments = [*(m.attachments or []), note]
+        m.images = None
+
+
 @router.post("/v1/chat/completions")
 async def chat_completions(request_body: ChatCompletionRequest, request: Request):
     """Handle chat completion requests (streaming and non-streaming)."""
     engine = request.app.state.engine
     agent = getattr(request.app.state, "agent", None)
     model = request_body.model
+    # Agents take only the latest message's text, which would drop web results,
+    # attached documents and images, so those requests go straight to the engine.
+    has_extras = request_body.web_search or any(
+        m.images or m.attachments for m in request_body.messages
+    )
     use_server_agent = (
         agent is not None
         and not request_body.tools
+        and not has_extras
         and (not request_body.stream or bool(getattr(agent, "_tools", None)))
     )
+
+    await _drop_images_without_vision(request_body, engine, model)
+
+    # Search the web for the latest user message (before memory context, which
+    # rewrites messages with attachments folded in).
+    web_result = None
+    if request_body.web_search:
+        from locus.server.models import ChatMessage
+        from locus.server.web_context import render_context, search_web
+
+        web_query = next(
+            (
+                m.content
+                for m in reversed(request_body.messages)
+                if m.role == "user" and m.content
+            ),
+            "",
+        )
+        if web_query:
+            web_result = await search_web(web_query.strip()[:400])
+            request_body.messages.insert(
+                0,
+                ChatMessage(
+                    role="system",
+                    name=WEB_CONTEXT_NAME,
+                    content=render_context(web_result),
+                ),
+            )
 
     # Inject memory context into messages before dispatching
     config = getattr(request.app.state, "config", None)
@@ -231,6 +365,8 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
                             ]
                             or None,
                             tool_call_id=getattr(msg, "tool_call_id", None),
+                            # Attachments are already folded into the content.
+                            images=msg.images,
                         )
                     )
                 request_body.messages = new_msgs
@@ -287,7 +423,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
         # to the desktop UI and other stream:true clients (#735). Fall back to
         # direct token streaming when no tool-bearing agent is configured.
         if request_body.tools:
-            return await _handle_stream_tools(
+            response = await _handle_stream_tools(
                 engine,
                 model,
                 request_body,
@@ -296,8 +432,8 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
                 bus=getattr(request.app.state, "bus", None),
                 memory_service=getattr(request.app.state, "memory_service", None),
             )
-        if use_server_agent:
-            return await _handle_agent_stream(
+        elif use_server_agent:
+            response = await _handle_agent_stream(
                 agent,
                 model,
                 request_body,
@@ -306,16 +442,18 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
                 bus=getattr(request.app.state, "bus", None),
                 memory_service=getattr(request.app.state, "memory_service", None),
             )
-        return await _handle_stream(
-            engine,
-            model,
-            request_body,
-            complexity_info,
-            trace_store=getattr(request.app.state, "trace_store", None),
-            app_config=config,
-            bus=getattr(request.app.state, "bus", None),
-            memory_service=getattr(request.app.state, "memory_service", None),
-        )
+        else:
+            response = await _handle_stream(
+                engine,
+                model,
+                request_body,
+                complexity_info,
+                trace_store=getattr(request.app.state, "trace_store", None),
+                app_config=config,
+                bus=getattr(request.app.state, "bus", None),
+                memory_service=getattr(request.app.state, "memory_service", None),
+            )
+        return _with_web_search_event(response, web_result)
 
     # Non-streaming: use agent if available, otherwise direct engine call.
     #

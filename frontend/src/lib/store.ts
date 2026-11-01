@@ -13,8 +13,10 @@ import type {
   StreamState,
   ToolCallInfo,
   TokenUsage,
+  WebSearchInfo,
 } from '../types';
 import type { ManagedAgent } from './api';
+import { deletePayloads } from './attachments';
 import { isEmbedOnlyModel } from './model-capabilities';
 import { serializeToolCallArguments } from './tool-call';
 
@@ -41,6 +43,7 @@ const OPTIN_NAME_KEY = 'locus-display-name';
 const OPTIN_EMAIL_KEY = 'locus-email';
 const OPTIN_ANONID_KEY = 'locus-anon-id';
 const OPTIN_SEEN_KEY = 'locus-optin-seen';
+const WEB_SEARCH_KEY = 'locus-web-search';
 
 interface ConversationStore {
   version: 1;
@@ -206,6 +209,15 @@ interface AppState {
   // Deep Research toggle
   deepResearch: boolean;
   setDeepResearch: (on: boolean) => void;
+
+  // Web search toggle (remembered across launches) and what an answer searched
+  webSearch: boolean;
+  setWebSearch: (on: boolean) => void;
+  setLastAssistantWebSearch: (
+    conversationId: string,
+    webSearch: WebSearchInfo,
+    sources: ResearchSource[],
+  ) => void;
 
   // Actions: models & server
   setModels: (models: ModelInfo[]) => void;
@@ -386,6 +398,10 @@ export const useAppStore = create<AppState>((set, get) => {
       if (streamState.isStreaming && streamState.conversationId === id) return;
 
       const store = loadConversations();
+      const attachmentIds = (store.conversations[id]?.messages ?? []).flatMap(
+        (m) => m.attachments?.map((a) => a.id) ?? [],
+      );
+      void deletePayloads(attachmentIds);
       delete store.conversations[id];
       if (store.activeId === id) {
         const remaining = Object.keys(store.conversations);
@@ -478,6 +494,25 @@ export const useAppStore = create<AppState>((set, get) => {
     // ── Deep Research ─────────────────────────────────────────────
     deepResearch: false,
     setDeepResearch: (on: boolean) => set({ deepResearch: on }),
+
+    // ── Web search ────────────────────────────────────────────────
+    webSearch: localStorage.getItem(WEB_SEARCH_KEY) === 'true',
+    setWebSearch: (on: boolean) => {
+      localStorage.setItem(WEB_SEARCH_KEY, String(on));
+      set({ webSearch: on });
+    },
+    setLastAssistantWebSearch: (conversationId, webSearch, sources) => {
+      const store = loadConversations();
+      const conv = store.conversations[conversationId];
+      const lastMsg = conv?.messages[conv.messages.length - 1];
+      if (!conv || !lastMsg || lastMsg.role !== 'assistant') return;
+      lastMsg.webSearch = webSearch;
+      lastMsg.researchSources = sources;
+      saveConversations(store);
+      if (get().activeId === conversationId) {
+        set({ messages: [...conv.messages] });
+      }
+    },
 
     // ── Models & server ────────────────────────────────────────────
 

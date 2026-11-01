@@ -115,15 +115,40 @@ export interface LiveEnergyMetrics {
   duration_s: number;
 }
 
+/** A file attached to a user message. Its content lives in IndexedDB
+ *  (see lib/attachments.ts); conversations keep only this metadata. */
+export interface AttachmentMeta {
+  id: string;
+  name: string;
+  kind: 'document' | 'image' | 'unsupported';
+  format: string;
+  size: number;
+  /** Characters of extracted text, for documents. */
+  chars?: number;
+  truncated?: boolean;
+  note?: string;
+  /** Small JPEG data URL, for images. */
+  thumbnail?: string;
+}
+
+/** What a web search found for an answer (sources go in researchSources). */
+export interface WebSearchInfo {
+  query: string;
+  engine?: string;
+  error?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
+  attachments?: AttachmentMeta[];
   toolCalls?: ToolCallInfo[];
   researchTraces?: ResearchSearchTrace[];
   researchSources?: ResearchSource[];
   isResearch?: boolean;
+  webSearch?: WebSearchInfo;
   usage?: TokenUsage;
   telemetry?: MessageTelemetry;
   audio?: { url: string };

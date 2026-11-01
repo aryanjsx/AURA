@@ -9,6 +9,8 @@ import { Copy, Check } from 'lucide-react';
 import { AudioPlayer } from './AudioPlayer';
 import { ToolCallCard } from './ToolCallCard';
 import { ResearchTimeline } from './ResearchTimeline';
+import { AttachmentChip } from './AttachmentChip';
+import { WebSources } from './WebSources';
 import { rehypeCitations } from '../../lib/rehype-citations';
 import { XRayFooter } from './XRayFooter';
 import { SpeakMessageButton } from './SpeakMessageButton';
@@ -119,19 +121,28 @@ export function MessageBubble({ message, isLive = false }: Props) {
 
   if (isUser) {
     return (
-      <div className="flex justify-end mb-4">
-        <div
-          className="max-w-[85%] px-4 py-2.5 text-sm leading-relaxed"
-          style={{
-            background: 'var(--color-user-bubble)',
-            color: 'var(--color-user-bubble-text)',
-            borderRadius: 'var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl)',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {message.content}
-        </div>
+      <div className="flex flex-col items-end gap-1.5 mb-4">
+        {message.attachments && message.attachments.length > 0 && (
+          <div className="flex flex-wrap justify-end gap-2 max-w-[85%]">
+            {message.attachments.map((a) => (
+              <AttachmentChip key={a.id} name={a.name} meta={a} />
+            ))}
+          </div>
+        )}
+        {message.content && (
+          <div
+            className="max-w-[85%] px-4 py-2.5 text-sm leading-relaxed"
+            style={{
+              background: 'var(--color-user-bubble)',
+              color: 'var(--color-user-bubble-text)',
+              borderRadius: 'var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl)',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {message.content}
+          </div>
+        )}
       </div>
     );
   }
@@ -172,6 +183,11 @@ export function MessageBubble({ message, isLive = false }: Props) {
             {cleanContent}
           </ReactMarkdown>
         </div>
+      )}
+
+      {/* What the web search found */}
+      {message.webSearch && (
+        <WebSources webSearch={message.webSearch} sources={message.researchSources ?? []} />
       )}
 
       {/* Footer: copy + read aloud + x-ray */}
