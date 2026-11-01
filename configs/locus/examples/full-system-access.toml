@@ -12,8 +12,8 @@
 # hosting the backend. See docs/user-guide/system-access.md.
 #
 # Usage:
-#   jarvis ask "What's using the most disk space in my home directory?"
-#   jarvis chat        # prompts before each shell_exec call
+#   locus ask "What's using the most disk space in my home directory?"
+#   locus chat        # prompts before each shell_exec call
 
 [engine]
 default = "ollama"

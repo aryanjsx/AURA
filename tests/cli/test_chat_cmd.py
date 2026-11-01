@@ -1,4 +1,4 @@
-"""Tests for ``jarvis chat`` interactive REPL command."""
+"""Tests for ``locus chat`` interactive REPL command."""
 
 from __future__ import annotations
 
@@ -172,7 +172,7 @@ class TestVoiceInput:
             assert record_voice(console) is VOICE_EXIT
 
         record.assert_not_called()
-        assert "Locus[speech]" in str(console.print.call_args)
+        assert "locus-assistant[speech]" in str(console.print.call_args)
 
     def test_stt_backend_is_cached_for_the_chat_session(self) -> None:
         backend = MagicMock()

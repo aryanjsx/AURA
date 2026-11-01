@@ -97,7 +97,7 @@ Once configured, the same orchestrator that runs DSPy / GEPA also runs
 ACE — pick it via the `policy` field above. To force a one-shot run:
 
 ```bash
-jarvis optimize agent --policy ace
+locus optimize agent --policy ace
 ```
 
 ACE writes intermediate state and the final playbook to `save_dir`.

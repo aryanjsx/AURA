@@ -8,7 +8,7 @@ collected, where the data goes, and how to enable or disable it.
 ## TL;DR
 
 - **Off until you choose to share.** In an interactive Bash installation or
-  `jarvis init`, the dedicated prompt says: **Press Enter or Y to consent,
+  `locus init`, the dedicated prompt says: **Press Enter or Y to consent,
   or N to decline**. Enter at that prompt enables sharing; EOF, cancellation,
   or an unattended run does not.
 - **Installation ID** — one random UUID links install and usage events.
@@ -30,17 +30,17 @@ For unattended installs, consent explicitly with `--analytics` or decline with
 `--no-analytics`:
 
 ```bash
-curl -fsSL https://locus.github.io/Locus/install.sh | bash -s -- --analytics
+curl -fsSL https://aryanjsx.github.io/Locus/install.sh | bash -s -- --analytics
 # Or: ... | bash -s -- --no-analytics
-jarvis init --analytics
-# Or: jarvis init --no-analytics
+locus init --analytics
+# Or: locus init --no-analytics
 ```
 
 To change your choice later:
 
 ```bash
-jarvis config set analytics.enabled false
-# To enable: jarvis config set analytics.enabled true
+locus config set analytics.enabled false
+# To enable: locus config set analytics.enabled true
 ```
 
 Restart the server and reload the frontend after changing the setting.
@@ -135,11 +135,10 @@ recording are disabled. Installer beacons use fixed fields assembled separately.
 
 ## Where the data goes
 
-- The default runtime and Bash installer endpoint is
-  `https://34.231.106.201.sslip.io`, configured for the Locus team's
-  PostHog project.
+- No endpoint ships by default. Analytics stays off, and no consent prompt
+  is shown, until both a host and a project key are configured.
 - Runtime deployments can override `[analytics] host`; installer deployments
-  can override `Locus_ANALYTICS_HOST`. A configured endpoint alone does
+  can override `LOCUS_ANALYTICS_HOST`. A configured endpoint alone does
   not establish its hosting provider or server logging settings.
 - **Never** sold, shared with advertisers, or used for anything other
   than improving Locus.
@@ -169,7 +168,7 @@ previous UUID remain on the receiving service until deleted there.
 - **Adding a PII pattern**: edit `src/locus/analytics/redaction.py`
   and add a test case in `tests/analytics/test_redaction.py`.
 - **Inspecting what your install sends**: run with
-  `Locus_LOG_LEVEL=DEBUG` and grep for `Analytics`. You'll see
+  `LOCUS_LOG_LEVEL=DEBUG` and grep for `Analytics`. You'll see
   every event name and (redacted) property dict before it ships.
 
 ## Related

@@ -1,4 +1,4 @@
-"""``jarvis channel`` -- channel management commands."""
+"""``locus channel`` -- channel management commands."""
 
 from __future__ import annotations
 

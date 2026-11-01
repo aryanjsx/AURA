@@ -1,7 +1,7 @@
 """Persistent memory service: async fact extraction integrated into core.
 
 ``MemoryService`` runs fact extraction on a dedicated background thread so it
-never blocks ``jarvis serve`` request handling or the ``jarvis chat`` REPL.
+never blocks ``locus serve`` request handling or the ``locus chat`` REPL.
 Callers hand off an exchange via :meth:`submit`, which enqueues the work and
 returns immediately — the slow model call and disk write happen out of band.
 The worker swallows every per-job error (including ``BrokenPipeError`` when a

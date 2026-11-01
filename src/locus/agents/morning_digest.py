@@ -46,7 +46,7 @@ class MorningDigestAgent(ToolUsingAgent):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # Extract digest-specific kwargs before passing to parent
-        self._persona = kwargs.pop("persona", "jarvis")
+        self._persona = kwargs.pop("persona", "locus")
         self._sections = kwargs.pop(
             "sections", ["messages", "calendar", "health", "world"]
         )

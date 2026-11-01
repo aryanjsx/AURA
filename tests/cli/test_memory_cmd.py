@@ -1,4 +1,4 @@
-"""Tests for ``jarvis memory`` CLI commands."""
+"""Tests for ``locus memory`` CLI commands."""
 
 from __future__ import annotations
 
@@ -160,7 +160,7 @@ def test_memory_stats_shows_count(tmp_path: Path, monkeypatch):
 
 
 def _patch_fact_store(monkeypatch, tmp_path: Path) -> LocalFactStore:
-    """Point ``jarvis memory list/clear`` at a temp fact store."""
+    """Point ``locus memory list/clear`` at a temp fact store."""
     mod = importlib.import_module("locus.cli.memory_cmd")
     store = LocalFactStore(tmp_path / "facts.jsonl")
     monkeypatch.setattr(mod, "_get_fact_store", lambda: store)

@@ -52,7 +52,7 @@ except ModuleNotFoundError:
 
 # Legacy names, kept for the ~45 modules that import them. They are resolved
 # once at import via the env-aware resolver in ``locus.core.paths`` (the
-# install-script model: ``Locus_HOME`` / ``XDG_DATA_HOME`` are set before
+# install-script model: ``LOCUS_HOME`` / ``XDG_DATA_HOME`` are set before
 # the process starts). They are real module attributes — not computed lazily —
 # so existing tests can ``monkeypatch.setattr`` them and so dataclass-instance
 # defaults stay consistent. Code that must react to a mid-process env change
@@ -1213,8 +1213,9 @@ class AnalyticsConfig:
 
     Separate concern from :class:`TelemetryConfig`, which stores local
     FLOPs/energy/inference metrics in SQLite. This controls anonymized
-    usage events sent to the Locus team's PostHog instance to
-    measure setup success, retention, feature usage, and churn.
+    usage events sent to a PostHog instance to measure setup success,
+    retention, feature usage, and churn. No destination ships by default:
+    analytics stays off until both ``host`` and ``key`` are configured.
 
     Backend properties are limited to declared usage metadata; external
     SDKs may add environment metadata. See ``docs/telemetry.md`` for the
@@ -1223,8 +1224,8 @@ class AnalyticsConfig:
 
     enabled: bool = False
     choice_recorded: bool = False
-    host: str = "https://34.231.106.201.sslip.io"
-    key: str = "phc_ysKu72QaxzYNmDpHFcesD2ZZAe68zkdWJEKoYYkc5e3n"
+    host: str = ""
+    key: str = ""
     anon_id_path: str = field(default_factory=lambda: str(get_config_dir() / "anon_id"))
     flush_interval_seconds: int = 30
     flush_at_size: int = 100
@@ -1384,7 +1385,7 @@ class WhatsAppBaileysChannelConfig:
     """Per-channel config for WhatsApp via Baileys protocol."""
 
     auth_dir: str = ""  # Defaults to ~/.locus/whatsapp_auth
-    assistant_name: str = "Jarvis"
+    assistant_name: str = "Locus"
     assistant_has_own_number: bool = False
 
 
@@ -1597,7 +1598,7 @@ class SessionConfig:
 class A2AConfig:
     """Settings for A2A integrations and configuration diagnostics.
 
-    The built-in ``jarvis serve`` app does not mount A2A endpoints; ``enabled``
+    The built-in ``locus serve`` app does not mount A2A endpoints; ``enabled``
     does not change that app's route surface. Library integrations using
     ``A2AServer`` must configure their transport and authentication explicitly.
     """
@@ -1739,7 +1740,7 @@ class DigestConfig:
     enabled: bool = False
     schedule: str = "0 6 * * *"
     timezone: str = "America/Los_Angeles"
-    persona: str = "jarvis"
+    persona: str = "locus"
     sections: List[str] = field(
         default_factory=lambda: ["messages", "calendar", "health", "world"]
     )
@@ -1817,7 +1818,7 @@ class JarvisConfig:
         source = self.__dict__.get("_config_source_path")
         if source is not None:
             return source
-        if custom_path := os.environ.get("Locus_CONFIG"):
+        if custom_path := os.environ.get("LOCUS_CONFIG"):
             return Path(custom_path).expanduser().resolve()
         return get_config_path()
 
@@ -1840,7 +1841,7 @@ class JarvisConfig:
 # Config key validation
 # ---------------------------------------------------------------------------
 
-# Sections that users may set via ``jarvis config set``.
+# Sections that users may set via ``locus config set``.
 # ``hardware`` is auto-detected and not user-settable.
 _SETTABLE_SECTIONS = frozenset(JarvisConfig.__dataclass_fields__.keys()) - {
     "hardware",
@@ -2077,7 +2078,7 @@ def load_config(path: Optional[Path] = None) -> JarvisConfig:
     Parameters
     ----------
     path:
-        Explicit config file. If not set, uses ``Locus_CONFIG`` when set,
+        Explicit config file. If not set, uses ``LOCUS_CONFIG`` when set,
         otherwise ``~/.locus/config.toml``.
     """
     _ensure_config_dir()
@@ -2087,8 +2088,8 @@ def load_config(path: Optional[Path] = None) -> JarvisConfig:
 
     if path is not None:
         config_path = Path(path).expanduser().resolve()
-    elif os.environ.get("Locus_CONFIG"):
-        config_path = Path(os.environ["Locus_CONFIG"]).expanduser().resolve()
+    elif os.environ.get("LOCUS_CONFIG"):
+        config_path = Path(os.environ["LOCUS_CONFIG"]).expanduser().resolve()
     else:
         config_path = get_config_path()
     cfg._config_path = config_path
@@ -2168,7 +2169,7 @@ def load_config(path: Optional[Path] = None) -> JarvisConfig:
 
 
 # ---------------------------------------------------------------------------
-# Default TOML generation (for ``jarvis init``)
+# Default TOML generation (for ``locus init``)
 # ---------------------------------------------------------------------------
 
 
@@ -2193,7 +2194,7 @@ def generate_minimal_toml(
     return f"""\
 # Locus configuration
 # Hardware: {hw.cpu_brand} ({hw.cpu_count} cores, {hw.ram_gb} GB RAM){gpu_comment}
-# Full reference config: jarvis init --full
+# Full reference config: locus init --full
 
 [engine]
 default = "{engine}"
@@ -2225,7 +2226,7 @@ def generate_default_toml(
 
     result = f"""\
 # Locus configuration
-# Generated by `jarvis init`
+# Generated by `locus init`
 #
 # Hardware: {hw.cpu_brand} ({hw.cpu_count} cores, {hw.ram_gb} GB RAM)
 {gpu_line}
@@ -2297,8 +2298,8 @@ context_from_memory = true
 default_backend = "sqlite"
 
 # Automatic long-term memory: extracts durable facts from conversations in the
-# background and persists them. Starts/stops with `jarvis serve` and
-# `jarvis chat`; manage stored facts with `jarvis memory list` / `clear`.
+# background and persists them. Starts/stops with `locus serve` and
+# `locus chat`; manage stored facts with `locus memory list` / `clear`.
 [memory]
 enabled = false               # set true to enable the memory service
 backend = "local"             # fact-store backend (local = on-disk JSONL)
@@ -2438,7 +2439,7 @@ ssrf_protection = true
 
 # [channel.whatsapp_baileys]
 # auth_dir = ""               # Defaults to ~/.locus/whatsapp_auth
-# assistant_name = "Jarvis"
+# assistant_name = "Locus"
 # assistant_has_own_number = false
 """
     if host:

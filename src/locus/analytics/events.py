@@ -249,7 +249,7 @@ _SPECS: tuple[EventSpec, ...] = (
     ),
     EventSpec(
         name="setup_completed",
-        description="`jarvis init` finished and config.toml was written.",
+        description="`locus init` finished and config.toml was written.",
         properties={
             "preset": _is_one_of(*_SETUP_PRESETS),
             "model_hash": _is_hash16,

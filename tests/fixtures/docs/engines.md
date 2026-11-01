@@ -16,4 +16,4 @@ Pure C++ inference. Runs on CPU, Metal, CUDA, or ROCm. Ideal for laptops without
 
 ## Picking an Engine
 
-Run `jarvis init` — it detects your hardware and recommends the best fit. You can override with `--engine <name>`.
+Run `locus init` — it detects your hardware and recommends the best fit. You can override with `--engine <name>`.

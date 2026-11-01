@@ -1,9 +1,9 @@
-"""`jarvis self-update` — upgrade Locus to the latest release.
+"""`locus self-update` — upgrade Locus to the latest release.
 
 Runs the right upgrade command for how the user installed Locus:
 
-- PyPI installs get ``pip install --upgrade locus``.
-- uv-tool installs get ``uv tool upgrade locus``.
+- PyPI installs get ``pip install --upgrade locus-assistant``.
+- uv-tool installs get ``uv tool upgrade locus-assistant``.
 - Editable Git checkouts recover release-tag history, fast-forward, and rebuild
   Locus in the running environment. The inexact sync preserves packages
   previously installed through extras and dependency groups.
@@ -64,7 +64,7 @@ def _update_git_checkout(repo_root: Path) -> int:
                 sys.executable,
                 "--inexact",
                 "--reinstall-package",
-                "locus",
+                "locus-assistant",
             ],
             cwd=repo_root,
             env={**os.environ, "UV_PROJECT_ENVIRONMENT": sys.prefix},
@@ -80,7 +80,7 @@ def _update_git_checkout(repo_root: Path) -> int:
                 "--python",
                 sys.executable,
                 "--reinstall-package",
-                "locus",
+                "locus-assistant",
                 "-e",
                 ".",
             ],
@@ -163,4 +163,4 @@ def self_update(check: bool, yes: bool) -> None:
         )
         sys.exit(returncode)
 
-    click.echo("\nUpgrade complete. Re-run `jarvis --version` to confirm.")
+    click.echo("\nUpgrade complete. Re-run `locus --version` to confirm.")

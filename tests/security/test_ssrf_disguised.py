@@ -35,5 +35,5 @@ class TestSSRFDisguisedForms:
         assert result is not None  # blocked, not silently allowed
 
     def test_fail_open_override(self, monkeypatch):
-        monkeypatch.setenv("Locus_SSRF_FAIL_OPEN", "1")
+        monkeypatch.setenv("LOCUS_SSRF_FAIL_OPEN", "1")
         assert _check_ssrf_python("http://another-nonexistent-zzz.invalid/") is None

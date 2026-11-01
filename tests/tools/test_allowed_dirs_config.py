@@ -53,7 +53,7 @@ def test_unreadable_config_does_not_remove_directory_restrictions(
 def test_scalar_toml_policy_is_rejected_instead_of_allowing_root(tmp_path, monkeypatch):
     config_path = tmp_path / "config.toml"
     config_path.write_text('[security]\nallowed_dirs = "/tmp/allowed"\n')
-    monkeypatch.setenv("Locus_CONFIG", str(config_path))
+    monkeypatch.setenv("LOCUS_CONFIG", str(config_path))
     with pytest.raises(ValueError, match="allowed_dirs"):
         FileReadTool()
 

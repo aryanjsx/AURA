@@ -184,7 +184,7 @@ class BaseAgent(ABC):
         Agents like ``monitor_operative`` / ``operative`` build their own
         system prompt and bypass ``_build_messages`` (and thus the prompt
         builder). This lets them honor the same persona files as one-shot
-        ``jarvis ask`` (#376) by *appending* persona to — never replacing —
+        ``locus ask`` (#376) by *appending* persona to — never replacing —
         their specialized instructions. No-op when no ``prompt_builder`` is
         wired or no persona files exist.
         """

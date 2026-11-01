@@ -170,7 +170,7 @@ logic is covered by unit tests.
 handshake failure` (the domain is community-operated and had a broken
 TLS config). The canonical installer is now served from the
 project-controlled GitHub Pages site at
-`https://locus.github.io/Locus/install.sh`, generated from
+`https://aryanjsx.github.io/Locus/install.sh`, generated from
 the same `scripts/install/install.sh` at docs-build time. The README
 also documents the WSL2 path for Windows and the `uv` prerequisite
 for the desktop binary, and the installer bails early with a clear
@@ -214,9 +214,9 @@ installed desktop app would never check. Both are now fixed; the app
 polls `releases/download/desktop-latest/latest.json` every 30 minutes
 and signature-verifies downloads against the minisign pubkey baked
 into the app. Full flow, key-rotation runbook, and dev escape hatch
-(`Locus_NO_UPDATER=1`) documented in `docs/desktop-auto-update.md`.
+(`LOCUS_NO_UPDATER=1`) documented in `docs/desktop-auto-update.md`.
 
-**Analytics env-var opt-out** (`DO_NOT_TRACK`, `Locus_NO_ANALYTICS`).
+**Analytics env-var opt-out** (`DO_NOT_TRACK`, `LOCUS_NO_ANALYTICS`).
 Tanvir's analytics module (#351) only respected the
 `[analytics] enabled` config-file setting. Both env vars are now
 honored in `is_analytics_enabled()` and in the install.sh beacon
@@ -259,7 +259,7 @@ The five-primitive architecture (Intelligence, Engine, Agents,
 Tools & Memory, Learning) is now stable, with efficiency and
 on-device learning as first-class capabilities alongside accuracy.
 Companion blog post:
-[From Minions to Locus: A Retrospective on Two Years in Local AI](https://hazyresearch.stanford.edu/blog/2026-05-19-minions-to-locus-retrospective).
+[From Minions to OpenJarvis: A Retrospective on Two Years in Local AI](https://hazyresearch.stanford.edu/blog/2026-05-19-minions-to-openjarvis-retrospective).
 
 ### Highlights
 

@@ -621,7 +621,7 @@ class MyTool(BaseTool):
 After registration, use the tool with an agent:
 
 ```bash
-jarvis ask --agent orchestrator --tools my_tool "Process this data"
+locus ask --agent orchestrator --tools my_tool "Process this data"
 ```
 
 ---
@@ -634,13 +634,13 @@ Tools are specified as a comma-separated list with the `--tools` flag. An agent 
 
 ```bash
 # Single tool
-jarvis ask --agent orchestrator --tools calculator "What is 15% of 340?"
+locus ask --agent orchestrator --tools calculator "What is 15% of 340?"
 
 # Multiple tools
-jarvis ask --agent orchestrator --tools calculator,think "Solve: 2x + 5 = 13"
+locus ask --agent orchestrator --tools calculator,think "Solve: 2x + 5 = 13"
 
 # All available tools (list them)
-jarvis ask --agent orchestrator --tools calculator,think,retrieval,file_read "..."
+locus ask --agent orchestrator --tools calculator,think,retrieval,file_read "..."
 ```
 
 ### Via Python SDK

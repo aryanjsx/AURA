@@ -1,4 +1,4 @@
-"""Tests for the ``jarvis channel`` CLI commands."""
+"""Tests for the ``locus channel`` CLI commands."""
 
 from __future__ import annotations
 

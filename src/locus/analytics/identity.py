@@ -45,5 +45,5 @@ def reset_anon_id(path: Path | str) -> str:
 
 
 def is_analytics_enabled(cfg: AnalyticsConfig) -> bool:
-    """Return True if analytics is enabled in config."""
-    return cfg.enabled
+    """Return True if analytics is enabled and has a destination configured."""
+    return cfg.enabled and bool(cfg.host) and bool(cfg.key)

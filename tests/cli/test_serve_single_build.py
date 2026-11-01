@@ -1,4 +1,4 @@
-"""Regression tests for #263 — ``jarvis serve`` must build the system once.
+"""Regression tests for #263 — ``locus serve`` must build the system once.
 
 serve.py used to construct all heavy components inline and then call
 ``SystemBuilder(config).build()`` a second time inside the scheduler block,
@@ -7,7 +7,7 @@ the channel and re-creating the agent manager — ~30-40s of redundant work.
 
 These tests pin the fix:
 
-1. ``SystemBuilder.build`` is never called during ``jarvis serve`` startup
+1. ``SystemBuilder.build`` is never called during ``locus serve`` startup
    (the duplicate build is gone).
 2. The ``AgentExecutor`` still receives a system exposing the attributes it
    actually reads: ``tool_executor``, ``session_store``, ``memory_backend``,
@@ -101,7 +101,7 @@ def _run_serve(
     security_primitives=None,
     channel_backend=None,
 ):
-    """Invoke ``jarvis serve`` with all heavy/blocking pieces stubbed out.
+    """Invoke ``locus serve`` with all heavy/blocking pieces stubbed out.
 
     Returns the CliRunner result. The server is never actually started
     (``run_server`` is a no-op) and no real engine is contacted.
@@ -182,7 +182,7 @@ def test_serve_does_not_call_systembuilder_build(tmp_path, monkeypatch):
     """The redundant second full build is gone (#263)."""
     build_spy = MagicMock(
         side_effect=AssertionError(
-            "SystemBuilder.build() must not run during `jarvis serve` startup "
+            "SystemBuilder.build() must not run during `locus serve` startup "
             "— it is the duplicate build #263 removed."
         )
     )
@@ -205,7 +205,7 @@ def test_serve_does_not_call_systembuilder_build(tmp_path, monkeypatch):
 def test_serve_passes_environment_cors_origins(tmp_path, monkeypatch):
     """The normal CLI path must not mask the environment override."""
     monkeypatch.setenv(
-        "Locus_CORS_ORIGINS",
+        "LOCUS_CORS_ORIGINS",
         "https://frontend.example,https://admin.example",
     )
     create_app = MagicMock(return_value=MagicMock())

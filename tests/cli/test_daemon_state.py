@@ -1,7 +1,7 @@
 """Daemon address bookkeeping.
 
 `status` and `restart` used to read `config.server.{host,port}` rather than the
-address the daemon actually bound to, so `jarvis start --port N` was reported
+address the daemon actually bound to, so `locus start --port N` was reported
 (and restarted) on the config default instead of N.
 """
 

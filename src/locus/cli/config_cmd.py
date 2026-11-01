@@ -1,4 +1,4 @@
-"""``jarvis config`` — configuration inspection commands."""
+"""``locus config`` — configuration inspection commands."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def _get_config_path(path: str | None) -> Path:
 
     if path:
         return Path(path)
-    return Path(os.environ.get("Locus_CONFIG", DEFAULT_CONFIG_PATH))
+    return Path(os.environ.get("LOCUS_CONFIG", DEFAULT_CONFIG_PATH))
 
 
 def _show_hardware_info(console: Console, show_recommendations: bool = True) -> None:
@@ -281,7 +281,7 @@ def show_path() -> None:
     """Print the resolved Locus directories (home, config, cache).
 
     All Locus state lives under a single root, resolved in priority
-    order: ``$Locus_HOME`` > ``$XDG_DATA_HOME/locus`` >
+    order: ``$LOCUS_HOME`` > ``$XDG_DATA_HOME/locus`` >
     ``~/.locus``. Use this to confirm where your data is stored after
     setting an override.
     """
@@ -290,8 +290,8 @@ def show_path() -> None:
     console = Console(stderr=True)
     home = get_config_dir()
     override = (
-        "Locus_HOME"
-        if os.environ.get("Locus_HOME")
+        "LOCUS_HOME"
+        if os.environ.get("LOCUS_HOME")
         else "XDG_DATA_HOME"
         if os.environ.get("XDG_DATA_HOME")
         else "default (~/.locus)"
@@ -346,7 +346,7 @@ def _coerce_value(value: str, target_type: type) -> object:
 @click.argument("key")
 @click.argument("value")
 def set_config(key: str, value: str) -> None:
-    """Set a configuration value (e.g. jarvis config set engine.ollama.host URL)."""
+    """Set a configuration value (e.g. locus config set engine.ollama.host URL)."""
     import tomlkit
 
     from locus.core.config import DEFAULT_CONFIG_DIR, validate_config_key
@@ -372,7 +372,7 @@ def set_config(key: str, value: str) -> None:
 
     # Load or create TOML document
     config_path = Path(
-        os.environ.get("Locus_CONFIG", DEFAULT_CONFIG_DIR / "config.toml")
+        os.environ.get("LOCUS_CONFIG", DEFAULT_CONFIG_DIR / "config.toml")
     )
     if config_path.exists():
         doc = tomlkit.parse(config_path.read_text(encoding="utf-8"))

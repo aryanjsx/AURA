@@ -65,7 +65,7 @@ The Apple Silicon effort should add its own provider module and reuse:
 - `MiningConfig`
 - `MiningStats`
 - `Sidecar`
-- `jarvis mine doctor` capability iteration
+- `locus mine doctor` capability iteration
 
 That work should not need to rewrite the NVIDIA provider, CLI group, telemetry
 collector, or engine sidecar handoff.

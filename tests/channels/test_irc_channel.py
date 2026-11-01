@@ -26,7 +26,7 @@ TestCommonChannel = make_common_channel_tests(
     "irc",
     constructor_kwargs={
         "server": "irc.example.com",
-        "nick": "jarvis",
+        "nick": "locus",
         "password": "pass123",
     },
 )
@@ -42,9 +42,9 @@ class TestInit:
         assert ch._status == ChannelStatus.DISCONNECTED
 
     def test_constructor_params(self):
-        ch = IRCChannel(server="irc.example.com", nick="jarvis", password="pass123")
+        ch = IRCChannel(server="irc.example.com", nick="locus", password="pass123")
         assert ch._server == "irc.example.com"
-        assert ch._nick == "jarvis"
+        assert ch._nick == "locus"
         assert ch._password == "pass123"
 
     def test_env_var_fallback(self):
@@ -84,7 +84,7 @@ class TestInit:
 
 class TestSend:
     def test_send_success(self):
-        ch = IRCChannel(server="irc.example.com", nick="jarvis", password="pass123")
+        ch = IRCChannel(server="irc.example.com", nick="locus", password="pass123")
 
         mock_sock = MagicMock()
         with patch("socket.socket", return_value=mock_sock):
@@ -94,7 +94,7 @@ class TestSend:
             mock_sock.sendall.assert_called()
 
     def test_send_failure_exception(self):
-        ch = IRCChannel(server="irc.example.com", nick="jarvis", password="pass123")
+        ch = IRCChannel(server="irc.example.com", nick="locus", password="pass123")
 
         mock_sock = MagicMock()
         mock_sock.connect.side_effect = ConnectionError("refused")
@@ -111,7 +111,7 @@ class TestSend:
         bus = EventBus(record_history=True)
         ch = IRCChannel(
             server="irc.example.com",
-            nick="jarvis",
+            nick="locus",
             password="pass123",
             bus=bus,
         )

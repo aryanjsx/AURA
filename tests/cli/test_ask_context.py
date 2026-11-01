@@ -1,4 +1,4 @@
-"""Tests for context injection integration in ``jarvis ask``."""
+"""Tests for context injection integration in ``locus ask``."""
 
 from __future__ import annotations
 

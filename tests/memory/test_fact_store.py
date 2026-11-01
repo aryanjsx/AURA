@@ -441,7 +441,7 @@ def test_create_fact_store_uses_fact_store_registry(tmp_path):
 
 
 def test_create_fact_store_default_path_uses_locus_home(tmp_path, monkeypatch):
-    monkeypatch.setenv("Locus_HOME", str(tmp_path))
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path))
 
     store = create_fact_store("local")
 

@@ -1,4 +1,4 @@
-"""``jarvis model`` — model management subcommands."""
+"""``locus model`` — model management subcommands."""
 
 from __future__ import annotations
 
@@ -315,7 +315,7 @@ def _convert_mlx(hf_repo: str, output: str, mlx_4bit: bool, console: Console) ->
     except ImportError:
         console.print(
             "[red]MLX conversion needs the inference-mlx extra.[/red]\n"
-            'Install it: [cyan]pip install "locus[inference-mlx]"[/cyan]'
+            'Install it: [cyan]pip install "locus-assistant[inference-mlx]"[/cyan]'
         )
         return False
 
@@ -603,7 +603,7 @@ def convert(
         console.print(
             f"[green]No conversion needed for {engine}.[/green] It consumes "
             f"Hugging Face repositories directly.\n"
-            f"[cyan]Start with:[/cyan] jarvis host {shlex.quote(hf_repo)} "
+            f"[cyan]Start with:[/cyan] locus host {shlex.quote(hf_repo)} "
             f"--backend {engine}"
         )
         return
@@ -699,17 +699,17 @@ def convert(
 
     if engine == "mlx":
         artifact = output_path
-        hint = f"jarvis host {shlex.quote(str(artifact))} --backend mlx"
+        hint = f"locus host {shlex.quote(str(artifact))} --backend mlx"
         title = "MLX conversion complete"
     else:
         assert artifact_relative is not None
         artifact = output_path / artifact_relative
         if engine == "ollama":
             assert ollama_name is not None
-            hint = f"jarvis chat --engine ollama --model {shlex.quote(ollama_name)}"
+            hint = f"locus chat --engine ollama --model {shlex.quote(ollama_name)}"
             title = "GGUF conversion and Ollama import complete"
         else:
-            hint = f"jarvis host {shlex.quote(str(artifact))} --backend llamacpp"
+            hint = f"locus host {shlex.quote(str(artifact))} --backend llamacpp"
             title = "GGUF conversion complete"
     console.print(
         Panel(

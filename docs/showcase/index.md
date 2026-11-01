@@ -63,10 +63,10 @@ The Showcase grows from real users. If you've built something interesting on top
 1. **One-sentence hook**: what does this *do for you*?
 2. **A screenshot or 15-second screen recording**: the visible result.
 3. **2–3 short paragraphs**: when you use it, why it's nice (cost, privacy, speed, calm).
-4. **"How I set this up →"**: a link to the relevant [Tutorial](../tutorials/index.md), [User Guide](../user-guide/cli.md), or [Recipe](https://github.com/locus/Locus/tree/main/src/locus/recipes/data).
+4. **"How I set this up →"**: a link to the relevant [Tutorial](../tutorials/index.md), [User Guide](../user-guide/cli.md), or [Recipe](https://github.com/aryanjsx/Locus/tree/main/src/locus/recipes/data).
 
 See [Contributing a Showcase Entry](CONTRIBUTING.md) for the template and the editorial conventions (screenshot sizing, what to redact, tone).
 
 ## Want to talk to other people doing this?
 
-The **`#config-showcase`** channel in the [Locus Discord](https://discord.gg/locus) is where people post and discuss personal setups. Drop a screenshot, ask "how would I do X?", or browse what others have shared.
+[GitHub Discussions](https://github.com/aryanjsx/Locus/discussions) is where people post and discuss personal setups. Drop a screenshot, ask "how would I do X?", or browse what others have shared.

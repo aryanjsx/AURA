@@ -7,10 +7,10 @@ search:
 
 # Quick Start
 
-!!! tip "Running `jarvis` commands"
-    Every `jarvis ...` example below assumes you have either activated the project venv
+!!! tip "Running `locus` commands"
+    Every `locus ...` example below assumes you have either activated the project venv
     (`source .venv/bin/activate`) or are prefixing each command with `uv run`. A bare
-    `jarvis init --preset ...` from a fresh clone will fail with `command not found`.
+    `locus init --preset ...` from a fresh clone will fail with `command not found`.
 
 ## What You Can Build
 
@@ -19,24 +19,24 @@ Locus is a modular AI assistant framework. Here's what developers build with it:
 === "Chat with Any Model"
 
     ```bash
-    jarvis ask "Explain quantum entanglement" -m qwen3.5:4b   # use qwen3.5:9b or larger on GPU
+    locus ask "Explain quantum entanglement" -m qwen3.5:4b   # use qwen3.5:9b or larger on GPU
     ```
 
 === "Agent + Tools"
 
     ```bash
-    jarvis ask --agent orchestrator --tools calculator,web_search "What is the GDP of France in USD?"
+    locus ask --agent orchestrator --tools calculator,web_search "What is the GDP of France in USD?"
     ```
 
 === "Index Docs & Ask"
 
     ```bash
-    jarvis memory index ./docs/
-    jarvis ask "How do I configure the engine?"
+    locus memory index ./docs/
+    locus ask "How do I configure the engine?"
     ```
 
     !!! warning "Requires the Rust extension"
-        `jarvis memory index` and `jarvis memory search` import `locus_rust`. If you
+        `locus memory index` and `locus memory search` import `locus_rust`. If you
         skipped the `uv run maturin develop -m rust/crates/locus-python/Cargo.toml`
         step in [Installation](installation.md), these commands fail with
         `ModuleNotFoundError: No module named 'locus_rust'`. Build the extension
@@ -53,7 +53,7 @@ Locus is a modular AI assistant framework. Here's what developers build with it:
 === "API Server"
 
     ```bash
-    jarvis serve --port 8000
+    locus serve --port 8000
     # Now use any OpenAI-compatible client
     ```
 
@@ -61,35 +61,35 @@ Locus is a modular AI assistant framework. Here's what developers build with it:
 
     ```bash
     cp configs/locus/examples/morning-digest-mac.toml ~/.locus/config.toml
-    jarvis connect gdrive       # one OAuth flow for Gmail, Calendar, Tasks
-    CARTESIA_API_KEY="..." jarvis digest --fresh
+    locus connect gdrive       # one OAuth flow for Gmail, Calendar, Tasks
+    CARTESIA_API_KEY="..." locus digest --fresh
     # Plays a spoken daily briefing with your email, calendar, health, and news
     ```
 
 === "Deep Research"
 
     ```bash
-    jarvis init --preset deep-research --force
-    jarvis memory index ~/Documents/papers/
-    jarvis ask "Summarize all documents about transformer architectures"
+    locus init --preset deep-research --force
+    locus memory index ~/Documents/papers/
+    locus ask "Summarize all documents about transformer architectures"
     # Multi-hop search across your indexed docs with citations
     ```
 
 === "Code Assistant"
 
     ```bash
-    jarvis init --preset code-assistant --force
-    jarvis ask "Write a Python script that parses CSV files"
+    locus init --preset code-assistant --force
+    locus ask "Write a Python script that parses CSV files"
     # Orchestrator agent with code execution, file I/O, and shell access
     ```
 
 === "Scheduled Monitor"
 
     ```bash
-    jarvis init --preset scheduled-monitor --force
-    jarvis memory index ~/Documents/
-    jarvis scheduler start
-    jarvis scheduler create \
+    locus init --preset scheduled-monitor --force
+    locus memory index ~/Documents/
+    locus scheduler start
+    locus scheduler create \
       --prompt "Check for new emails about Project X" \
       --schedule "0 9 * * 1-5" --agent operative
     # Persistent agent that runs on a cron schedule
@@ -103,18 +103,18 @@ Copy one of these to `~/.locus/config.toml` to get a pre-configured setup:
 
 | Config | For | What it does |
 |--------|-----|-------------|
-| [`chat-simple.toml`](https://github.com/locus/Locus/blob/main/configs/locus/examples/chat-simple.toml) | Any machine | Lightweight chat, no tools -- simplest setup |
-| [`code-assistant.toml`](https://github.com/locus/Locus/blob/main/configs/locus/examples/code-assistant.toml) | Any machine | Orchestrator agent with code execution, file I/O, shell |
-| [`deep-research.toml`](https://github.com/locus/Locus/blob/main/configs/locus/examples/deep-research.toml) | Any machine | Multi-hop research across indexed documents with citations |
-| [`scheduled-monitor.toml`](https://github.com/locus/Locus/blob/main/configs/locus/examples/scheduled-monitor.toml) | Any machine | Persistent operative agent on a cron schedule |
-| [`morning-digest-mac.toml`](https://github.com/locus/Locus/blob/main/configs/locus/examples/morning-digest-mac.toml) | Mac (Apple Silicon) | Daily spoken briefing from email, calendar, health, news |
-| [`morning-digest-linux.toml`](https://github.com/locus/Locus/blob/main/configs/locus/examples/morning-digest-linux.toml) | Linux / GPU server | Same, with vLLM support |
-| [`morning-digest-minimal.toml`](https://github.com/locus/Locus/blob/main/configs/locus/examples/morning-digest-minimal.toml) | Any machine | Just Gmail + Calendar |
+| [`chat-simple.toml`](https://github.com/aryanjsx/Locus/blob/main/configs/locus/examples/chat-simple.toml) | Any machine | Lightweight chat, no tools -- simplest setup |
+| [`code-assistant.toml`](https://github.com/aryanjsx/Locus/blob/main/configs/locus/examples/code-assistant.toml) | Any machine | Orchestrator agent with code execution, file I/O, shell |
+| [`deep-research.toml`](https://github.com/aryanjsx/Locus/blob/main/configs/locus/examples/deep-research.toml) | Any machine | Multi-hop research across indexed documents with citations |
+| [`scheduled-monitor.toml`](https://github.com/aryanjsx/Locus/blob/main/configs/locus/examples/scheduled-monitor.toml) | Any machine | Persistent operative agent on a cron schedule |
+| [`morning-digest-mac.toml`](https://github.com/aryanjsx/Locus/blob/main/configs/locus/examples/morning-digest-mac.toml) | Mac (Apple Silicon) | Daily spoken briefing from email, calendar, health, news |
+| [`morning-digest-linux.toml`](https://github.com/aryanjsx/Locus/blob/main/configs/locus/examples/morning-digest-linux.toml) | Linux / GPU server | Same, with vLLM support |
+| [`morning-digest-minimal.toml`](https://github.com/aryanjsx/Locus/blob/main/configs/locus/examples/morning-digest-minimal.toml) | Any machine | Just Gmail + Calendar |
 
 Or generate a config with digest included:
 
 ```bash
-jarvis init --digest
+locus init --digest
 ```
 
 This guide walks through the core workflows of Locus: the browser app, CLI, Python SDK, agents with tools, memory, benchmarks, and the API server.
@@ -127,7 +127,7 @@ This guide walks through the core workflows of Locus: the browser app, CLI, Pyth
 The quickest way to experience Locus is the full chat UI running in your browser:
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 ./scripts/quickstart.sh
 ```
@@ -149,7 +149,7 @@ export FIRECRAWL_API_KEY="..."   # free tier: https://www.firecrawl.dev/app/api-
 ./scripts/quickstart.sh
 ```
 
-Set `Locus_WEB_SEARCH_ENGINE` to pick an engine explicitly — `youcom`,
+Set `LOCUS_WEB_SEARCH_ENGINE` to pick an engine explicitly — `youcom`,
 `tavily`, `serply`, `firecrawl`, or `duckduckgo`. The default, `auto`, uses
 Tavily when `TAVILY_API_KEY` is set, then You.com, then Serply, then Firecrawl,
 and settles on the You.com keyless tier when no key is set at all. DuckDuckGo
@@ -180,14 +180,14 @@ before restarting so it inherits the updated environment.
 To stop all services, press ++ctrl+c++ in the terminal.
 
 !!! tip "Environment variable"
-    Set `Locus_MODEL` to change the default model: `Locus_MODEL=deepseek-r1:14b ./scripts/quickstart.sh`
+    Set `LOCUS_MODEL` to change the default model: `LOCUS_MODEL=deepseek-r1:14b ./scripts/quickstart.sh`
 
 ## Initialize Configuration
 
 Start by detecting your hardware and generating a configuration file:
 
 ```bash
-jarvis init
+locus init
 ```
 
 This runs hardware auto-detection (GPU vendor, VRAM, CPU, RAM) and writes a config file to `~/.locus/config.toml` with sensible defaults for your system. It also selects the recommended inference engine.
@@ -205,7 +205,7 @@ Config written successfully.
 To overwrite an existing config:
 
 ```bash
-jarvis init --force
+locus init --force
 ```
 
 See [Configuration](configuration.md) for the full config reference.
@@ -217,7 +217,7 @@ See [Configuration](configuration.md) for the full config reference.
 The simplest way to interact with Locus is the `ask` command:
 
 ```bash
-jarvis ask "What is the capital of France?"
+locus ask "What is the capital of France?"
 ```
 
 Locus will auto-detect a running engine, select a model using the configured router policy, and return the response.
@@ -226,16 +226,16 @@ Locus will auto-detect a running engine, select a model using the configured rou
 
 | Option | Description | Example |
 |--------|-------------|---------|
-| `-m`, `--model` | Override model selection | `jarvis ask -m qwen3:8b "Hello"` |
-| `-e`, `--engine` | Force a specific engine | `jarvis ask -e ollama "Hello"` |
-| `-t`, `--temperature` | Sampling temperature (default: 0.7) | `jarvis ask -t 0.2 "Hello"` |
-| `--max-tokens` | Max tokens to generate (default: 1024) | `jarvis ask --max-tokens 2048 "Hello"` |
-| `--json` | Output raw JSON result | `jarvis ask --json "Hello"` |
-| `--no-stream` | Disable streaming | `jarvis ask --no-stream "Hello"` |
-| `--no-context` | Disable memory context injection | `jarvis ask --no-context "Hello"` |
-| `-a`, `--agent` | Use an agent | `jarvis ask -a orchestrator "Hello"` |
-| `--tools` | Comma-separated tools | `jarvis ask --tools calculator,think "2+2"` |
-| `--router` | Router policy for model selection | `jarvis ask --router heuristic "Hello"` |
+| `-m`, `--model` | Override model selection | `locus ask -m qwen3:8b "Hello"` |
+| `-e`, `--engine` | Force a specific engine | `locus ask -e ollama "Hello"` |
+| `-t`, `--temperature` | Sampling temperature (default: 0.7) | `locus ask -t 0.2 "Hello"` |
+| `--max-tokens` | Max tokens to generate (default: 1024) | `locus ask --max-tokens 2048 "Hello"` |
+| `--json` | Output raw JSON result | `locus ask --json "Hello"` |
+| `--no-stream` | Disable streaming | `locus ask --no-stream "Hello"` |
+| `--no-context` | Disable memory context injection | `locus ask --no-context "Hello"` |
+| `-a`, `--agent` | Use an agent | `locus ask -a orchestrator "Hello"` |
+| `--tools` | Comma-separated tools | `locus ask --tools calculator,think "2+2"` |
+| `--router` | Router policy for model selection | `locus ask --router heuristic "Hello"` |
 
 ### Via Python SDK
 
@@ -306,7 +306,7 @@ Agents add multi-turn reasoning and tool-calling capabilities. The `orchestrator
 ### CLI Example
 
 ```bash
-jarvis ask --agent orchestrator --tools calculator,think "What is 137 * 42?"
+locus ask --agent orchestrator --tools calculator,think "What is 137 * 42?"
 ```
 
 ### SDK Example
@@ -338,10 +338,10 @@ Index a file or directory. Locus chunks the content and stores it in the configu
 
     ```bash
     # Index a directory
-    jarvis memory index ./docs/
+    locus memory index ./docs/
 
     # Index a single file with custom chunk size
-    jarvis memory index ./paper.txt --chunk-size 256 --chunk-overlap 32
+    locus memory index ./paper.txt --chunk-size 256 --chunk-overlap 32
     ```
 
 === "Python SDK"
@@ -362,8 +362,8 @@ Query the memory store to find relevant chunks:
 === "CLI"
 
     ```bash
-    jarvis memory search "configuration options"
-    jarvis memory search -k 10 "how to deploy"
+    locus memory search "configuration options"
+    locus memory search -k 10 "how to deploy"
     ```
 
 === "Python SDK"
@@ -379,7 +379,7 @@ Query the memory store to find relevant chunks:
 === "CLI"
 
     ```bash
-    jarvis memory stats
+    locus memory stats
     ```
 
 === "Python SDK"
@@ -398,7 +398,7 @@ To disable this behavior:
 === "CLI"
 
     ```bash
-    jarvis ask --no-context "Hello"
+    locus ask --no-context "Hello"
     ```
 
 === "Python SDK"
@@ -416,7 +416,7 @@ Context injection is controlled by `agent.context_from_memory` in `config.toml`.
 See all models available on running engines:
 
 ```bash
-jarvis model list
+locus model list
 ```
 
 This produces a table showing each model, its engine, parameter count, context length, and VRAM requirements.
@@ -424,13 +424,13 @@ This produces a table showing each model, its engine, parameter count, context l
 ### Get Model Details
 
 ```bash
-jarvis model info qwen3:8b
+locus model info qwen3:8b
 ```
 
 ### Pull a Model (Ollama)
 
 ```bash
-jarvis model pull qwen3:8b
+locus model pull qwen3:8b
 ```
 
 ### SDK Model Listing
@@ -453,24 +453,24 @@ The benchmarking framework measures inference latency and throughput against you
 === "All benchmarks"
 
     ```bash
-    jarvis bench run
+    locus bench run
     ```
 
 === "Specific benchmark"
 
     ```bash
-    jarvis bench run -b latency
-    jarvis bench run -b throughput
+    locus bench run -b latency
+    locus bench run -b throughput
     ```
 
 === "Custom options"
 
     ```bash
     # 20 samples, JSON output
-    jarvis bench run -n 20 --json
+    locus bench run -n 20 --json
 
     # Specific model and engine, write to file
-    jarvis bench run -m qwen3:8b -e ollama -o results.jsonl
+    locus bench run -m qwen3:8b -e ollama -o results.jsonl
     ```
 
 Example output:
@@ -503,13 +503,13 @@ Locus provides an OpenAI-compatible API server for integration with existing too
 ### Start the Server
 
 ```bash
-jarvis serve --port 8000
+locus serve --port 8000
 ```
 
 With custom options:
 
 ```bash
-jarvis serve --host 0.0.0.0 --port 8000 --engine ollama --model qwen3:8b --agent orchestrator
+locus serve --host 0.0.0.0 --port 8000 --engine ollama --model qwen3:8b --agent orchestrator
 ```
 
 ### API Endpoints
@@ -551,20 +551,20 @@ curl http://localhost:8000/v1/chat/completions \
 Locus records telemetry for every inference call (timing, tokens, cost). View aggregated statistics:
 
 ```bash
-jarvis telemetry stats
+locus telemetry stats
 ```
 
 Export telemetry data:
 
 ```bash
-jarvis telemetry export --format json
-jarvis telemetry export --format csv -o telemetry.csv
+locus telemetry export --format json
+locus telemetry export --format csv -o telemetry.csv
 ```
 
 Clear all telemetry records:
 
 ```bash
-jarvis telemetry clear --yes
+locus telemetry clear --yes
 ```
 
 ## Complete Working Example

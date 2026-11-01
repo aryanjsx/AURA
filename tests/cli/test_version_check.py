@@ -21,11 +21,11 @@ from locus.cli._version_check import (
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch, tmp_path):
-    for v in ("Locus_NO_UPDATE_CHECK", "CI", "Locus_CONFIG"):
+    for v in ("LOCUS_NO_UPDATE_CHECK", "CI", "LOCUS_CONFIG"):
         monkeypatch.delenv(v, raising=False)
     # Point config + cache at empty tmp paths so tests don't see the
     # developer's real ~/.locus state.
-    monkeypatch.setenv("Locus_CONFIG", str(tmp_path / "no-config.toml"))
+    monkeypatch.setenv("LOCUS_CONFIG", str(tmp_path / "no-config.toml"))
     monkeypatch.setattr(_version_check, "_CACHE_PATH", tmp_path / "version-check.json")
 
 
@@ -62,12 +62,12 @@ class TestCheckDisabled:
 
     @pytest.mark.parametrize("value", ["1", "true", "yes", "on", "anything"])
     def test_jarvis_no_update_check_disables(self, monkeypatch, value):
-        monkeypatch.setenv("Locus_NO_UPDATE_CHECK", value)
+        monkeypatch.setenv("LOCUS_NO_UPDATE_CHECK", value)
         assert _check_disabled() is True
 
     @pytest.mark.parametrize("value", ["", "0", "false", "no", "off"])
     def test_falsy_does_not_disable(self, monkeypatch, value):
-        monkeypatch.setenv("Locus_NO_UPDATE_CHECK", value)
+        monkeypatch.setenv("LOCUS_NO_UPDATE_CHECK", value)
         assert _check_disabled() is False
 
     def test_ci_env_disables_by_default(self, monkeypatch):
@@ -86,19 +86,19 @@ class TestConfigDisabled:
     def test_auto_update_false_disables(self, monkeypatch, tmp_path):
         cfg = tmp_path / "config.toml"
         cfg.write_text("[updates]\nauto_update = false\n")
-        monkeypatch.setenv("Locus_CONFIG", str(cfg))
+        monkeypatch.setenv("LOCUS_CONFIG", str(cfg))
         assert _config_disabled() is True
 
     def test_auto_update_true_does_not_disable(self, monkeypatch, tmp_path):
         cfg = tmp_path / "config.toml"
         cfg.write_text("[updates]\nauto_update = true\n")
-        monkeypatch.setenv("Locus_CONFIG", str(cfg))
+        monkeypatch.setenv("LOCUS_CONFIG", str(cfg))
         assert _config_disabled() is False
 
     def test_updates_section_absent_does_not_disable(self, monkeypatch, tmp_path):
         cfg = tmp_path / "config.toml"
         cfg.write_text("[other]\nkey = 1\n")
-        monkeypatch.setenv("Locus_CONFIG", str(cfg))
+        monkeypatch.setenv("LOCUS_CONFIG", str(cfg))
         assert _config_disabled() is False
 
     def test_malformed_toml_treated_as_optout(self, monkeypatch, tmp_path):
@@ -109,14 +109,14 @@ class TestConfigDisabled:
         """
         cfg = tmp_path / "config.toml"
         cfg.write_text("[updates\nauto_update = false\n")  # missing ]
-        monkeypatch.setenv("Locus_CONFIG", str(cfg))
+        monkeypatch.setenv("LOCUS_CONFIG", str(cfg))
         assert _config_disabled() is True
 
     def test_locus_config_env_override(self, monkeypatch, tmp_path):
-        """Locus_CONFIG should redirect the lookup, matching core.config."""
+        """LOCUS_CONFIG should redirect the lookup, matching core.config."""
         cfg = tmp_path / "alt.toml"
         cfg.write_text("[updates]\nauto_update = false\n")
-        monkeypatch.setenv("Locus_CONFIG", str(cfg))
+        monkeypatch.setenv("LOCUS_CONFIG", str(cfg))
         assert _check_disabled() is True
 
 

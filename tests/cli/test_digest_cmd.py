@@ -1,4 +1,4 @@
-"""Tests for `jarvis digest` CLI command."""
+"""Tests for `locus digest` CLI command."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def test_digest_displays_cached(tmp_path):
             sources_used=["gmail"],
             generated_at=datetime.now(tz=__import__("datetime").timezone.utc),
             model_used="test",
-            voice_used="jarvis",
+            voice_used="locus",
         )
     )
     store.close()

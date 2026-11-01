@@ -1,4 +1,4 @@
-"""``jarvis chat`` — interactive multi-turn chat REPL."""
+"""``locus chat`` — interactive multi-turn chat REPL."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def _read_input(prompt: str = "You> ") -> Optional[str]:
     is_flag=True,
     default=False,
     help=(
-        "Show the model list before chat. Bare ``jarvis`` already does this on a TTY "
+        "Show the model list before chat. Bare ``locus`` already does this on a TTY "
         "unless JARVIS_SKIP_MODEL_PICK=1."
     ),
 )
@@ -96,7 +96,7 @@ def chat(
 
     Model: omit ``-m`` to use ``[intelligence] model_chat`` if set, else
     ``default_model``; ``-m smart`` is the same. Use ``--pick-model`` to open the
-    engine list first (bare ``jarvis`` does this on a TTY unless
+    engine list first (bare ``locus`` does this on a TTY unless
     ``JARVIS_SKIP_MODEL_PICK=1``).
 
     Commands during chat:

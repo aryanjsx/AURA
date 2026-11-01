@@ -1,4 +1,4 @@
-"""Tests for ``jarvis init --digest`` config writing."""
+"""Tests for ``locus init --digest`` config writing."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ class TestInitDigestEncoding:
 
         Without explicit ``encoding=`` the write uses the locale codec, which
         is cp1252 on a default Windows install and cannot encode U+2500, so
-        ``jarvis init --digest`` crashed with UnicodeEncodeError there.
+        ``locus init --digest`` crashed with UnicodeEncodeError there.
         """
         config_dir = tmp_path / ".locus"
         config_path = config_dir / "config.toml"

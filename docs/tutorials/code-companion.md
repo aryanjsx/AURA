@@ -61,7 +61,7 @@ finally:
 1. Both `model` and `engine_key` are optional. Omitting them uses auto-detected defaults from `~/.locus/config.toml`.
 2. The prompt describes the task in detail, including what tools to use, what steps to follow, and what the output structure should look like.
 3. `"native_react"` selects the `NativeReActAgent`. The alias `"react"` also works.
-4. The tool list is passed directly. Any registered tool name is valid — run `jarvis agent info native_react` to see all available tools.
+4. The tool list is passed directly. Any registered tool name is valid — run `locus agent info native_react` to see all available tools.
 5. Always call `j.close()` to release engine resources. A `try/finally` block ensures cleanup even if the agent raises an exception.
 
 ## Code Review

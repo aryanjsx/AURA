@@ -36,7 +36,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app, api_key: str = "") -> None:  # noqa: ANN001
         super().__init__(app)
-        self._api_key = api_key or os.environ.get("Locus_API_KEY", "")
+        self._api_key = api_key or os.environ.get("LOCUS_API_KEY", "")
 
     async def dispatch(self, request: Request, call_next):  # noqa: ANN001
         # Browser CORS preflights never carry Authorization, and rejecting
@@ -117,8 +117,8 @@ def check_bind_safety(host: str, *, api_key: str) -> None:
 
     if not is_loop and not api_key:
         logger.error(
-            "Binding to %s requires Locus_API_KEY to be set. "
-            "Run: jarvis auth generate-key",
+            "Binding to %s requires LOCUS_API_KEY to be set. "
+            "Run: locus auth generate-key",
             host,
         )
         sys.exit(1)

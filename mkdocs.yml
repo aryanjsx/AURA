@@ -1,9 +1,9 @@
 site_name: Locus
-site_url: https://locus.github.io/Locus/
+site_url: https://aryanjsx.github.io/Locus/
 site_description: Personal AI, On Personal Devices
 site_author: Locus Contributors
-repo_url: https://github.com/locus/Locus
-repo_name: locus/Locus
+repo_url: https://github.com/aryanjsx/Locus
+repo_name: aryanjsx/Locus
 edit_uri: edit/main/docs/
 
 copyright: Copyright &copy; 2026 Locus Contributors
@@ -141,7 +141,7 @@ extra:
     index_name: ""   # e.g. "locus"
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/locus/Locus
+      link: https://github.com/aryanjsx/Locus
 
 nav:
   - Home: index.md

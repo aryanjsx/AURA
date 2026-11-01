@@ -18,14 +18,14 @@ def _run_uninstaller(
     locus_home: Path | None = None,
     user_home: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    script = Path(__file__).parents[2] / "scripts" / "install" / "jarvis-uninstall.sh"
+    script = Path(__file__).parents[2] / "scripts" / "install" / "locus-uninstall.sh"
     fake_home = user_home or tmp_path / "home"
     fake_home.mkdir(parents=True, exist_ok=True)
     data_home = locus_home or fake_home / ".locus"
     env = {
         **os.environ,
         "HOME": str(fake_home),
-        "Locus_HOME": str(data_home),
+        "LOCUS_HOME": str(data_home),
         "PATH": "/usr/bin:/bin",
     }
     return subprocess.run(
@@ -51,7 +51,7 @@ def _populate_install(tmp_path: Path) -> tuple[Path, Path]:
     (data_home / "connectors" / "oauth.json").write_text("{}", encoding="utf-8")
     shim_dir = fake_home / ".local" / "bin"
     shim_dir.mkdir(parents=True)
-    shim = shim_dir / "jarvis"
+    shim = shim_dir / "locus"
     shim.write_text("shim", encoding="utf-8")
     return data_home, shim
 
@@ -94,7 +94,7 @@ def test_unsafe_install_root_is_rejected(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 2
-    assert "Refusing unsafe Locus_HOME" in result.stderr
+    assert "Refusing unsafe LOCUS_HOME" in result.stderr
     assert fake_home.exists()
 
 
@@ -117,7 +117,7 @@ def test_home_ancestor_is_rejected_without_deleting_siblings(tmp_path: Path) -> 
     )
 
     assert result.returncode == 2
-    assert "Refusing unsafe Locus_HOME" in result.stderr
+    assert "Refusing unsafe LOCUS_HOME" in result.stderr
     assert sibling_data.read_text(encoding="utf-8") == "keep"
     assert fake_home.exists()
 
@@ -135,7 +135,7 @@ def test_unowned_custom_root_is_rejected_with_yes(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 2
-    assert "Refusing unsafe Locus_HOME" in result.stderr
+    assert "Refusing unsafe LOCUS_HOME" in result.stderr
     assert sentinel.read_text(encoding="utf-8") == "keep"
 
 

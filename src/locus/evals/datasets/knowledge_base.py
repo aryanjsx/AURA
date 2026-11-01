@@ -98,9 +98,9 @@ _RECORDS = [
         "answer": "The desktop app uses Tauri 2.0. The 5 panels are EnergyDashboard, TraceDebugger, LearningCurve, MemoryBrowser, and AdminPanel.",
     },
     {
-        "documents": "API Server Reference:\nThe OpenAI-compatible server is started via 'jarvis serve'. Core endpoints: POST /v1/chat/completions, GET /v1/models, GET /health. Extended endpoints cover agents, memory, traces, telemetry, learning, skills, sessions, budget, and metrics. SSE streaming is supported on /v1/chat/completions with stream=true. WebSocket streaming is available at WS /v1/chat/stream.",
+        "documents": "API Server Reference:\nThe OpenAI-compatible server is started via 'locus serve'. Core endpoints: POST /v1/chat/completions, GET /v1/models, GET /health. Extended endpoints cover agents, memory, traces, telemetry, learning, skills, sessions, budget, and metrics. SSE streaming is supported on /v1/chat/completions with stream=true. WebSocket streaming is available at WS /v1/chat/stream.",
         "question": "How is the API server started and what streaming options are available?",
-        "answer": "The API server is started via 'jarvis serve'. SSE streaming is available on /v1/chat/completions with stream=true, and WebSocket streaming is available at WS /v1/chat/stream.",
+        "answer": "The API server is started via 'locus serve'. SSE streaming is available on /v1/chat/completions with stream=true, and WebSocket streaming is available at WS /v1/chat/stream.",
     },
     {
         "documents": "Trace System Documentation:\nTraces capture full interaction records via TraceStep objects. Step types include route, retrieve, generate, tool_call, and respond, each with timing information. TraceStore persists traces to SQLite. TraceCollector auto-wraps agents to capture traces. TraceAnalyzer generates statistics used by the learning subsystem.",
@@ -113,7 +113,7 @@ _RECORDS = [
         "answer": "There are 20 bundled skills. Their integrity is verified through Ed25519 signature verification.",
     },
     {
-        "documents": "Vault System Guide:\nThe vault provides encrypted credential storage at ~/.locus/vault.enc using Fernet encryption. The encryption key is auto-generated with 0o600 file permissions for security. CLI commands: 'jarvis vault set KEY' to store, 'jarvis vault get KEY' to retrieve, and 'jarvis vault list' to list stored keys.",
+        "documents": "Vault System Guide:\nThe vault provides encrypted credential storage at ~/.locus/vault.enc using Fernet encryption. The encryption key is auto-generated with 0o600 file permissions for security. CLI commands: 'locus vault set KEY' to store, 'locus vault get KEY' to retrieve, and 'locus vault list' to list stored keys.",
         "question": "What encryption does the vault use and where is it stored?",
         "answer": "The vault uses Fernet encryption and is stored at ~/.locus/vault.enc.",
     },
@@ -128,7 +128,7 @@ _RECORDS = [
         "answer": "A2A uses JSON-RPC 2.0. Agents are discovered via /.well-known/agent.json.",
     },
     {
-        "documents": "Deployment Guide:\nLocus provides three Docker variants: Dockerfile (Python 3.12-slim for CPU), Dockerfile.gpu (NVIDIA CUDA 12.4), and Dockerfile.gpu.rocm (AMD ROCm 7.2). The docker-compose.yml runs two services: jarvis on port 8000 and ollama on port 11434. SystemD and launchd service files are also provided for system-level deployment.",
+        "documents": "Deployment Guide:\nLocus provides three Docker variants: Dockerfile (Python 3.12-slim for CPU), Dockerfile.gpu (NVIDIA CUDA 12.4), and Dockerfile.gpu.rocm (AMD ROCm 7.2). The docker-compose.yml runs two services: locus on port 8000 and ollama on port 11434. SystemD and launchd service files are also provided for system-level deployment.",
         "question": "What Docker variants are available and what ports do the services use?",
         "answer": "Three Docker variants: CPU (Python 3.12-slim), NVIDIA (CUDA 12.4), and AMD (ROCm 7.2). Jarvis runs on port 8000 and Ollama on port 11434.",
     },
@@ -163,8 +163,8 @@ _RECORDS = [
         "answer": "The TUI dashboard is powered by the textual library. It includes panels for system status, event stream, telemetry, agent activity, and sessions.",
     },
     {
-        "documents": "MCP Quick-Add Feature:\nThe 'jarvis add' command provides quick MCP server setup with 8 built-in templates: github, filesystem, slack, postgres, brave-search, memory, puppeteer, and google-maps. Configuration is saved as JSON to ~/.locus/mcp/. Each template includes the server command, arguments, and required environment variables.",
-        "question": "How many MCP server templates are available via 'jarvis add' and where is configuration saved?",
+        "documents": "MCP Quick-Add Feature:\nThe 'locus add' command provides quick MCP server setup with 8 built-in templates: github, filesystem, slack, postgres, brave-search, memory, puppeteer, and google-maps. Configuration is saved as JSON to ~/.locus/mcp/. Each template includes the server command, arguments, and required environment variables.",
+        "question": "How many MCP server templates are available via 'locus add' and where is configuration saved?",
         "answer": "8 MCP server templates are available. Configuration is saved to ~/.locus/mcp/.",
     },
     {

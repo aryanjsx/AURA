@@ -7,8 +7,8 @@
 
 import { query } from "@anthropic-ai/claude-agent-sdk";
 
-const OUTPUT_START = "---Locus_OUTPUT_START---";
-const OUTPUT_END = "---Locus_OUTPUT_END---";
+const OUTPUT_START = "---LOCUS_OUTPUT_START---";
+const OUTPUT_END = "---LOCUS_OUTPUT_END---";
 
 function emitResult(response) {
   console.log(OUTPUT_START);

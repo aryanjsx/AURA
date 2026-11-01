@@ -6,7 +6,7 @@ set -euo pipefail
 # the backend API server and frontend, then opens the browser.
 #
 # Usage:
-#   git clone https://github.com/locus/Locus.git
+#   git clone https://github.com/aryanjsx/Locus.git
 #   cd Locus
 #   ./scripts/quickstart.sh
 # ──────────────────────────────────────────────────────────────────────
@@ -253,7 +253,7 @@ else
 fi
 
 # ── 6. Pull a starter model ─────────────────────────────────────────
-MODEL="${Locus_MODEL:-qwen3:0.6b}"
+MODEL="${LOCUS_MODEL:-qwen3:0.6b}"
 info "Ensuring model '$MODEL' is available..."
 if ollama list 2>/dev/null | grep -q "$MODEL"; then
   ok "Model '$MODEL' already pulled"
@@ -285,13 +285,13 @@ info "Starting backend API server on port 8000..."
 if curl -sf http://localhost:8000/health &>/dev/null; then
   fail "An Locus server is already running on port 8000. Stop it before re-running quickstart so updated environment variables are applied."
 fi
-uv run jarvis serve --port 8000 &>/dev/null &
+uv run locus serve --port 8000 &>/dev/null &
 BACKEND_PID=$!
 CLEANUP_PIDS+=("$BACKEND_PID")
 sleep 3
 
 if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
-  fail "Backend exited during startup. Run 'uv run jarvis serve --port 8000' to see the error."
+  fail "Backend exited during startup. Run 'uv run locus serve --port 8000' to see the error."
 elif curl -sf http://localhost:8000/health &>/dev/null; then
   ok "Backend running at http://localhost:8000"
 else

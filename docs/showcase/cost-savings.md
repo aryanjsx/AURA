@@ -31,8 +31,8 @@ The dollar number is the hook. The bottom row is the actual reason I run Jarvis.
 
 ## How I set this up
 
-You don't, really — it's on by default. Every `jarvis ask`, `jarvis serve` request, and channel-routed message is metered by the [telemetry system](../telemetry.md). To opt your savings into the public leaderboard:
+You don't, really — it's on by default. Every `locus ask`, `locus serve` request, and channel-routed message is metered by the [telemetry system](../telemetry.md). To opt your savings into the public leaderboard:
 
 → **[Leaderboard guide](../leaderboard.md)** — one command to opt in, one command to opt out. Telemetry is local-only by default.
 
-→ **[Telemetry overview](../telemetry.md)** — what's measured, where it's stored, and how to inspect it yourself with `jarvis telemetry`.
+→ **[Telemetry overview](../telemetry.md)** — what's measured, where it's stored, and how to inspect it yourself with `locus telemetry`.

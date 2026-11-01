@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Regression: every call in connectors-api.ts must go through apiFetch()
 // (not a bare fetch()) so the Bearer auth header is attached when
-// Locus_API_KEY is set. Direct fetch() calls silently 401 against an
+// LOCUS_API_KEY is set. Direct fetch() calls silently 401 against an
 // authenticated server -- the same bug class #266 fixed in api.ts, which
 // this file was missed by. Confirmed live: with a real server + API key
 // configured, /v1/connectors 401'd from the browser while every other

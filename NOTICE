@@ -1,0 +1,15 @@
+Locus
+Copyright 2026 The Locus Authors
+
+This product is a modified version of OpenJarvis
+(https://github.com/open-jarvis/OpenJarvis),
+Copyright 2025 The OpenJarvis Authors, licensed under the Apache License,
+Version 2.0. OpenJarvis was developed at Hazy Research and the Scaling
+Intelligence Lab at Stanford University.
+
+Modifications by the Locus Authors include renaming the project, its
+package, command-line interface and desktop application to Locus, and
+the changes recorded in this repository's git history.
+
+Locus is not affiliated with or endorsed by Stanford University or the
+OpenJarvis authors.

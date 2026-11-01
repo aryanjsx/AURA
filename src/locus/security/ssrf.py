@@ -143,11 +143,11 @@ def _check_ssrf_python(url: str) -> Optional[str]:
         # Fail CLOSED: an unresolvable name must not be waved through. On an
         # exposed server, a permissive fallback is an SSRF hole; a legitimate
         # transient DNS failure is better surfaced as a block than as a
-        # silent bypass. Override with Locus_SSRF_FAIL_OPEN=1 only for
+        # silent bypass. Override with LOCUS_SSRF_FAIL_OPEN=1 only for
         # trusted, non-exposed local use.
         import os as _os
 
-        if _os.environ.get("Locus_SSRF_FAIL_OPEN", "").lower() in (
+        if _os.environ.get("LOCUS_SSRF_FAIL_OPEN", "").lower() in (
             "1",
             "true",
             "yes",

@@ -9,7 +9,7 @@ PowerShell, without WSL2 or Docker.
 In an elevated-or-regular PowerShell:
 
 ```powershell
-irm https://locus.github.io/Locus/install.ps1 | iex
+irm https://aryanjsx.github.io/Locus/install.ps1 | iex
 ```
 
 What it does:
@@ -19,7 +19,7 @@ What it does:
 3. Checks `git` on PATH.
 4. Installs `uv` (https://astral.sh/uv) if absent.
 5. Clones the Locus repository to `%LOCALAPPDATA%\Locus`
-   (override with `$env:Locus_HOME`).
+   (override with `$env:LOCUS_HOME`).
 6. Runs `uv sync --extra desktop --group desktop-native` so the FastAPI server,
    speech backend, and native extension are importable.
 7. Optionally prompts to register a scheduled task that auto-starts the
@@ -38,21 +38,21 @@ the same knobs are honored via env vars when the corresponding flag is
 absent:
 
 ```powershell
-$env:Locus_SKIP_SERVICE = '1'
-irm https://locus.github.io/Locus/install.ps1 | iex
+$env:LOCUS_SKIP_SERVICE = '1'
+irm https://aryanjsx.github.io/Locus/install.ps1 | iex
 ```
 
-The available env vars: `Locus_SKIP_SERVICE`, `Locus_SERVICE`,
-`Locus_FORCE`. If you need richer control, save the script first
+The available env vars: `LOCUS_SKIP_SERVICE`, `LOCUS_SERVICE`,
+`LOCUS_FORCE`. If you need richer control, save the script first
 (`irm ... -OutFile install.ps1; .\install.ps1 -Force`).
 
 ## Manual scheduled-task setup
 
 If you skipped the prompt during install, you can register / inspect /
-remove the task with `jarvis-service.ps1`:
+remove the task with `locus-service.ps1`:
 
 ```powershell
-$srv = "$env:LOCALAPPDATA\Locus\src\deploy\windows\jarvis-service.ps1"
+$srv = "$env:LOCALAPPDATA\Locus\src\deploy\windows\locus-service.ps1"
 
 # install (idempotent — replaces existing)
 powershell -ExecutionPolicy Bypass -File $srv install
@@ -79,21 +79,21 @@ To expose on your LAN:
 
 ```powershell
 # 1. Generate an API key. The server REFUSES to bind 0.0.0.0 without one.
-$env:Locus_API_KEY = (uv run jarvis auth generate-key)
+$env:LOCUS_API_KEY = (uv run locus auth generate-key)
 
 # 2. Re-register the task with -ListenHost 0.0.0.0.
 powershell -ExecutionPolicy Bypass -File $srv install -ListenHost 0.0.0.0
 ```
 
-`jarvis-service.ps1 install` refuses `-ListenHost 0.0.0.0` if
-`$env:Locus_API_KEY` is unset — same guard as the systemd unit's
+`locus-service.ps1 install` refuses `-ListenHost 0.0.0.0` if
+`$env:LOCUS_API_KEY` is unset — same guard as the systemd unit's
 `EnvironmentFile=/etc/locus/env`.
 
 ## Parity table
 
 | Concern | systemd | launchd | Windows |
 |---------|---------|---------|---------|
-| Service definition | `deploy/systemd/locus.service` | `deploy/launchd/com.locus.plist` | `deploy/windows/jarvis-service.ps1` (cmdlet-driven) |
+| Service definition | `deploy/systemd/locus.service` | `deploy/launchd/com.locus.plist` | `deploy/windows/locus-service.ps1` (cmdlet-driven) |
 | Default bind | `0.0.0.0` (with API key) | `127.0.0.1` (no API key) | `127.0.0.1` (no API key) |
 | Restart on failure | `Restart=on-failure RestartSec=5` | `KeepAlive=true` | `RestartCount=3 RestartInterval=PT1M` |
 | Auto-start | `multi-user.target` | `RunAtLoad=true` | `AtLogOn` trigger |
@@ -111,14 +111,14 @@ uv sync --extra desktop --group desktop-native
 Or re-run the installer with `-Force`:
 
 ```powershell
-irm https://locus.github.io/Locus/install.ps1 | iex
+irm https://aryanjsx.github.io/Locus/install.ps1 | iex
 # (then re-run with the file directly, passing -Force)
 ```
 
 ## Uninstall
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Locus\src\deploy\windows\jarvis-service.ps1" uninstall
+powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Locus\src\deploy\windows\locus-service.ps1" uninstall
 Remove-Item -Recurse -Force "$env:LOCALAPPDATA\Locus"
 ```
 

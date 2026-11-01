@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Regression for #266: the frontend must send the local API key as a Bearer
-// token on /v1 + /api requests, or `jarvis serve` with a key configured 401s
+// token on /v1 + /api requests, or `locus serve` with a key configured 401s
 // every data-plane call. These tests cover the pure helpers (getApiKey,
 // authHeaders) that source the key and build the header.
 

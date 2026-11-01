@@ -24,13 +24,13 @@ def test_docker_compose_requires_api_key():
     text = _read("docker/docker-compose.yml")
     # The container binds 0.0.0.0, so the key must be a *required* variable
     # (compose's ${VAR:?...} fails fast when unset).
-    assert "Locus_API_KEY" in text
-    assert "Locus_API_KEY:?" in text
+    assert "LOCUS_API_KEY" in text
+    assert "LOCUS_API_KEY:?" in text
 
 
 def test_docker_env_example_present():
     assert (DEPLOY / "docker" / ".env.example").is_file()
-    assert "Locus_API_KEY" in _read("docker/.env.example")
+    assert "LOCUS_API_KEY" in _read("docker/.env.example")
 
 
 def test_systemd_unit_binds_public_and_requires_env_file():

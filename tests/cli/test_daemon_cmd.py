@@ -1,4 +1,4 @@
-"""Tests for ``jarvis start|stop|restart|status`` daemon management commands."""
+"""Tests for ``locus start|stop|restart|status`` daemon management commands."""
 
 from __future__ import annotations
 
@@ -27,21 +27,21 @@ class TestDaemonCommands:
     """Core daemon CLI tests."""
 
     def test_start_command_exists(self) -> None:
-        """``jarvis start --help`` succeeds."""
+        """``locus start --help`` succeeds."""
         result = CliRunner().invoke(cli, ["start", "--help"])
         assert result.exit_code == 0
         out = result.output.lower()
         assert "daemon" in out or "start" in out or "background" in out
 
     def test_stop_no_server(self) -> None:
-        """``jarvis stop`` when no PID file shows 'not running'."""
+        """``locus stop`` when no PID file shows 'not running'."""
         with patch("locus.cli.daemon_cmd._read_pid", return_value=None):
             result = CliRunner().invoke(cli, ["stop"])
         assert result.exit_code != 0
         assert "No running server" in result.output
 
     def test_status_no_server(self) -> None:
-        """``jarvis status`` when no PID file shows 'not running'."""
+        """``locus status`` when no PID file shows 'not running'."""
         with patch("locus.cli.daemon_cmd._read_pid", return_value=None):
             result = CliRunner().invoke(cli, ["status"])
         assert result.exit_code == 0
@@ -68,7 +68,7 @@ class TestDaemonCommands:
             assert _read_pid() == 12345
 
     def test_status_shows_running(self) -> None:
-        """``jarvis status`` shows running info when PID exists."""
+        """``locus status`` shows running info when PID exists."""
         mock_config = MagicMock()
         mock_config.server.host = "127.0.0.1"
         mock_config.server.port = 8000
@@ -86,7 +86,7 @@ class TestDaemonCommands:
         assert "9999" in result.output
 
     def test_start_already_running(self) -> None:
-        """``jarvis start`` exits with error when a server is already running."""
+        """``locus start`` exits with error when a server is already running."""
         with patch("locus.cli.daemon_cmd._read_pid", return_value=42):
             result = CliRunner().invoke(cli, ["start"])
         assert result.exit_code != 0
@@ -237,7 +237,7 @@ class TestDaemonDetachment:
             assert write_pid.call_args.kwargs["ready"] is False
             token = write_pid.call_args.kwargs["launch_token"]
             assert token
-            assert popen.call_args.kwargs["env"]["Locus_DAEMON_LAUNCH_TOKEN"] == token
+            assert popen.call_args.kwargs["env"]["LOCUS_DAEMON_LAUNCH_TOKEN"] == token
 
     def test_second_start_rechecks_under_lock(self, tmp_path: Path) -> None:
         """A second start must not spawn after another caller registered."""

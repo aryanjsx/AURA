@@ -31,7 +31,7 @@ def _build_fake_hermes_cache(cache_root: Path) -> None:
 
 class TestCliInstallE2E:
     def test_install_hermes_skill_e2e(self, tmp_path: Path) -> None:
-        """jarvis skill install hermes:research-skill installs to target dir."""
+        """locus skill install hermes:research-skill installs to target dir."""
         from locus.skills.sources.hermes import HermesResolver
 
         cache = tmp_path / "hermes-cache"

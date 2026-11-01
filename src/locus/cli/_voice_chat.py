@@ -10,7 +10,7 @@ VOICE_EXIT = object()
 
 # Backend selection is shared with the API server and lives in
 # locus.speech._tts_discovery. Importing that at module level would pull
-# the whole speech stack -- numpy included -- into every `jarvis` invocation,
+# the whole speech stack -- numpy included -- into every `locus` invocation,
 # which tests/cli/test_cli.py guards against, so these aliases resolve lazily.
 _LAZY_TTS_NAMES = {
     "_TTS_BACKEND_ORDER": "TTS_BACKEND_ORDER",
@@ -139,7 +139,7 @@ def record_voice(
         console.print(
             "[red]No speech-to-text backend available. "
             "Install the voice dependencies with: "
-            "pip install 'Locus[speech]', or configure a healthy "
+            "pip install 'locus-assistant[speech]', or configure a healthy "
             "OpenAI/Deepgram backend.[/red]"
         )
         return VOICE_EXIT

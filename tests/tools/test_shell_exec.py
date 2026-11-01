@@ -154,7 +154,7 @@ class TestShellExecTool:
     @pytest.mark.skip(reason="Rust backend inherits parent env — no env isolation")
     def test_env_clearing(self):
         """Verify that arbitrary env vars are NOT passed through."""
-        marker = "Locus_TEST_SECRET_12345"
+        marker = "LOCUS_TEST_SECRET_12345"
         os.environ[marker] = "leaked"
         try:
             tool = ShellExecTool()
@@ -169,7 +169,7 @@ class TestShellExecTool:
     )
     def test_env_passthrough(self):
         """Verify that explicitly listed env vars ARE passed through."""
-        marker = "Locus_TEST_PASSTHROUGH_67890"
+        marker = "LOCUS_TEST_PASSTHROUGH_67890"
         os.environ[marker] = "allowed_value"
         try:
             tool = ShellExecTool()

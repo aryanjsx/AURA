@@ -7,7 +7,7 @@ Run manually::
 
 Or register as a scheduled task::
 
-    jarvis scheduler create "Run daily digest" --type cron --value "0 9 * * *"
+    locus scheduler create "Run daily digest" --type cron --value "0 9 * * *"
 """
 
 from __future__ import annotations

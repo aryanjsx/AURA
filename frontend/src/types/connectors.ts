@@ -211,7 +211,7 @@ export const SOURCE_CATALOG: ConnectorMeta[] = [
       },
       {
         label: '(Optional) Set the app icon: in the left sidebar click "Basic Information" → scroll to "Display Information" → upload the Locus logo',
-        url: 'https://github.com/locus/Locus/blob/main/assets/locus-slack-icon.jpg',
+        url: 'https://github.com/aryanjsx/Locus/blob/main/assets/locus-slack-icon.jpg',
         urlLabel: 'Download icon',
       },
     ],

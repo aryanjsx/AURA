@@ -1,4 +1,4 @@
-"""Tests for ``jarvis ask --agent`` CLI integration."""
+"""Tests for ``locus ask --agent`` CLI integration."""
 
 from __future__ import annotations
 
@@ -219,7 +219,7 @@ class TestAskAgentOption:
         """When --agent is omitted, ``config.agent.default_agent`` is used.
 
         The default ``JarvisConfig`` sets ``default_agent = "simple"``, so
-        ``jarvis ask "..."`` should route through SimpleAgent rather than
+        ``locus ask "..."`` should route through SimpleAgent rather than
         the direct-to-engine path. Without this fallback, persona settings
         (``default_system_prompt`` and SOUL.md/MEMORY.md/USER.md) would be
         silently bypassed.

@@ -1,6 +1,6 @@
 """Web search tool — You.com or Tavily, with a DuckDuckGo fallback.
 
-Engine selection is explicit (``engine=`` or ``Locus_WEB_SEARCH_ENGINE``)
+Engine selection is explicit (``engine=`` or ``LOCUS_WEB_SEARCH_ENGINE``)
 rather than a chain of ``try``/``except`` layers. The default, ``"auto"``,
 resolves to whichever engine the environment can actually serve, preferring an
 API-backed engine over the DuckDuckGo HTML scrape:
@@ -66,7 +66,7 @@ FIRECRAWL_KEYS_URL = (
     "https://www.firecrawl.dev/app/api-keys?utm_source=locus&utm_medium=integration"
 )
 
-ENGINE_ENV = "Locus_WEB_SEARCH_ENGINE"
+ENGINE_ENV = "LOCUS_WEB_SEARCH_ENGINE"
 ENGINES = ("auto", "youcom", "tavily", "duckduckgo", "serply", "firecrawl")
 
 # Identifies Locus to You.com. The keyless tier carries no API key, so the
@@ -117,7 +117,7 @@ class WebSearchTool(BaseTool):
 
         ``api_key`` remains the Tavily key, positionally, for backwards
         compatibility. ``engine`` is one of :data:`ENGINES`; when omitted it
-        comes from ``Locus_WEB_SEARCH_ENGINE`` and defaults to ``"auto"``.
+        comes from ``LOCUS_WEB_SEARCH_ENGINE`` and defaults to ``"auto"``.
         An unknown engine name falls back to ``"auto"`` with a warning rather
         than raising, so a typo in the environment cannot break tool loading.
         """

@@ -1,4 +1,4 @@
-"""Tests for the ``jarvis vault`` CLI commands."""
+"""Tests for the ``locus vault`` CLI commands."""
 
 from __future__ import annotations
 

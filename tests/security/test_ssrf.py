@@ -156,7 +156,7 @@ class TestCheckSsrf:
         """Opt-in escape hatch for trusted, non-exposed local use only."""
         import socket
 
-        monkeypatch.setenv("Locus_SSRF_FAIL_OPEN", "1")
+        monkeypatch.setenv("LOCUS_SSRF_FAIL_OPEN", "1")
         with patch(
             "locus.security.ssrf.socket.getaddrinfo",
             side_effect=socket.gaierror("Name resolution failed"),

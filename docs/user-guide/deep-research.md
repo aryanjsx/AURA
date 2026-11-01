@@ -7,10 +7,10 @@ A multi-hop research agent that searches across your indexed documents, cross-re
 ### 1. Install and initialize
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 uv sync --extra dev
-jarvis init --preset deep-research --force
+locus init --preset deep-research --force
 ```
 
 This writes a pre-configured `~/.locus/config.toml` for the deep research agent.
@@ -22,8 +22,8 @@ This writes a pre-configured `~/.locus/config.toml` for the deep research agent.
 ollama pull qwen3.5:9b
 
 # Index a directory of files
-jarvis memory index ./docs/
-jarvis memory index ~/Documents/papers/
+locus memory index ./docs/
+locus memory index ~/Documents/papers/
 ```
 
 Locus chunks the content and stores it in a local SQLite/FTS5 database. Supported formats include `.txt`, `.md`, `.pdf`, `.py`, `.json`, `.csv`, and more.
@@ -31,7 +31,7 @@ Locus chunks the content and stores it in a local SQLite/FTS5 database. Supporte
 ### 3. Ask a research question
 
 ```bash
-jarvis ask "Summarize all documents about transformer architectures"
+locus ask "Summarize all documents about transformer architectures"
 ```
 
 The deep research agent will:
@@ -44,21 +44,21 @@ The deep research agent will:
 
 ```bash
 # Ask a question (uses deep_research agent by default with this config)
-jarvis ask "What meetings did I have with Alice last month?"
+locus ask "What meetings did I have with Alice last month?"
 
 # Explicitly specify the agent
-jarvis ask --agent deep_research "Compare the approaches described in paper-a.pdf and paper-b.pdf"
+locus ask --agent deep_research "Compare the approaches described in paper-a.pdf and paper-b.pdf"
 
 # Index more documents
-jarvis memory index ~/Downloads/reports/
-jarvis memory index ./notes.md
+locus memory index ~/Downloads/reports/
+locus memory index ./notes.md
 
 # Search memory directly
-jarvis memory search "project timeline"
-jarvis memory search -k 20 "budget estimates"
+locus memory search "project timeline"
+locus memory search -k 20 "budget estimates"
 
 # Check what's indexed
-jarvis memory stats
+locus memory stats
 ```
 
 ## Configuration Reference
@@ -98,19 +98,19 @@ default_backend = "sqlite"
 
 ```bash
 # Summarize across multiple documents
-jarvis ask "Summarize all emails about the Q3 budget review"
+locus ask "Summarize all emails about the Q3 budget review"
 
 # Cross-reference sources
-jarvis ask "What do papers A and B agree on regarding attention mechanisms?"
+locus ask "What do papers A and B agree on regarding attention mechanisms?"
 
 # Find specific information
-jarvis ask "What meetings did I have with Alice last month?"
+locus ask "What meetings did I have with Alice last month?"
 
 # Extract structured data
-jarvis ask "List all action items from the meeting notes in ~/Documents/meetings/"
+locus ask "List all action items from the meeting notes in ~/Documents/meetings/"
 
 # Research with web fallback
-jarvis ask "Compare our internal benchmarks with the latest published results"
+locus ask "Compare our internal benchmarks with the latest published results"
 ```
 
 ## Indexing Different Data Sources
@@ -119,13 +119,13 @@ jarvis ask "Compare our internal benchmarks with the latest published results"
 
 ```bash
 # Recursively index a directory
-jarvis memory index ~/Documents/
+locus memory index ~/Documents/
 
 # Single file
-jarvis memory index ./report.pdf
+locus memory index ./report.pdf
 
 # Custom chunk size for long documents
-jarvis memory index ./paper.pdf --chunk-size 1024 --chunk-overlap 128
+locus memory index ./paper.pdf --chunk-size 1024 --chunk-overlap 128
 ```
 
 ### PDFs
@@ -133,7 +133,7 @@ jarvis memory index ./paper.pdf --chunk-size 1024 --chunk-overlap 128
 PDFs are automatically extracted and chunked. For best results with scanned PDFs, ensure they have been OCR-processed.
 
 ```bash
-jarvis memory index ~/Papers/*.pdf
+locus memory index ~/Papers/*.pdf
 ```
 
 ### Web pages
@@ -141,20 +141,20 @@ jarvis memory index ~/Papers/*.pdf
 Use the `web_search` tool (enabled by default in this config) to pull in online sources at query time. For persistent indexing of web content, download pages first:
 
 ```bash
-curl -s https://example.com/article | jarvis memory index --stdin --source "example.com"
+curl -s https://example.com/article | locus memory index --stdin --source "example.com"
 ```
 
 ### Code repositories
 
 ```bash
-jarvis memory index ./src/ --chunk-size 256
+locus memory index ./src/ --chunk-size 256
 ```
 
 Smaller chunk sizes work better for code, where each function or class is a natural unit.
 
 ## Troubleshooting
 
-**"No results found"** -- Make sure you have indexed documents first with `jarvis memory index`. Check indexed content with `jarvis memory stats`.
+**"No results found"** -- Make sure you have indexed documents first with `locus memory index`. Check indexed content with `locus memory stats`.
 
 **Answers are too vague** -- Try increasing `max_turns` in the config (e.g., `12` or `15`) to give the agent more reasoning steps. You can also try a larger model like `qwen3.5:35b`.
 

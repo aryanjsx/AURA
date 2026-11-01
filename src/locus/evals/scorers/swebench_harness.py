@@ -327,7 +327,7 @@ def _harness_cache_dir() -> Path:
 
     Consolidated under the env-aware Locus cache root
     (``<locus-home>/cache/swebench``) so it never pollutes the project
-    root or scatters across ``$HOME``. Honors ``Locus_HOME`` /
+    root or scatters across ``$HOME``. Honors ``LOCUS_HOME`` /
     ``XDG_DATA_HOME`` via :func:`locus.core.paths.get_cache_dir`.
     """
     cache = get_cache_dir() / "swebench"

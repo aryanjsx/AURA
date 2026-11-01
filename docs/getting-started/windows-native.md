@@ -73,7 +73,7 @@ performance on physical Windows ARM hardware.
 
 - Windows 10 1809+ or Windows 11.
 - Python 3.10 – 3.13 (Python 3.14 has no numpy Windows wheels yet —
-  see [#432](https://github.com/locus/Locus/issues/432)).
+  see [#432](https://github.com/open-jarvis/OpenJarvis/issues/432)).
 - `git` on PATH.
 - ~5 GB free disk on `%LOCALAPPDATA%`.
 
@@ -82,7 +82,7 @@ performance on physical Windows ARM hardware.
 In any PowerShell:
 
 ```powershell
-irm https://locus.github.io/Locus/install.ps1 | iex
+irm https://aryanjsx.github.io/Locus/install.ps1 | iex
 ```
 
 The installer will:
@@ -101,7 +101,7 @@ The installer will:
 
 ```powershell
 cd "$env:LOCALAPPDATA\Locus\src"
-uv run jarvis serve
+uv run locus serve
 ```
 
 Open `http://127.0.0.1:8000/health` to verify.
@@ -112,7 +112,7 @@ If you skipped the prompt during install, register the auto-start task
 manually:
 
 ```powershell
-$srv = "$env:LOCALAPPDATA\Locus\src\deploy\windows\jarvis-service.ps1"
+$srv = "$env:LOCALAPPDATA\Locus\src\deploy\windows\locus-service.ps1"
 powershell -ExecutionPolicy Bypass -File $srv install
 ```
 
@@ -128,7 +128,7 @@ Remove:
 powershell -ExecutionPolicy Bypass -File $srv uninstall
 ```
 
-See [`deploy/windows/README.md`](https://github.com/locus/Locus/blob/main/deploy/windows/README.md)
+See [`deploy/windows/README.md`](https://github.com/aryanjsx/Locus/blob/main/deploy/windows/README.md)
 for the LAN-exposed configuration and the parity table against
 systemd / launchd.
 

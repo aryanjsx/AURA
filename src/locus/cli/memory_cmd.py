@@ -1,4 +1,4 @@
-"""``jarvis memory`` — memory management subcommands."""
+"""``locus memory`` — memory management subcommands."""
 
 from __future__ import annotations
 
@@ -235,7 +235,7 @@ def list_facts() -> None:
         console.print(
             "[red]⚠ quarantined[/red] facts are retained for audit but excluded "
             "from model recall because they may contain hostile input. Review "
-            "one and run [bold]jarvis memory trust <#>[/bold] to allow recall."
+            "one and run [bold]locus memory trust <#>[/bold] to allow recall."
         )
 
 
@@ -254,7 +254,7 @@ def trust_fact(index: int) -> None:
     if not 1 <= index <= len(facts):
         console.print(
             f"[red]No fact #{index}.[/red] "
-            f"{len(facts)} fact(s) stored — see [bold]jarvis memory list[/bold]."
+            f"{len(facts)} fact(s) stored — see [bold]locus memory list[/bold]."
         )
         raise SystemExit(1)
 

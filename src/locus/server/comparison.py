@@ -281,7 +281,7 @@ COMPARISON_HTML = """\
     <div class="cta-sub">Install Locus and run AI locally
       with zero API costs.</div>
     <div class="code-block">
-      <code>git clone https://github.com/locus/Locus.git
+      <code>git clone https://github.com/aryanjsx/Locus.git
 && cd Locus && uv sync</code>
       <button class="copy-btn" id="copy-btn">Copy</button>
     </div>

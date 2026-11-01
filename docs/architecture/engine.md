@@ -237,8 +237,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
 `>=0.2.1` is the floor: that release added `SystemLanguageModel.token_count` and `.context_size`, which both backends use for token accounting.
 
 ```bash
-jarvis ask --engine afm --model afm-3-core "..."   # in-process
-jarvis host afm-3 --backend apple_fm               # launch the shim
+locus ask --engine afm --model afm-3-core "..."   # in-process
+locus host afm-3 --backend apple_fm               # launch the shim
 ```
 
 - **Model labels:** `afm-3`, `afm-3-core`, `afm-3-core-advanced`

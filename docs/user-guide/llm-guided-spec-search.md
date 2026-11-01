@@ -83,7 +83,7 @@ unaffected by these weights.
 
 The prebuilt config lives at
 `configs/locus/examples/spec-search-quickstart.toml`. Copy it to
-`~/.locus/config.toml` (or set `Locus_CONFIG` to it) and the
+`~/.locus/config.toml` (or set `LOCUS_CONFIG` to it) and the
 regular loader picks it up:
 
 ```python

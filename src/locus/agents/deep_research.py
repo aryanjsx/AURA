@@ -45,7 +45,7 @@ def _build_system_prompt() -> str:
 
     return f"""\
 /no_think
-You are Jarvis, a personal AI assistant with access to the user's private \
+You are Locus, a personal AI assistant with access to the user's private \
 knowledge base — emails, text messages, meeting notes, documents, and notes. \
 You are helpful, conversational, and smart about when to use your tools.
 

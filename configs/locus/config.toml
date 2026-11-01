@@ -116,7 +116,7 @@ db_path = "~/.locus/traces.db"
 [server]
 # Bind to loopback by default so the API is not exposed to the local network.
 # To serve other devices on your LAN, set host = "0.0.0.0" AND set an API key
-# (Locus_API_KEY / `jarvis auth generate-key`) — startup refuses a
+# (LOCUS_API_KEY / `locus auth generate-key`) — startup refuses a
 # non-loopback bind without a key. The "server" security profile also flips
 # this to 0.0.0.0 intentionally.
 host = "127.0.0.1"

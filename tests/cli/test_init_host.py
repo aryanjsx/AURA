@@ -1,4 +1,4 @@
-"""Tests for ``jarvis init --host`` option."""
+"""Tests for ``locus init --host`` option."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ _NO_DL = "--no-download"
 
 class TestInitHost:
     def test_init_host_writes_to_config(self, tmp_path: Path) -> None:
-        """jarvis init --host writes the host into config.toml."""
+        """locus init --host writes the host into config.toml."""
         config_dir = tmp_path / ".locus"
         config_path = config_dir / "config.toml"
         with (
@@ -39,7 +39,7 @@ class TestInitHost:
         assert "http://192.168.1.50:11434" in content
 
     def test_init_host_with_vllm(self, tmp_path: Path) -> None:
-        """jarvis init --host applies to the selected engine."""
+        """locus init --host applies to the selected engine."""
         config_dir = tmp_path / ".locus"
         config_path = config_dir / "config.toml"
         with (
@@ -56,7 +56,7 @@ class TestInitHost:
         assert "http://10.0.0.5:8000" in content
 
     def test_init_host_probes_and_reports(self, tmp_path: Path) -> None:
-        """jarvis init --host shows reachability status."""
+        """locus init --host shows reachability status."""
         config_dir = tmp_path / ".locus"
         config_path = config_dir / "config.toml"
         with (
@@ -75,7 +75,7 @@ class TestInitHost:
         assert "unreachable" in output_lower or "warning" in output_lower
 
     def test_init_without_host_still_works(self, tmp_path: Path) -> None:
-        """jarvis init without --host still produces valid config."""
+        """locus init without --host still produces valid config."""
         config_dir = tmp_path / ".locus"
         config_path = config_dir / "config.toml"
         with (

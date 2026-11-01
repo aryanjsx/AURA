@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
     from locus.evals.core.types import MetricStats, RunSummary
 
-Locus_BANNER = r"""
+LOCUS_BANNER = r"""
   ___                       _                  _
  / _ \ _ __   ___ _ __     | | __ _ _ ____   _(_)___
 | | | | '_ \ / _ \ '_ \ _  | |/ _` | '__\ \ / / / __|
@@ -29,7 +29,7 @@ VERSION = "v1.8"
 def print_banner(console: Console) -> None:
     """Print the Locus ASCII banner inside a styled panel."""
     panel = Panel(
-        Locus_BANNER.rstrip(),
+        LOCUS_BANNER.rstrip(),
         border_style="cyan",
         title=f"[bold white]{VERSION}[/bold white]",
         expand=False,
@@ -436,7 +436,7 @@ def print_completion(
 
 
 __all__ = [
-    "Locus_BANNER",
+    "LOCUS_BANNER",
     "print_accuracy_panel",
     "print_banner",
     "print_compact_table",

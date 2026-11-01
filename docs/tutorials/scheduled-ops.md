@@ -49,7 +49,7 @@ uv run python examples/scheduled_ops/daily_digest.py \
 
 ```mermaid
 graph TD
-    A[jarvis scheduler start] --> B[Scheduler Daemon]
+    A[locus scheduler start] --> B[Scheduler Daemon]
     B --> C{Cron trigger fires}
     C -->|0 9 * * *| D[daily_digest.py]
     C -->|0 8 * * 1| E[code_review.py]
@@ -67,32 +67,32 @@ The scheduler daemon reads registered tasks from SQLite, fires them at the corre
 
 ## Set Up Schedules with the CLI
 
-Register each script as a recurring task using `jarvis scheduler create`:
+Register each script as a recurring task using `locus scheduler create`:
 
 ```bash title="Terminal"
 # Morning digest every day at 9 AM
-jarvis scheduler create "Run daily news digest" \
+locus scheduler create "Run daily news digest" \
     --type cron --value "0 9 * * *"
 
 # Weekly code review every Monday at 8 AM
-jarvis scheduler create "Run weekly code review" \
+locus scheduler create "Run weekly code review" \
     --type cron --value "0 8 * * 1"
 
 # Gym check on Monday, Wednesday, Friday at 6 AM
-jarvis scheduler create "Check gym schedule" \
+locus scheduler create "Check gym schedule" \
     --type cron --value "0 6 * * 1,3,5"
 ```
 
 Then start the scheduler daemon in the foreground (or as a background service):
 
 ```bash title="Terminal"
-jarvis scheduler start
+locus scheduler start
 ```
 
 List registered tasks at any time:
 
 ```bash title="Terminal"
-jarvis scheduler list
+locus scheduler list
 ```
 
 !!! note "Cron expression syntax"
@@ -175,11 +175,11 @@ The orchestrator searches for each topic in a separate turn, uses `think` to syn
 
 ## Send Results to a Channel
 
-To route script output to Slack or any other supported channel, pipe stdout through `jarvis channel send`:
+To route script output to Slack or any other supported channel, pipe stdout through `locus channel send`:
 
 ```bash title="Terminal"
 uv run python examples/scheduled_ops/daily_digest.py \
-    --topics "AI,finance" | jarvis channel send slack
+    --topics "AI,finance" | locus channel send slack
 ```
 
 Or add channel output inside the script:
@@ -194,11 +194,11 @@ channel.send(response)
 List all available channels:
 
 ```bash title="Terminal"
-jarvis channel list
+locus channel list
 ```
 
 !!! warning "Channel credentials"
-    Live channel output requires channel-specific credentials. Run `jarvis add slack` (or the relevant provider) to set up the MCP server and credential store, then configure environment variables in your `.env` file before starting the scheduler daemon.
+    Live channel output requires channel-specific credentials. Run `locus add slack` (or the relevant provider) to set up the MCP server and credential store, then configure environment variables in your `.env` file before starting the scheduler daemon.
 
 ## Customization Tips
 
@@ -206,7 +206,7 @@ jarvis channel list
 - **Review window**: Pass `--days 14` to `code_review.py` for a two-week review cycle instead of one week.
 - **Swap agents**: Replace `orchestrator` with `native_react` in any script to compare agent behavior on the same task.
 - **Add file output**: Append `"file_write"` to the `tools` list and update the prompt to save reports to disk instead of printing them.
-- **One-time tasks**: Use `--type once --value "2026-04-01T09:00:00"` with `jarvis scheduler create` for non-recurring tasks.
+- **One-time tasks**: Use `--type once --value "2026-04-01T09:00:00"` with `locus scheduler create` for non-recurring tasks.
 
 ## See Also
 

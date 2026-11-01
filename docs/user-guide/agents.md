@@ -41,7 +41,7 @@ By default the files are read from the config directory:
 ~/.locus/USER.md
 ```
 
-(The config directory honors `$Locus_HOME` / `$XDG_DATA_HOME` when set.) The paths are configurable under `[memory_files]`:
+(The config directory honors `$LOCUS_HOME` / `$XDG_DATA_HOME` when set.) The paths are configurable under `[memory_files]`:
 
 ```toml
 [memory_files]
@@ -72,8 +72,8 @@ A single install can answer as different personas without changing global config
 Select one per invocation, or opt out entirely:
 
 ```bash
-jarvis ask --persona work  "summarize my open PRs"
-jarvis ask --persona none  "what is 2 + 2?"     # inject no persona
+locus ask --persona work  "summarize my open PRs"
+locus ask --persona none  "what is 2 + 2?"     # inject no persona
 ```
 
 Set `persona_name` under `[memory_files]` to make a named persona the default. `persona_name = "none"` (equivalently `--persona none`) disables persona injection for that run.
@@ -334,25 +334,25 @@ The `OpenHandsAgent` wraps the real `openhands-sdk` package for AI-driven softwa
 
 ```bash
 # Simple agent
-jarvis ask --agent simple "What is the capital of France?"
+locus ask --agent simple "What is the capital of France?"
 
 # Orchestrator with tools
-jarvis ask --agent orchestrator --tools calculator,think "What is sqrt(256)?"
+locus ask --agent orchestrator --tools calculator,think "What is sqrt(256)?"
 
 # NativeReActAgent
-jarvis ask --agent native_react --tools calculator "What is 2+2?"
+locus ask --agent native_react --tools calculator "What is 2+2?"
 
 # ReAct alias (same as native_react)
-jarvis ask --agent react --tools calculator,think "Solve step by step: 15% of 340"
+locus ask --agent react --tools calculator,think "Solve step by step: 15% of 340"
 
 # NativeOpenHandsAgent
-jarvis ask --agent native_openhands --tools calculator,web_search "Summarize example.com"
+locus ask --agent native_openhands --tools calculator,web_search "Summarize example.com"
 
 # RLMAgent
-jarvis ask --agent rlm "Summarize this long document"
+locus ask --agent rlm "Summarize this long document"
 
 # OpenHands SDK agent
-jarvis ask --agent openhands "Fix the bug in test_utils.py"
+locus ask --agent openhands "Fix the bug in test_utils.py"
 ```
 
 ### Via Python SDK
@@ -406,7 +406,7 @@ The `ClaudeCodeAgent` wraps the `@anthropic-ai/claude-agent-sdk` package via a b
 1. On first call, copies the bundled `claude_code_runner/` to `~/.locus/claude_code_runner/` and installs the pinned Agent SDK if it is missing or outdated.
 2. Builds a JSON request payload (prompt, API key, workspace, allowed tools, system prompt, session ID) and sends it to `stdin` of a `node index.mjs` subprocess.
 3. The Node.js runner calls the Claude Agent SDK and writes sentinel-delimited JSON to `stdout`.
-4. The Python side parses the output between `---Locus_OUTPUT_START---` and `---Locus_OUTPUT_END---` markers, extracting content, tool results, and metadata.
+4. The Python side parses the output between `---LOCUS_OUTPUT_START---` and `---LOCUS_OUTPUT_END---` markers, extracting content, tool results, and metadata.
 5. Returns an `AgentResult` with `turns=1`.
 
 **Constructor parameters:**
@@ -443,7 +443,7 @@ print(result.content)
 
 ```bash
 # Via CLI
-jarvis ask --agent claude_code "Refactor the tests to use pytest fixtures"
+locus ask --agent claude_code "Refactor the tests to use pytest fixtures"
 ```
 
 !!! info "accepts_tools = False"
@@ -491,7 +491,7 @@ agent.close()
 
 ```bash
 # Via CLI (opencode must be installed)
-jarvis ask --agent opencode "Refactor the parser to use a state machine"
+locus ask --agent opencode "Refactor the parser to use a state machine"
 ```
 
 !!! tip "Pass-through providers"
@@ -557,7 +557,7 @@ result = agent.run("Generate today's report")
 
 ```bash
 # Via CLI
-jarvis ask --agent operative "Check system status"
+locus ask --agent operative "Check system status"
 ```
 
 ---
@@ -627,7 +627,7 @@ result = agent.run("Investigate the root cause of the production outage")
 
 ```bash
 # Via CLI
-jarvis ask --agent monitor_operative "Analyze the security audit findings"
+locus ask --agent monitor_operative "Analyze the security audit findings"
 ```
 
 ---

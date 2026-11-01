@@ -1,4 +1,4 @@
-"""``jarvis connect`` -- manage data source connections."""
+"""``locus connect`` -- manage data source connections."""
 
 from __future__ import annotations
 

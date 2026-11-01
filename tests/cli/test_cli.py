@@ -15,7 +15,7 @@ from locus.cli import cli, main
 
 
 class TestMainEntryPoint:
-    """Tests for the ``jarvis`` console script entry point."""
+    """Tests for the ``locus`` console script entry point."""
 
     def test_windows_reconfigures_stdout_to_utf8(self) -> None:
         """On Windows, main() must reconfigure stdout/stderr to UTF-8 so that
@@ -192,7 +192,7 @@ class TestCLI:
             )
 
         assert rejected.exit_code != 0
-        assert "jarvis init --preset chat-simple --force" in " ".join(
+        assert "locus init --preset chat-simple --force" in " ".join(
             rejected.output.split()
         )
         assert confirmed.exit_code == 0
@@ -206,7 +206,7 @@ class TestStartupResilience:
     """Importing the CLI must not force heavy/native deps (#404, #309).
 
     A broken or slow numpy on Windows otherwise raises at import time and takes
-    down every `jarvis` command — including `jarvis serve` — because the CLI
+    down every `locus` command — including `locus serve` — because the CLI
     eagerly pulls the deep-research command chain (-> embeddings -> numpy).
     """
 
@@ -224,5 +224,5 @@ class TestStartupResilience:
         )
         assert result.returncode == 0, (
             "importing locus.cli pulled in numpy (a broken numpy would then "
-            f"crash `jarvis serve`):\nstdout={result.stdout}\nstderr={result.stderr}"
+            f"crash `locus serve`):\nstdout={result.stdout}\nstderr={result.stderr}"
         )

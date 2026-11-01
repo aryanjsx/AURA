@@ -60,7 +60,7 @@ class SystemBuilder:
         """Inject a pre-built engine instance, bypassing engine discovery.
 
         Used by callers that must target one exact endpoint (e.g.
-        ``jarvis eval --base-url``). ``build()`` health-checks the instance
+        ``locus eval --base-url``). ``build()`` health-checks the instance
         and raises a loud error if it is unreachable — it never silently
         substitutes a different discovered engine.
         """
@@ -370,7 +370,7 @@ class SystemBuilder:
     def _resolve_engine(self, config: JarvisConfig):
         # An explicitly injected engine instance always wins and is never
         # silently replaced: when the caller pinned an endpoint (e.g.
-        # ``jarvis eval --base-url``) and it is down, substituting whatever
+        # ``locus eval --base-url``) and it is down, substituting whatever
         # other engine discovery finds would silently run against the wrong
         # model server. Fail loudly instead.
         if self._engine_instance is not None:

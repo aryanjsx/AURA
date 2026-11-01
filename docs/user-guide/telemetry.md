@@ -154,18 +154,18 @@ All query methods accept optional `since` and `until` parameters (Unix timestamp
 
 ```bash
 # Show aggregated statistics
-jarvis telemetry stats
-jarvis telemetry stats -n 5          # Top 5 models only
+locus telemetry stats
+locus telemetry stats -n 5          # Top 5 models only
 
 # Export records
-jarvis telemetry export              # JSON to stdout
-jarvis telemetry export -f csv       # CSV to stdout
-jarvis telemetry export -o data.json # JSON to file
-jarvis telemetry export -f csv -o metrics.csv
+locus telemetry export              # JSON to stdout
+locus telemetry export -f csv       # CSV to stdout
+locus telemetry export -o data.json # JSON to file
+locus telemetry export -f csv -o metrics.csv
 
 # Clear all records
-jarvis telemetry clear               # With confirmation prompt
-jarvis telemetry clear --yes         # Without confirmation
+locus telemetry clear               # With confirmation prompt
+locus telemetry clear --yes         # Without confirmation
 ```
 
 ---

@@ -34,7 +34,7 @@ def test_editable_git_install_detected(tmp_path, monkeypatch):
 
     info = detect_install()
     assert info.kind == "editable-git"
-    assert info.upgrade_command == "jarvis self-update"
+    assert info.upgrade_command == "locus self-update"
     assert info.repo_root == repo
 
 
@@ -45,7 +45,7 @@ def test_uv_tool_install_detected(tmp_path, monkeypatch):
 
     info = detect_install()
     assert info.kind == "uv-tool"
-    assert info.upgrade_command == "uv tool upgrade locus"
+    assert info.upgrade_command == "uv tool upgrade locus-assistant"
 
 
 def test_pypi_install_detected(tmp_path, monkeypatch):
@@ -55,7 +55,7 @@ def test_pypi_install_detected(tmp_path, monkeypatch):
 
     info = detect_install()
     assert info.kind == "pypi"
-    assert info.upgrade_command == "pip install --upgrade locus"
+    assert info.upgrade_command == "pip install --upgrade locus-assistant"
 
 
 def test_unknown_install_falls_back_to_pypi(tmp_path, monkeypatch):
@@ -65,7 +65,7 @@ def test_unknown_install_falls_back_to_pypi(tmp_path, monkeypatch):
 
     info = detect_install()
     assert info.kind == "unknown"
-    assert info.upgrade_command == "pip install --upgrade locus"
+    assert info.upgrade_command == "pip install --upgrade locus-assistant"
 
 
 def test_missing_locus_file_falls_back_to_pypi(monkeypatch):
@@ -74,7 +74,7 @@ def test_missing_locus_file_falls_back_to_pypi(monkeypatch):
         mock_path.side_effect = Exception("boom")
         info = detect_install()
     assert info.kind == "unknown"
-    assert info.upgrade_command == "pip install --upgrade locus"
+    assert info.upgrade_command == "pip install --upgrade locus-assistant"
 
 
 def test_returns_install_info_dataclass():

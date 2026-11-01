@@ -16,7 +16,7 @@ reward knobs without editing this file.
 
 Run:
 
-    Locus_HOME=/tmp/locus-spec-search-demo \\
+    LOCUS_HOME=/tmp/locus-spec-search-demo \\
         python examples/locus/spec_search_quickstart.py
 """
 
@@ -245,10 +245,10 @@ def main() -> None:
     )
 
     home = Path(
-        os.environ.get("Locus_HOME")
+        os.environ.get("LOCUS_HOME")
         or tempfile.mkdtemp(prefix="locus-spec-search-")
     )
-    print(f"Locus_HOME = {home}")
+    print(f"LOCUS_HOME = {home}")
 
     # ----- Single session ---------------------------------------------------
     orch = build_orchestrator(cfg, home)

@@ -61,7 +61,7 @@ README. Then write Locus' mining config:
 ```bash
 export PEARLD_RPC_PASSWORD="rpcpass"
 
-jarvis mine init \
+locus mine init \
   --provider cpu-pearl \
   --wallet-address "<your-prl1...address>" \
   --pearld-rpc-url http://127.0.0.1:44107 \
@@ -94,11 +94,11 @@ metrics_port = 9109
 ## Run
 
 ```bash
-jarvis mine doctor        # capability matrix
-jarvis mine start         # launch gateway + miner-loop subprocesses
-jarvis mine status        # check sidecar + gateway metrics
-jarvis mine logs -n 120   # print recent logs
-jarvis mine stop          # stop mining subprocesses
+locus mine doctor        # capability matrix
+locus mine start         # launch gateway + miner-loop subprocesses
+locus mine status        # check sidecar + gateway metrics
+locus mine logs -n 120   # print recent logs
+locus mine stop          # stop mining subprocesses
 ```
 
 ## Reading `mine doctor`
@@ -106,7 +106,7 @@ jarvis mine stop          # stop mining subprocesses
 Each row is one check. `✓` means the check passed; `✗` shows the actionable fix.
 
 ```
-$ jarvis mine doctor
+$ locus mine doctor
 Hardware
   GPU vendor          apple                            ✓
   Apple chip          M2 Max                           ✓
@@ -145,14 +145,14 @@ Session
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `mine doctor` says `Pearl Python packages not installed` | Wheels not built yet | Run `jarvis mine init` |
+| `mine doctor` says `Pearl Python packages not installed` | Wheels not built yet | Run `locus mine init` |
 | `pearl-gateway` log shows `connection refused` to `http://localhost:44107` | `pearld` not running | Start `pearld` per Pearl's README |
 | `mine status` shows `last_error: gateway metrics unreachable` | `pearl-gateway` crashed | Check `~/.locus/logs/mining/pearl-gateway.log` |
 | Build fails with `error: linker 'cc' not found` | Xcode CLT not installed | `xcode-select --install` |
 | `maturin build` complains about `tikv-jemallocator` | macOS SDK too old | Update macOS / Xcode |
 
 For anything not on this list, capture `~/.locus/logs/mining/` and open
-an issue at https://github.com/locus/Locus/issues.
+an issue at https://github.com/aryanjsx/Locus/issues.
 
 ## What changes in v2 / v3
 

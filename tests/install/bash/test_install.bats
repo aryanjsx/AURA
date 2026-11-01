@@ -1,17 +1,17 @@
 #!/usr/bin/env bats
 
 # Requires Python with tomlkit, as does the installed application. Set
-# Locus_TEST_PYTHON to an existing project venv when running locally.
+# LOCUS_TEST_PYTHON to an existing project venv when running locally.
 
 setup() {
-    export Locus_TEST_PYTHON="${Locus_TEST_PYTHON:-$(command -v python3)}"
+    export LOCUS_TEST_PYTHON="${LOCUS_TEST_PYTHON:-$(command -v python3)}"
     export PYTHONPATH="$BATS_TEST_DIRNAME/../../../src"
-    unset Locus_CONFIG XDG_DATA_HOME
+    unset LOCUS_CONFIG XDG_DATA_HOME
     TEST_TMPDIR=$(mktemp -d)
     export FAKE_HOME="$TEST_TMPDIR/home"
     mkdir -p "$FAKE_HOME"
     export HOME="$FAKE_HOME"
-    export Locus_HOME="$FAKE_HOME/.locus"
+    export LOCUS_HOME="$FAKE_HOME/.locus"
 
     export STUBS_DIR="$BATS_TEST_DIRNAME/stubs"
     # Use a copy of stubs without uv-style real binaries that might be on the host.
@@ -22,13 +22,16 @@ setup() {
     export OLLAMA_STUB_LOG="$TEST_TMPDIR/ollama.log"
     export UV_STUB_LOG="$TEST_TMPDIR/uv.log"
     export CURL_STUB_LOG="$TEST_TMPDIR/curl.log"
-    export JARVIS_STUB_LOG="$TEST_TMPDIR/jarvis.log"
+    export JARVIS_STUB_LOG="$TEST_TMPDIR/locus.log"
+    # No analytics destination ships by default; give consent tests one.
+    export LOCUS_ANALYTICS_HOST="https://analytics.example.org"
+    export LOCUS_ANALYTICS_KEY="phc_test"
     : > "$GIT_STUB_LOG"
     : > "$OLLAMA_STUB_LOG"
     : > "$UV_STUB_LOG"
     : > "$CURL_STUB_LOG"
 
-    # uv stub needs to fake creating a venv with a jarvis binary.
+    # uv stub needs to fake creating a venv with a locus binary.
     # Replace the stubs/uv with one that creates the venv tree on `venv` command.
     # Since we don't want to mutate the real stub, override via a per-test stub dir.
     export PER_TEST_STUBS="$TEST_TMPDIR/stubs"
@@ -50,23 +53,23 @@ case "\$1" in
         done
         if [[ -n "\$venv_path" ]]; then
             mkdir -p "\$venv_path/bin"
-            cat > "\$venv_path/bin/jarvis" <<'EOJ'
+            cat > "\$venv_path/bin/locus" <<'EOJ'
 #!/usr/bin/env bash
-# fake jarvis for tests
+# fake locus for tests
 echo "\$@" >> "\$JARVIS_STUB_LOG"
 # Model the pre-consent CLI, which cannot validate the new schema key.
 if [[ "\$*" == 'config set analytics.choice_recorded true' ]]; then
     echo "Error: Unknown config key: 'analytics.choice_recorded'" >&2
     exit 1
 fi
-echo "fake jarvis: \$@"
+echo "fake locus: \$@"
 exit 0
 EOJ
-            chmod +x "\$venv_path/bin/jarvis"
+            chmod +x "\$venv_path/bin/locus"
             cat > "\$venv_path/bin/python" <<'EOJ'
 #!/usr/bin/env bash
 # Run the real persistence code using an interpreter with app dependencies.
-exec "\$Locus_TEST_PYTHON" "\$@"
+exec "\$LOCUS_TEST_PYTHON" "\$@"
 EOJ
             chmod +x "\$venv_path/bin/python"
         fi
@@ -90,7 +93,7 @@ teardown() {
 }
 
 assert_analytics_preference() {
-    "$Locus_TEST_PYTHON" - "$1" "$2" "$3" <<'PY'
+    "$LOCUS_TEST_PYTHON" - "$1" "$2" "$3" <<'PY'
 import sys
 from pathlib import Path
 
@@ -106,16 +109,27 @@ PY
     run bash "$SCRIPT" --no-bg-orchestrator --minimal
     [ "$status" -eq 0 ]
     ! grep -q '/i/v0/e/' "$CURL_STUB_LOG"
-    [ ! -f "$Locus_HOME/anon_id" ]
-    assert_analytics_preference "$Locus_HOME/config.toml" false false
+    [ ! -f "$LOCUS_HOME/anon_id" ]
+    assert_analytics_preference "$LOCUS_HOME/config.toml" false false
 }
 
 @test "explicit analytics flag sends beacons and persists enabled" {
     run bash "$SCRIPT" --no-bg-orchestrator --minimal --analytics
     [ "$status" -eq 0 ]
     grep -q '/i/v0/e/' "$CURL_STUB_LOG"
-    [ -s "$Locus_HOME/anon_id" ]
-    assert_analytics_preference "$Locus_HOME/config.toml" true true
+    [ -s "$LOCUS_HOME/anon_id" ]
+    assert_analytics_preference "$LOCUS_HOME/config.toml" true true
+    grep -q 'host = "https://analytics.example.org"' "$LOCUS_HOME/config.toml"
+}
+
+@test "no analytics destination means no prompt and no beacons" {
+    unset LOCUS_ANALYTICS_HOST LOCUS_ANALYTICS_KEY
+    run python3 "$BATS_TEST_DIRNAME/run_installer_pty.py" "$SCRIPT" '["\n"]'
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Press Enter or Y to consent"* ]]
+    ! grep -q '/i/v0/e/' "$CURL_STUB_LOG"
+    [ ! -f "$LOCUS_HOME/anon_id" ]
+    assert_analytics_preference "$LOCUS_HOME/config.toml" false false
 }
 
 @test "Enter at dedicated terminal prompt consents before the first beacon" {
@@ -123,15 +137,15 @@ PY
     [ "$status" -eq 0 ]
     [[ "$output" == *"Press Enter or Y to consent, or N to decline"* ]]
     grep -q '"event":"install_started"' "$CURL_STUB_LOG"
-    assert_analytics_preference "$Locus_HOME/config.toml" true true
+    assert_analytics_preference "$LOCUS_HOME/config.toml" true true
 }
 
 @test "N at terminal prompt declines every installer beacon" {
     run python3 "$BATS_TEST_DIRNAME/run_installer_pty.py" "$SCRIPT" '["N\n"]'
     [ "$status" -eq 0 ]
     ! grep -q '/i/v0/e/' "$CURL_STUB_LOG"
-    [ ! -f "$Locus_HOME/anon_id" ]
-    assert_analytics_preference "$Locus_HOME/config.toml" false true
+    [ ! -f "$LOCUS_HOME/anon_id" ]
+    assert_analytics_preference "$LOCUS_HOME/config.toml" false true
 }
 
 @test "invalid answer retries without silently consenting" {
@@ -145,8 +159,8 @@ PY
     run python3 "$BATS_TEST_DIRNAME/run_installer_pty.py" "$SCRIPT" '["\u0004"]'
     [ "$status" -eq 0 ]
     ! grep -q '/i/v0/e/' "$CURL_STUB_LOG"
-    [ ! -f "$Locus_HOME/anon_id" ]
-    assert_analytics_preference "$Locus_HOME/config.toml" false false
+    [ ! -f "$LOCUS_HOME/anon_id" ]
+    assert_analytics_preference "$LOCUS_HOME/config.toml" false false
 }
 
 @test "declining on a rerun persists despite skipped config creation" {
@@ -158,13 +172,13 @@ PY
     [ "$status" -eq 0 ]
     ! grep -q '/i/v0/e/' "$CURL_STUB_LOG"
     ! grep -q '_bootstrap' "$JARVIS_STUB_LOG"
-    assert_analytics_preference "$Locus_HOME/config.toml" false true
+    assert_analytics_preference "$LOCUS_HOME/config.toml" false true
 }
 
 @test "rerun saves consent with an older CLI and preserves existing TOML" {
     run bash "$SCRIPT" --no-bg-orchestrator --minimal
     [ "$status" -eq 0 ]
-    cat > "$Locus_HOME/config.toml" <<'TOML'
+    cat > "$LOCUS_HOME/config.toml" <<'TOML'
 # Preserve user settings and comments.
 [engine]
 default = "ollama"
@@ -172,7 +186,7 @@ default = "ollama"
 enabled = false # Previous choice.
 flush_at_size = 7
 TOML
-    run "$Locus_HOME/.venv/bin/jarvis" config set analytics.choice_recorded true
+    run "$LOCUS_HOME/.venv/bin/locus" config set analytics.choice_recorded true
     [ "$status" -eq 1 ]
     : > "$JARVIS_STUB_LOG"
     : > "$UV_STUB_LOG"
@@ -180,27 +194,27 @@ TOML
     [ "$status" -eq 0 ]
     [ ! -s "$UV_STUB_LOG" ]
     [ ! -s "$JARVIS_STUB_LOG" ]
-    assert_analytics_preference "$Locus_HOME/config.toml" true true
-    grep -q '# Preserve user settings and comments.' "$Locus_HOME/config.toml"
-    grep -q '# Previous choice.' "$Locus_HOME/config.toml"
-    grep -q 'default = "ollama"' "$Locus_HOME/config.toml"
-    grep -q 'flush_at_size = 7' "$Locus_HOME/config.toml"
+    assert_analytics_preference "$LOCUS_HOME/config.toml" true true
+    grep -q '# Preserve user settings and comments.' "$LOCUS_HOME/config.toml"
+    grep -q '# Previous choice.' "$LOCUS_HOME/config.toml"
+    grep -q 'default = "ollama"' "$LOCUS_HOME/config.toml"
+    grep -q 'flush_at_size = 7' "$LOCUS_HOME/config.toml"
 }
 
-@test "consent respects Locus_CONFIG instead of changing the default config" {
+@test "consent respects LOCUS_CONFIG instead of changing the default config" {
     run bash "$SCRIPT" --no-bg-orchestrator --minimal --no-analytics
     [ "$status" -eq 0 ]
-    export Locus_CONFIG="$TEST_TMPDIR/custom config.toml"
-    printf '# Custom config\n[engine]\ndefault = "ollama"\n' > "$Locus_CONFIG"
+    export LOCUS_CONFIG="$TEST_TMPDIR/custom config.toml"
+    printf '# Custom config\n[engine]\ndefault = "ollama"\n' > "$LOCUS_CONFIG"
     run bash "$SCRIPT" --no-bg-orchestrator --minimal --analytics
     [ "$status" -eq 0 ]
-    assert_analytics_preference "$Locus_CONFIG" true true
-    assert_analytics_preference "$Locus_HOME/config.toml" false true
-    grep -q '# Custom config' "$Locus_CONFIG"
+    assert_analytics_preference "$LOCUS_CONFIG" true true
+    assert_analytics_preference "$LOCUS_HOME/config.toml" false true
+    grep -q '# Custom config' "$LOCUS_CONFIG"
 }
 
-@test "consent follows the runtime XDG path when Locus_HOME is unset" {
-    unset Locus_HOME
+@test "consent follows the runtime XDG path when LOCUS_HOME is unset" {
+    unset LOCUS_HOME
     export XDG_DATA_HOME="$TEST_TMPDIR/xdg data"
     run bash "$SCRIPT" --no-bg-orchestrator --minimal --analytics
     [ "$status" -eq 0 ]
@@ -232,15 +246,15 @@ IDEOF
 @test "creates ~/.locus directory tree" {
     run bash "$SCRIPT" --no-bg-orchestrator
     [ "$status" -eq 0 ]
-    [ -d "$Locus_HOME/src" ]
-    [ -d "$Locus_HOME/.state" ]
-    [ -d "$Locus_HOME/.scripts" ]
+    [ -d "$LOCUS_HOME/src" ]
+    [ -d "$LOCUS_HOME/.state" ]
+    [ -d "$LOCUS_HOME/.scripts" ]
 }
 
 @test "writes install-state.json on success" {
     run bash "$SCRIPT" --no-bg-orchestrator
     [ "$status" -eq 0 ]
-    [ -f "$Locus_HOME/.state/install-state.json" ]
+    [ -f "$LOCUS_HOME/.state/install-state.json" ]
 }
 
 @test "calls git clone for the Locus repo" {
@@ -248,10 +262,10 @@ IDEOF
     grep -q "clone" "$GIT_STUB_LOG"
 }
 
-@test "creates jarvis symlink in ~/.local/bin" {
+@test "creates locus symlink in ~/.local/bin" {
     run bash "$SCRIPT" --no-bg-orchestrator
     [ "$status" -eq 0 ]
-    [ -L "$FAKE_HOME/.local/bin/jarvis" ] || [ -f "$FAKE_HOME/.local/bin/jarvis" ]
+    [ -L "$FAKE_HOME/.local/bin/locus" ] || [ -f "$FAKE_HOME/.local/bin/locus" ]
 }
 
 @test "is idempotent — second run skips completed steps" {
@@ -264,9 +278,9 @@ IDEOF
 }
 
 @test "detects WSL2 and writes platform note to install-state" {
-    Locus_FORCE_WSL=1 run bash "$SCRIPT" --no-bg-orchestrator
+    LOCUS_FORCE_WSL=1 run bash "$SCRIPT" --no-bg-orchestrator
     [ "$status" -eq 0 ]
-    grep -q "wsl" "$Locus_HOME/.state/install-state.json"
+    grep -q "wsl" "$LOCUS_HOME/.state/install-state.json"
 }
 
 @test "fails loudly when git is missing" {
@@ -339,9 +353,9 @@ IDEOF
     PATH="$no_py_stubs" run bash "$SCRIPT" --no-bg-orchestrator --minimal
     [ "$status" -eq 0 ]
     # State file was still written (mark_done is Python-free).
-    [ -f "$Locus_HOME/.state/install-state.json" ]
+    [ -f "$LOCUS_HOME/.state/install-state.json" ]
     # And it still has valid-looking JSON for state_done's grep.
-    grep -q '"install_uv":' "$Locus_HOME/.state/install-state.json"
+    grep -q '"install_uv":' "$LOCUS_HOME/.state/install-state.json"
 }
 
 @test "mark_done is idempotent — second mark of same key doesn't duplicate" {
@@ -349,13 +363,13 @@ IDEOF
     [ "$status" -eq 0 ]
     # Capture first state file
     local first_count
-    first_count="$(grep -c '"install_uv":' "$Locus_HOME/.state/install-state.json")"
+    first_count="$(grep -c '"install_uv":' "$LOCUS_HOME/.state/install-state.json")"
     [ "$first_count" -eq 1 ]
     # Second run reuses state — keys should not duplicate even if some path re-marks.
     run bash "$SCRIPT" --no-bg-orchestrator
     [ "$status" -eq 0 ]
     local second_count
-    second_count="$(grep -c '"install_uv":' "$Locus_HOME/.state/install-state.json")"
+    second_count="$(grep -c '"install_uv":' "$LOCUS_HOME/.state/install-state.json")"
     [ "$second_count" -eq 1 ]
 }
 

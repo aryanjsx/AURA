@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install the energy-measurement backend for this machine.
 #
-# Referenced by `jarvis bench --setup-energy` (see cli/bench_cmd.py), which
+# Referenced by `locus bench --setup-energy` (see cli/bench_cmd.py), which
 # built a path to this script and offered to run it while the file did not
 # exist -- the offer silently did nothing.
 #
@@ -64,7 +64,7 @@ from locus.telemetry.energy_monitor import create_energy_monitor
 monitor = create_energy_monitor()
 if monitor is None:
     raise SystemExit(
-        "Energy monitor still unavailable. Run `jarvis doctor` for details."
+        "Energy monitor still unavailable. Run `locus doctor` for details."
     )
 print(f"OK: {monitor.vendor().value} via {monitor.energy_method()}")
 monitor.close()

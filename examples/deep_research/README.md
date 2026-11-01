@@ -58,7 +58,7 @@ python examples/deep_research/research.py "climate policy trends" \
 | `--output`     | (none)     | File path to save the final report       |
 
 The companion `research.toml` provides the same defaults as a declarative
-recipe that can be loaded with `load_recipe()` or passed to the `jarvis eval`
+recipe that can be loaded with `load_recipe()` or passed to the `locus eval`
 runner.
 
 ## How It Works
@@ -90,7 +90,7 @@ turns.
 ## Customization Tips
 
 - **Add more tools** -- append tool names to the `tools` list in
-  `research.toml` or pass them on the command line. See `jarvis agent info
+  `research.toml` or pass them on the command line. See `locus agent info
   orchestrator` for the full tool catalog.
 - **Adjust temperature** -- lower values (0.2) produce more focused reports;
   higher values (0.8) encourage broader exploration.

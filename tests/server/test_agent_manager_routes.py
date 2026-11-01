@@ -570,7 +570,7 @@ class TestAgentManagerStreaming:
                 yield StreamChunk(content=f"response-{call}")
                 yield StreamChunk(finish_reason="stop")
 
-        monkeypatch.setenv("Locus_HOME", str(tmp_path / "runtime"))
+        monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "runtime"))
         engine = SlowEngine()
         app = FastAPI()
         app.state.engine = engine

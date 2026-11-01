@@ -7,7 +7,7 @@
     deploy/launchd/com.locus.plist.
 
     Registers a per-user scheduled task named "Locus" that starts
-    `jarvis serve` at logon and restarts on failure. Loopback default
+    `locus serve` at logon and restarts on failure. Loopback default
     (127.0.0.1) so no API key is required — matches launchd parity.
 
     Subcommands:
@@ -19,15 +19,15 @@
       -InstallRoot <path>  default: %LOCALAPPDATA%\Locus (matches
                            install.ps1's default)
       -ListenHost <addr>   default: 127.0.0.1 (loopback). Set to 0.0.0.0
-                           ONLY if you also set $env:Locus_API_KEY
+                           ONLY if you also set $env:LOCUS_API_KEY
                            — the server refuses to start unauthenticated
                            on a non-loopback bind.
       -ListenPort <int>    default: 8000
 
     Usage:
-      powershell -ExecutionPolicy Bypass -File jarvis-service.ps1 install
-      powershell -ExecutionPolicy Bypass -File jarvis-service.ps1 uninstall
-      powershell -ExecutionPolicy Bypass -File jarvis-service.ps1 status
+      powershell -ExecutionPolicy Bypass -File locus-service.ps1 install
+      powershell -ExecutionPolicy Bypass -File locus-service.ps1 uninstall
+      powershell -ExecutionPolicy Bypass -File locus-service.ps1 status
 #>
 
 [CmdletBinding()]
@@ -57,7 +57,7 @@ function Get-DefaultInstallRoot {
     # function scope (PowerShell's default dynamic lookup would also
     # work today, but $script: is the explicit contract).
     if ($script:InstallRoot) { return $script:InstallRoot }
-    if ($env:Locus_HOME) { return $env:Locus_HOME }
+    if ($env:LOCUS_HOME) { return $env:LOCUS_HOME }
     return (Join-Path $env:LOCALAPPDATA 'Locus')
 }
 
@@ -87,13 +87,13 @@ function Install-Task {
     # Safety: refuse to register a non-loopback bind without an API key.
     # Mirrors deploy/systemd/locus.service's EnvironmentFile guard.
     $isLoopback = ($ListenHost -eq '127.0.0.1' -or $ListenHost -eq 'localhost')
-    if (-not $isLoopback -and -not $env:Locus_API_KEY) {
+    if (-not $isLoopback -and -not $env:LOCUS_API_KEY) {
         Write-Fail @"
-ListenHost is $ListenHost (non-loopback) but `$env:Locus_API_KEY is
-not set. An unauthenticated non-loopback bind is refused by jarvis serve
+ListenHost is $ListenHost (non-loopback) but `$env:LOCUS_API_KEY is
+not set. An unauthenticated non-loopback bind is refused by locus serve
 and would also create a security hole. Set the env var first:
 
-    `$env:Locus_API_KEY = (uv run jarvis auth generate-key)
+    `$env:LOCUS_API_KEY = (uv run locus auth generate-key)
 
 then re-run with -ListenHost 0.0.0.0.
 "@
@@ -102,15 +102,15 @@ then re-run with -ListenHost 0.0.0.0.
     # CRITICAL: scheduled tasks do NOT inherit the registering session's
     # environment. If we registered the task now and stopped here, the
     # task would launch at logon with a clean env, find no API key, and
-    # `jarvis serve` would refuse to bind 0.0.0.0 — failing silently every
+    # `locus serve` would refuse to bind 0.0.0.0 — failing silently every
     # logon. Persist the key to the User env scope so the task's logon
     # session picks it up. (Loopback path doesn't need the key, so this
     # only runs for the explicit LAN-exposed case.)
     if (-not $isLoopback) {
-        Write-Info "Persisting Locus_API_KEY to User environment so the scheduled task can read it at logon."
+        Write-Info "Persisting LOCUS_API_KEY to User environment so the scheduled task can read it at logon."
         [System.Environment]::SetEnvironmentVariable(
-            'Locus_API_KEY',
-            $env:Locus_API_KEY,
+            'LOCUS_API_KEY',
+            $env:LOCUS_API_KEY,
             'User'
         )
     }
@@ -129,7 +129,7 @@ then re-run with -ListenHost 0.0.0.0.
 
     $action = New-ScheduledTaskAction `
         -Execute $uvPath `
-        -Argument "run jarvis serve --host $ListenHost --port $ListenPort" `
+        -Argument "run locus serve --host $ListenHost --port $ListenPort" `
         -WorkingDirectory $srcDir
 
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME

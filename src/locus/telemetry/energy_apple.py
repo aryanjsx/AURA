@@ -46,7 +46,7 @@ except ImportError:
     _NATIVE_AVAILABLE = False
 
 
-# Monitors holding a live native handle. Long-lived callers (`jarvis serve`)
+# Monitors holding a live native handle. Long-lived callers (`locus serve`)
 # create one for the process lifetime and never close it, which leaves the
 # nanobind object alive when the extension's types are torn down -- the
 # extension then prints "leaked instance" warnings on exit. Releasing the

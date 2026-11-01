@@ -424,7 +424,7 @@ def load_configured_facts(config: Any) -> List[Fact]:
     """Load automatic-memory facts from *config* when the service is enabled.
 
     Context injection is also used by short-lived commands such as
-    ``jarvis ask``, where no :class:`MemoryService` instance exists.  This
+    ``locus ask``, where no :class:`MemoryService` instance exists.  This
     helper gives those callers the same configured fact-store view without
     coupling them to the service lifecycle.
     """

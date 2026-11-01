@@ -50,7 +50,7 @@ class TestHintFunctions:
     def test_mining_not_running_hint_when_configured_no_sidecar(self):
         msg = mining_not_running_hint(object(), sidecar_present=False)
         assert msg is not None
-        assert "jarvis mine start" in msg
+        assert "locus mine start" in msg
 
     def test_mining_not_running_hint_silent_when_running(self):
         assert mining_not_running_hint(object(), sidecar_present=True) is None

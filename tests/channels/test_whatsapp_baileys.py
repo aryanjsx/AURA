@@ -45,7 +45,7 @@ class TestInit:
     def test_defaults(self):
         ch = WhatsAppBaileysChannel()
         assert ch._auth_dir == ""
-        assert ch._assistant_name == "Jarvis"
+        assert ch._assistant_name == "Locus"
         assert ch._assistant_has_own_number is False
         assert ch._status == ChannelStatus.DISCONNECTED
         assert ch._process is None

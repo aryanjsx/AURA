@@ -70,15 +70,15 @@ body:
           required: true
         - label: Non-mining layers use int8 vanilla Pearl GEMM
           required: true
-        - label: `jarvis mine init --model <pearl-model-id>` succeeds
+        - label: `locus mine init --model <pearl-model-id>` succeeds
           required: true
-        - label: `jarvis mine start` succeeds
+        - label: `locus mine start` succeeds
           required: true
-        - label: `jarvis ask` succeeds through the mining engine
+        - label: `locus ask` succeeds through the mining engine
           required: true
-        - label: `jarvis mine status` reports gateway/mining metrics
+        - label: `locus mine status` reports gateway/mining metrics
           required: true
-        - label: `jarvis mine validate-model --allow-planned` passes
+        - label: `locus mine validate-model --allow-planned` passes
           required: true
         - label: Gateway/miner logs show no submission errors
           required: true
@@ -89,8 +89,8 @@ body:
       description: Attach logs, metrics, model config, and command output.
       placeholder: |
         - /v1/models output:
-        - `jarvis mine status` output:
-        - `jarvis mine validate-model --output` JSON:
+        - `locus mine status` output:
+        - `locus mine validate-model --output` JSON:
         - gateway metrics excerpt:
         - miner logs:
         - PR/commit that flips status to validated:

@@ -11,7 +11,7 @@ available, the app prompts the user to download and install it.
 on launch / every 30 min
         │
         ▼
-GET https://github.com/locus/Locus/releases/download/desktop-latest/latest.json
+GET https://github.com/aryanjsx/Locus/releases/download/desktop-latest/latest.json
         │
         ▼
 Parse manifest: { "version": "X.Y.Z", "platforms": { ... } }
@@ -102,7 +102,7 @@ builds (where `import.meta.env.VITE_Locus_NO_UPDATER` will be
 
 ```bash
 # Download the latest manifest and confirm it parses cleanly
-curl -fsSL https://github.com/locus/Locus/releases/download/desktop-latest/latest.json | jq .
+curl -fsSL https://github.com/aryanjsx/Locus/releases/download/desktop-latest/latest.json | jq .
 
 # Fields:
 #   version       — semver string, must match the tag (without leading "v")

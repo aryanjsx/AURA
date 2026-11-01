@@ -64,7 +64,7 @@ def _installer_clone(installer, source, clone, cwd, *, env_extra=None):
     kind, executable = installer
     env = {
         **os.environ,
-        "Locus_REPO_URL": source,
+        "LOCUS_REPO_URL": source,
         "SRC_DIR": str(clone),
         "FORCE": "0",
     }
@@ -84,7 +84,7 @@ def _installer_clone(installer, source, clone, cwd, *, env_extra=None):
         end = script.index("    if ($LASTEXITCODE", start)
         body = (
             "$ErrorActionPreference = 'Stop'\n"
-            "$repoUrl = $env:Locus_REPO_URL\n"
+            "$repoUrl = $env:LOCUS_REPO_URL\n"
             "$srcDir = $env:SRC_DIR\n"
             "$gitExe = (Get-Command git).Source\n"
             + script[start:end]
@@ -207,7 +207,7 @@ def test_update_recovers_version_before_reinstall_and_preserves_user_files(
             sys.executable,
             "--inexact",
             "--reinstall-package",
-            "locus",
+            "locus-assistant",
         ]
         assert kwargs["env"]["UV_PROJECT_ENVIRONMENT"] == str(active_venv)
         rebuild_versions.append(_git(clone, "describe", "--tags", "--long"))

@@ -4,9 +4,9 @@
 # The fastest setup: just Ollama + a model.
 #
 # Usage:
-#   jarvis ask "What is quantum computing?"
-#   jarvis chat                  # interactive chat session
-#   jarvis serve                 # start API server for browser/desktop app
+#   locus ask "What is quantum computing?"
+#   locus chat                  # interactive chat session
+#   locus serve                 # start API server for browser/desktop app
 
 [engine]
 default = "ollama"

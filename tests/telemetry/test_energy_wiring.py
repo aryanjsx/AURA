@@ -103,7 +103,7 @@ def _energy_config(tmp_path, gpu_metrics=True):
     cfg.telemetry.energy_vendor = ""
     cfg.telemetry.db_path = str(tmp_path / "telemetry.db")
     # These tests exercise engine-level instrumentation, not agent dispatch.
-    # `jarvis ask` (no --agent) now falls back to ``agent.default_agent``
+    # `locus ask` (no --agent) now falls back to ``agent.default_agent``
     # which defaults to "simple", and conftest clears the registry per test.
     # Opt out explicitly so the CLI uses direct-engine mode here.
     cfg.agent.default_agent = ""

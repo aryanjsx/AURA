@@ -212,7 +212,7 @@ def create_app(
             for primitive in (capability_policy, rate_limiter, audit_logger)
         ):
             # Programmatic factory callers must receive the same config-driven
-            # enforcement as ``jarvis serve``. Explicitly injected primitives
+            # enforcement as ``locus serve``. Explicitly injected primitives
             # remain authoritative; only missing pieces are derived.
             from locus.security import setup_security
 
@@ -255,11 +255,11 @@ def create_app(
     from fastapi.middleware.cors import CORSMiddleware
 
     # Allow deployments to pin the exact browser origins via
-    # Locus_CORS_ORIGINS (comma-separated). On an exposed server this
+    # LOCUS_CORS_ORIGINS (comma-separated). On an exposed server this
     # should be set to your real frontend origin(s) only — never "*", which
     # combined with allow_credentials=True would let any website call the API
     # in the user's authenticated context.
-    _env_origins = os.environ.get("Locus_CORS_ORIGINS", "").strip()
+    _env_origins = os.environ.get("LOCUS_CORS_ORIGINS", "").strip()
     if cors_origins is not None:
         _origins = cors_origins
     elif _env_origins:

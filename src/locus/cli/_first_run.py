@@ -1,12 +1,12 @@
-"""Bare-`jarvis` first-run guard.
+"""Bare-`locus` first-run guard.
 
-When the user types ``jarvis`` with no subcommand, route them to the
+When the user types ``locus`` with no subcommand, route them to the
 chat command if a config exists, otherwise into the init wizard with
 the ``--from-bare-jarvis`` flag (which lets init suppress the
 launch-chat prompt and auto-confirm downstream questions).
 
-On an interactive terminal, bare ``jarvis`` opens the model picker first
-(unless ``JARVIS_SKIP_MODEL_PICK=1``). Use ``jarvis --pick-model`` to
+On an interactive terminal, bare ``locus`` opens the model picker first
+(unless ``JARVIS_SKIP_MODEL_PICK=1``). Use ``locus --pick-model`` to
 force the picker even when that env is set.
 """
 
@@ -26,7 +26,7 @@ def check_and_route(ctx: click.Context) -> None:
     """Called from the root group when no subcommand is invoked.
 
     Returns None and does nothing if a subcommand is being invoked
-    (the user typed something specific like ``jarvis ask``).
+    (the user typed something specific like ``locus ask``).
     """
     if ctx.invoked_subcommand is not None:
         return

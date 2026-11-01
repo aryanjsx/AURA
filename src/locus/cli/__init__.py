@@ -19,7 +19,7 @@ def _invoked_command(argv: list[str]) -> str:
     return ""
 
 
-# A data-boundary scan must be able to diagnose an invalid Locus_HOME.
+# A data-boundary scan must be able to diagnose an invalid LOCUS_HOME.
 # Importing the rest of the CLI eagerly would import core.config and resolve that
 # path before the scan can turn the failure into a finding.
 _DATA_BOUNDARY_BOOTSTRAP = (
@@ -38,7 +38,7 @@ def _should_skip_update_check(ctx: click.Context, argv: list[str]) -> bool:
     help="Locus — modular AI assistant backend",
     invoke_without_command=True,
 )
-@click.version_option(version=locus.__version__, prog_name="jarvis")
+@click.version_option(version=locus.__version__, prog_name="locus")
 @click.option("--verbose", is_flag=True, default=False, help="Enable debug logging")
 @click.option("--quiet", is_flag=True, default=False, help="Suppress non-error output")
 @click.option(
@@ -47,7 +47,7 @@ def _should_skip_update_check(ctx: click.Context, argv: list[str]) -> bool:
     is_flag=True,
     default=False,
     help=(
-        "Bare ``jarvis``: force interactive model list "
+        "Bare ``locus``: force interactive model list "
         "(overrides JARVIS_SKIP_MODEL_PICK)."
     ),
 )
@@ -63,10 +63,10 @@ def cli(ctx: click.Context, verbose: bool, quiet: bool, pick_model_bare: bool) -
     setup_logging(verbose=verbose, quiet=quiet)
 
     # Check for updates on interactive commands. The banner is noise in
-    # demo recordings of ``jarvis ask --research``, so skip it whenever
+    # demo recordings of ``locus ask --research``, so skip it whenever
     # the research flag is in argv (cheap argv sniff — Click hasn't
     # parsed the subcommand's args yet at this point). Also skip
-    # ``jarvis scan --data-boundaries`` because it is intended to be a
+    # ``locus scan --data-boundaries`` because it is intended to be a
     # local application-data diagnostic with no outbound calls.
     import sys
 
@@ -78,7 +78,7 @@ def cli(ctx: click.Context, verbose: bool, quiet: bool, pick_model_bare: bool) -
 
         # Run the PyPI version poll off the hot path: on a cache miss it does
         # a blocking urlopen (up to 3s) that otherwise delays every command,
-        # notably `jarvis serve` startup (#263). It's best-effort and never
+        # notably `locus serve` startup (#263). It's best-effort and never
         # raises, and the nudge prints to stderr, so a daemon thread is safe —
         # for long-lived commands (serve) it finishes; for short commands that
         # exit first, the check is simply skipped this run (same as a miss).
@@ -88,7 +88,7 @@ def cli(ctx: click.Context, verbose: bool, quiet: bool, pick_model_bare: bool) -
             daemon=True,
         ).start()
 
-    # First-run guard — routes bare `jarvis` to chat or init.
+    # First-run guard — routes bare `locus` to chat or init.
     if ctx.invoked_subcommand is None:
         from locus.cli._first_run import check_and_route
 
@@ -205,7 +205,7 @@ if not _DATA_BOUNDARY_BOOTSTRAP:
 
 
 def main() -> None:
-    """Entry point registered as ``jarvis`` console script."""
+    """Entry point registered as ``locus`` console script."""
     import sys
 
     if sys.platform == "win32":

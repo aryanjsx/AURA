@@ -7,9 +7,9 @@ Manual testing scenarios for persistent agents in the CLI and desktop app.
 | Prerequisite | Command / Check |
 |---|---|
 | Ollama running with model | `ollama list` shows `qwen3:8b` |
-| Locus initialized | `uv run jarvis doctor` all green |
+| Locus initialized | `uv run locus doctor` all green |
 | Rust extension built | `uv run maturin develop -m rust/crates/locus-python/Cargo.toml` |
-| Desktop app running | `uv run jarvis serve` + `cd frontend && npm run dev` |
+| Desktop app running | `uv run locus serve` + `cd frontend && npm run dev` |
 | Slack credentials | `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN` set, bot invited to test channel |
 | Gmail credentials | OAuth credentials.json downloaded, token generated |
 | Twitter credentials | All 5 env vars set (bearer + OAuth 1.0a) |
@@ -21,18 +21,18 @@ Manual testing scenarios for persistent agents in the CLI and desktop app.
 
 | # | Scenario | Steps | Expected Result | Pass |
 |---|----------|-------|-----------------|------|
-| 1 | Template launch | `jarvis agents launch`, pick research_monitor | Agent created, config printed with curated tools | [ ] |
-| 2 | Manual run | `jarvis agents run <id>` | Output shows reasoning + tool calls, status -> idle | [ ] |
-| 3 | Immediate ask | `jarvis agents ask <id> "summarize recent AI news"` | Synchronous response in terminal | [ ] |
-| 4 | Queued instruct | `jarvis agents instruct <id> "focus on diffusion"`, then `jarvis agents run <id>` | Queued -> delivered, response in `jarvis agents messages <id>` | [ ] |
-| 5 | Status check | `jarvis agents status` after 3+ runs | total_runs, total_cost, last_run_at populated | [ ] |
-| 6 | Pause/resume | `jarvis agents pause <id>`, verify skipped, `jarvis agents resume <id>`, verify fires | Status toggles correctly | [ ] |
-| 7 | Daemon scheduling | `jarvis agents daemon` with interval agent (60s) | 3+ ticks fire on schedule, memory accumulates | [ ] |
+| 1 | Template launch | `locus agents launch`, pick research_monitor | Agent created, config printed with curated tools | [ ] |
+| 2 | Manual run | `locus agents run <id>` | Output shows reasoning + tool calls, status -> idle | [ ] |
+| 3 | Immediate ask | `locus agents ask <id> "summarize recent AI news"` | Synchronous response in terminal | [ ] |
+| 4 | Queued instruct | `locus agents instruct <id> "focus on diffusion"`, then `locus agents run <id>` | Queued -> delivered, response in `locus agents messages <id>` | [ ] |
+| 5 | Status check | `locus agents status` after 3+ runs | total_runs, total_cost, last_run_at populated | [ ] |
+| 6 | Pause/resume | `locus agents pause <id>`, verify skipped, `locus agents resume <id>`, verify fires | Status toggles correctly | [ ] |
+| 7 | Daemon scheduling | `locus agents daemon` with interval agent (60s) | 3+ ticks fire on schedule, memory accumulates | [ ] |
 | 8 | Budget exhaustion | Set max_cost=0.001, run until exceeded | Status becomes budget_exceeded | [ ] |
-| 9 | Error recovery | Kill Ollama mid-tick, then `jarvis agents recover <id>` | Error -> recover -> idle with checkpoint | [ ] |
-| 10 | Channel binding | `jarvis agents bind <id> --slack #test`, run tick | Agent sends to Slack | [ ] |
+| 9 | Error recovery | Kill Ollama mid-tick, then `locus agents recover <id>` | Error -> recover -> idle with checkpoint | [ ] |
+| 10 | Channel binding | `locus agents bind <id> --slack #test`, run tick | Agent sends to Slack | [ ] |
 | 11 | Multi-agent | Launch 3 agents, different intervals, run daemon | All fire independently | [ ] |
-| 12 | Template tools | Create from each template, `jarvis agents info <id>` | All curated default tools listed | [ ] |
+| 12 | Template tools | Create from each template, `locus agents info <id>` | All curated default tools listed | [ ] |
 
 ## Desktop App Scenarios
 

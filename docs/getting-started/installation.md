@@ -19,7 +19,7 @@ your machine and the frontend connects via `localhost`.
 ### One-command setup
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 ./scripts/quickstart.sh
 ```
@@ -39,7 +39,7 @@ If you prefer to run each step yourself:
 === "Step 1: Clone and install"
 
     ```bash
-    git clone https://github.com/locus/Locus.git
+    git clone https://github.com/aryanjsx/Locus.git
     cd Locus
     uv sync --extra desktop
     uv run maturin develop -m rust/crates/locus-python/Cargo.toml
@@ -61,7 +61,7 @@ If you prefer to run each step yourself:
 === "Step 3: Start backend"
 
     ```bash
-    uv run jarvis serve --port 8000
+    uv run locus serve --port 8000
     ```
 
 === "Step 4: Start frontend"
@@ -85,7 +85,7 @@ processing happens on your local machine — the app connects to the backend you
 **Step 1.** Start the backend (same as Browser App):
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 ./scripts/quickstart.sh
 ```
@@ -94,11 +94,11 @@ cd Locus
 
 | Platform | Download |
 |----------|----------|
-| macOS (Universal) | [:material-download: **Locus.dmg**](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus_1.0.1_universal.dmg) |
-| Windows (64-bit) | [:material-download: **Locus-setup.exe**](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus_1.0.1_x64-setup.exe) |
-| Linux (DEB) | [:material-download: **Locus.deb**](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus_1.0.1_amd64.deb) |
-| Linux (RPM) | [:material-download: **Locus.rpm**](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus-1.0.1-1.x86_64.rpm) |
-| Linux (AppImage) | [:material-download: **Locus.AppImage**](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus_1.0.1_amd64.AppImage) |
+| macOS (Universal) | [:material-download: **Locus.dmg**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_universal.dmg) |
+| Windows (64-bit) | [:material-download: **Locus-setup.exe**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_x64-setup.exe) |
+| Linux (DEB) | [:material-download: **Locus.deb**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_amd64.deb) |
+| Linux (RPM) | [:material-download: **Locus.rpm**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/Locus-1.0.1-1.x86_64.rpm) |
+| Linux (AppImage) | [:material-download: **Locus.AppImage**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_amd64.AppImage) |
 
 The app connects to `http://localhost:8000` automatically.
 
@@ -110,12 +110,12 @@ The app connects to `http://localhost:8000` automatically.
     This is normal for open-source apps distributed outside the App Store.
 
 !!! tip "All releases"
-    Browse all versions on the [GitHub Releases](https://github.com/locus/Locus/releases) page.
+    Browse all versions on the [GitHub Releases](https://github.com/aryanjsx/Locus/releases) page.
 
 ### Build from source
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus/desktop
 npm install
 npm run tauri build
@@ -133,7 +133,7 @@ programmatically. Every feature is accessible from the terminal.
 ### Install
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 uv sync
 uv run maturin develop -m rust/crates/locus-python/Cargo.toml
@@ -144,24 +144,24 @@ Requires [Rust](https://rustup.rs/). On Python 3.14+, set `PYO3_USE_ABI3_FORWARD
 ### Verify
 
 ```bash
-jarvis --version
-# jarvis, version 0.1.0
+locus --version
+# locus, version 0.1.0
 ```
 
 ### First commands
 
 ```bash
-jarvis ask "What is the capital of France?"
+locus ask "What is the capital of France?"
 
-jarvis ask --agent orchestrator --tools calculator "What is 137 * 42?"
+locus ask --agent orchestrator --tools calculator "What is 137 * 42?"
 
-jarvis serve --port 8000
+locus serve --port 8000
 
-jarvis doctor
+locus doctor
 
-jarvis model list
+locus model list
 
-jarvis chat
+locus chat
 ```
 
 !!! info "Inference backend required"
@@ -177,7 +177,7 @@ For programmatic access, the `Jarvis` class provides a high-level sync API.
 ### Install
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 uv sync
 uv run maturin develop -m rust/crates/locus-python/Cargo.toml
@@ -238,18 +238,18 @@ See the [Python SDK guide](../user-guide/python-sdk.md) for the full API referen
 
 Locus has no special hardware requirements of its own — the CLI, server, and
 SDK run anywhere the software [Requirements](#requirements) below are met.
-`jarvis init` detects your CPU, RAM, and GPU, then recommends an inference engine
+`locus init` detects your CPU, RAM, and GPU, then recommends an inference engine
 and local model for the generated config. You can choose a different engine during
 setup.
 
 ```bash
-jarvis init          # detect hardware, write a matching config
+locus init          # detect hardware, write a matching config
 ```
 
 ### Recommended configurations
 
 These are the Qwen3.5 recommendations for `llamacpp`, `mlx`, `ollama`, `vllm`, and
-`sglang`. `jarvis init` can offer an already-running engine first, and your engine
+`sglang`. `locus init` can offer an already-running engine first, and your engine
 choice can change the model. The bands use whole-number GB values and assume one
 GPU; the formulas below determine the exact result.
 
@@ -266,7 +266,7 @@ detection reports unified system memory as GPU memory.
 
 ### How the model is chosen
 
-`jarvis init` first computes usable memory:
+`locus init` first computes usable memory:
 
 | Detected | Usable memory |
 |----------|---------------|
@@ -300,12 +300,12 @@ The detected GPU vendor and reported name select the engine:
 | AMD name containing MI300, MI325, MI350, or MI355 | `vllm` |
 | Other AMD (including Radeon) | `lemonade` |
 
-When `lemonade` is selected and usable memory is positive, `jarvis init` instead
+When `lemonade` is selected and usable memory is positive, `locus init` instead
 recommends `Qwen3.6-35B-A3B-GGUF`. The Qwen3.5 tier and download tables above do
 not apply to that default.
 
 See [Setting Up an Inference Backend](#setting-up-an-inference-backend) for
-installing the engine `jarvis init` picks.
+installing the engine `locus init` picks.
 
 ### Minimum
 
@@ -330,7 +330,7 @@ environment and whichever inference engine you install.
     These are defaults, not limits. The generated config records what was detected
     in a comment at the top of the file, and `default_model` under `[intelligence]`
     in `~/.locus/config.toml` can be set to anything larger or smaller — see
-    the [Configuration guide](configuration.md). Re-run `jarvis init --force` to
+    the [Configuration guide](configuration.md). Re-run `locus init --force` to
     re-detect and overwrite an existing config.
 
 ---
@@ -380,7 +380,7 @@ Locus uses optional extras to keep the base installation lightweight.
 | Extra | Install Command | Description |
 |-------|----------------|-------------|
 | `desktop` | `uv sync --extra desktop` | Desktop/API server plus local speech input |
-| `server` | `uv sync --extra server` | OpenAI-compatible API server (`jarvis serve`) |
+| `server` | `uv sync --extra server` | OpenAI-compatible API server (`locus serve`) |
 | `dev` | `uv sync --extra dev` | Development and testing tools |
 | `docs` | `uv sync --extra docs` | Documentation build tools |
 
@@ -406,7 +406,7 @@ The easiest way to get started. Handles model downloading and serving automatica
     ollama pull qwen3:0.6b
     ```
 
-3. Verify: `jarvis model list`
+3. Verify: `locus model list`
 
 !!! tip "Best for: Apple Silicon Macs, consumer NVIDIA GPUs, CPU-only systems"
 

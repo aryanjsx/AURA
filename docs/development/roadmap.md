@@ -16,9 +16,9 @@ These are the areas where active development is happening and contributions are 
 ## How to Get Involved
 
 1. Browse the workstreams below for an item that interests you
-2. Check if a [GitHub issue](https://github.com/locus/Locus/issues) already exists for it — if not, [open one](https://github.com/locus/Locus/issues/new/choose)
+2. Check if a [GitHub issue](https://github.com/aryanjsx/Locus/issues) already exists for it — if not, [open one](https://github.com/aryanjsx/Locus/issues/new/choose)
 3. Comment **"take"** on the issue to get auto-assigned
-4. Read the [Contributing Guide](https://github.com/locus/Locus/blob/main/CONTRIBUTING.md) for development setup and PR process
+4. Read the [Contributing Guide](https://github.com/aryanjsx/Locus/blob/main/CONTRIBUTING.md) for development setup and PR process
 
 ---
 
@@ -30,8 +30,8 @@ Every item carries a maturity tag:
 
 | Tag | Meaning | Contributor guidance |
 |-----|---------|---------------------|
-| **Ready** | Well-scoped, implementation path is clear | Pick it up — check [issues](https://github.com/locus/Locus/issues) for a spec or write one |
-| **Design Needed** | Concept is clear but needs a spec before code | Start a [design discussion](https://github.com/locus/Locus/discussions) or draft an RFC |
+| **Ready** | Well-scoped, implementation path is clear | Pick it up — check [issues](https://github.com/aryanjsx/Locus/issues) for a spec or write one |
+| **Design Needed** | Concept is clear but needs a spec before code | Start a [design discussion](https://github.com/aryanjsx/Locus/discussions) or draft an RFC |
 | **Research-Stage** | Exploratory, needs investigation before designing | Read the relevant papers, prototype, share findings |
 
 ---
@@ -44,7 +44,7 @@ Operators are Locus's key differentiator — persistent, scheduled, stateful age
 
 | Item | Maturity | Details |
 |------|----------|---------|
-| Operator health checks & heartbeat monitoring | **Ready** | Add liveness probes to OperatorManager; surface in `jarvis operators status`. Detect stalled operators beyond the existing reconciliation loop. |
+| Operator health checks & heartbeat monitoring | **Ready** | Add liveness probes to OperatorManager; surface in `locus operators status`. Detect stalled operators beyond the existing reconciliation loop. |
 | Metrics collection for operator manifests | **Ready** | The `metrics` field exists in `OperatorManifest` but is not collected. Wire it to telemetry. **Good first issue.** |
 | Capability policy enforcement | **Ready** | `required_capabilities` field exists in manifests but is not enforced. Connect to the existing RBAC `CapabilityPolicy` system. **Good first issue.** |
 | Rate limiting per operator | **Ready** | Prevent runaway operators from hammering inference. Add configurable rate limits to OperatorManager. |

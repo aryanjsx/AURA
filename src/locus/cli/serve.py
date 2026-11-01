@@ -1,4 +1,4 @@
-"""``jarvis serve`` — OpenAI-compatible API server."""
+"""``locus serve`` — OpenAI-compatible API server."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ _DEFAULT_TOOLS = frozenset({"think", "calculator", "web_search"})
 
 def _resolve_server_cors_origins(configured: object) -> list[str]:
     """Resolve server CORS origins with environment taking precedence."""
-    raw = os.environ.get("Locus_CORS_ORIGINS", "").strip()
+    raw = os.environ.get("LOCUS_CORS_ORIGINS", "").strip()
     if raw:
         return [origin.strip() for origin in raw.split(",") if origin.strip()]
     if isinstance(configured, list):
@@ -689,7 +689,7 @@ def serve(
     # --- Channel Gateway: API key, sessions, ChannelBridge ---
     import os as _os
 
-    api_key = _os.environ.get("Locus_API_KEY", "")
+    api_key = _os.environ.get("LOCUS_API_KEY", "")
     if not api_key:
         try:
             import tomllib

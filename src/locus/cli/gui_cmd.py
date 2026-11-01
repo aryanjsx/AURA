@@ -1,4 +1,4 @@
-"""``jarvis gui`` — start and open the local graphical interface."""
+"""``locus gui`` — start and open the local graphical interface."""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ _API_FAILURES_BEFORE_DOWN = 3
 
 def _frontend_dir() -> Path | None:
     """Find the source checkout's frontend directory."""
-    configured = os.environ.get("Locus_FRONTEND_DIR")
+    configured = os.environ.get("LOCUS_FRONTEND_DIR")
     candidates = [Path(configured)] if configured else []
     candidates.append(Path(__file__).resolve().parents[3] / "frontend")
     for candidate in candidates:
@@ -485,7 +485,7 @@ def gui(frontend_port: int, api_port: int, no_server: bool, no_browser: bool) ->
     _check_frontend_port(frontend_port)
     _ensure_frontend_dependencies(frontend, npm)
 
-    # `jarvis start` exits non-zero when a daemon is already registered, so
+    # `locus start` exits non-zero when a daemon is already registered, so
     # without this a perfectly healthy API turned into the misleading "Could
     # not start the Locus API server." Adopt it instead.
     if not no_server and _api_healthy(api_port):
@@ -514,7 +514,7 @@ def gui(frontend_port: int, api_port: int, no_server: bool, no_browser: bool) ->
                 "run",
                 "--extra",
                 "desktop",
-                "jarvis",
+                "locus",
                 "start",
                 "--port",
                 str(api_port),
@@ -529,7 +529,7 @@ def gui(frontend_port: int, api_port: int, no_server: bool, no_browser: bool) ->
     # Let browser requests use Vite's same-origin proxy at any frontend port.
     # VITE_API_URL is exposed to browser code, so clear an inherited override.
     env["VITE_API_URL"] = ""
-    env["Locus_VITE_PROXY_TARGET"] = f"http://127.0.0.1:{api_port}"
+    env["LOCUS_VITE_PROXY_TARGET"] = f"http://127.0.0.1:{api_port}"
     spawn_kwargs = {}
     if sys.platform == "win32":
         spawn_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -598,7 +598,7 @@ def gui(frontend_port: int, api_port: int, no_server: bool, no_browser: bool) ->
                 "[red]The API server stopped or failed to start; "
                 "shutting down the frontend.[/red]\n"
                 f"  Check {DEFAULT_CONFIG_DIR / 'server.log'}, "
-                f"then run 'jarvis gui' again."
+                f"then run 'locus gui' again."
             )
             raise SystemExit(1)
     except KeyboardInterrupt:

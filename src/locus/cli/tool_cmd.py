@@ -1,4 +1,4 @@
-"""``jarvis tool`` — tool management commands."""
+"""``locus tool`` — tool management commands."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ def inspect(tool_name: str) -> None:
 
         if not ToolRegistry.contains(tool_name):
             console.print(f"[red]Tool not found: {tool_name}[/red]")
-            console.print("[dim]Run 'jarvis tool list' to see available tools.[/dim]")
+            console.print("[dim]Run 'locus tool list' to see available tools.[/dim]")
             return
 
         tool_cls = ToolRegistry.get(tool_name)

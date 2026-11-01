@@ -12,7 +12,7 @@ import pytest
 
 _INSTALLER = Path(__file__).parents[2] / "deploy" / "windows" / "install.ps1"
 _POWERSHELL = (
-    os.environ.get("Locus_TEST_PWSH")
+    os.environ.get("LOCUS_TEST_PWSH")
     # Prefer Windows PowerShell 5.1 where available: it is the installer's
     # minimum supported shell. The portable pwsh runtime also runs these tests.
     or shutil.which("powershell")

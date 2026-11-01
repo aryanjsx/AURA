@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from locus.sdk import Jarvis, JarvisSystem, MemoryHandle, SystemBuilder
 
 try:
-    __version__ = _pkg_version("locus")
+    __version__ = _pkg_version("locus-assistant")
 except PackageNotFoundError:  # pragma: no cover — uninstalled source tree
     __version__ = "0.0.0+unknown"
 

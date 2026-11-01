@@ -1,16 +1,16 @@
 """Detect how Locus was installed so we can show the right upgrade
-command (and run the right upgrade command for ``jarvis self-update``).
+command (and run the right upgrade command for ``locus self-update``).
 
 Three install paths are supported today:
 
-- **PyPI** (``pip install locus``). The package lives somewhere
-  inside ``site-packages``. Upgrade with ``pip install --upgrade locus``.
-- **uv tool** (``uv tool install locus``). Lives in a uv-managed
+- **PyPI** (``pip install locus-assistant``). The package lives somewhere
+  inside ``site-packages``. Upgrade with ``pip install --upgrade locus-assistant``.
+- **uv tool** (``uv tool install locus-assistant``). Lives in a uv-managed
   isolated venv under ``~/.local/share/uv/tools/``. Upgrade with
-  ``uv tool upgrade locus``.
+  ``uv tool upgrade locus-assistant``.
 - **Editable git checkout** (``uv sync`` / ``pip install -e .`` from a
   cloned repo). The package's ``__file__`` is inside a working tree
-  with a ``.git`` directory at the repo root. ``jarvis self-update`` repairs
+  with a ``.git`` directory at the repo root. ``locus self-update`` repairs
   shallow Git history, fast-forwards the checkout, and rebuilds package metadata
   in the running environment without removing extras.
 
@@ -49,7 +49,7 @@ def detect_install() -> InstallInfo:
     except Exception:
         return InstallInfo(
             kind="unknown",
-            upgrade_command="pip install --upgrade locus",
+            upgrade_command="pip install --upgrade locus-assistant",
         )
 
     parts = [p.lower() for p in pkg_file.parts]
@@ -57,7 +57,7 @@ def detect_install() -> InstallInfo:
     if "uv" in parts and "tools" in parts:
         return InstallInfo(
             kind="uv-tool",
-            upgrade_command="uv tool upgrade locus",
+            upgrade_command="uv tool upgrade locus-assistant",
         )
 
     # Editable install: a ``.git`` dir within a few parents of the
@@ -69,7 +69,7 @@ def detect_install() -> InstallInfo:
         if (candidate / ".git").exists() and (candidate / "pyproject.toml").exists():
             return InstallInfo(
                 kind="editable-git",
-                upgrade_command="jarvis self-update",
+                upgrade_command="locus self-update",
                 repo_root=candidate,
             )
         if candidate.parent == candidate:
@@ -79,10 +79,10 @@ def detect_install() -> InstallInfo:
     if "site-packages" in parts:
         return InstallInfo(
             kind="pypi",
-            upgrade_command="pip install --upgrade locus",
+            upgrade_command="pip install --upgrade locus-assistant",
         )
 
     return InstallInfo(
         kind="unknown",
-        upgrade_command="pip install --upgrade locus",
+        upgrade_command="pip install --upgrade locus-assistant",
     )

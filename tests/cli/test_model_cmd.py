@@ -1,4 +1,4 @@
-"""Tests for ``jarvis model`` subcommands."""
+"""Tests for ``locus model`` subcommands."""
 
 from __future__ import annotations
 

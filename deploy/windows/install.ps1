@@ -15,19 +15,19 @@
       3. Check git on PATH.
       4. Install uv (https://astral.sh/uv) if absent.
       5. Clone the Locus repository to $env:LOCALAPPDATA\Locus
-         (override with $env:Locus_HOME).
+         (override with $env:LOCUS_HOME).
       5b. Check for MSVC build tools and explain how to install them if absent - the mandatory
          locus-rust extension is compiled from source in step 6.
       6. Run `uv sync --extra desktop --group desktop-native` so the FastAPI
          server, speech backend, and native extension are importable.
       7. Optionally register the scheduled-task service (see
-         deploy/windows/jarvis-service.ps1).
+         deploy/windows/locus-service.ps1).
 
     Usage (one-liner):
-      irm https://locus.github.io/Locus/install.ps1 | iex
+      irm https://aryanjsx.github.io/Locus/install.ps1 | iex
 
     Usage (file invocation, supports flags):
-      irm https://locus.github.io/Locus/install.ps1 -OutFile install.ps1
+      irm https://aryanjsx.github.io/Locus/install.ps1 -OutFile install.ps1
       .\install.ps1 -SkipService
 
     Flags (when running the file directly):
@@ -38,14 +38,14 @@
     Under `irm | iex` the param block is unreachable (Invoke-Expression
     can't pass named args into a piped script string), so the same knobs
     are honored via env vars when the corresponding flag is absent:
-      $env:Locus_SKIP_SERVICE = '1'
-      $env:Locus_SERVICE      = '1'
-      $env:Locus_FORCE        = '1'
+      $env:LOCUS_SKIP_SERVICE = '1'
+      $env:LOCUS_SERVICE      = '1'
+      $env:LOCUS_FORCE        = '1'
 
 .NOTES
     Loopback default: the scheduled-task service binds 127.0.0.1, so no
     API key is needed. To expose on the LAN, edit the registered task to
-    pass `--host 0.0.0.0` AND set $env:Locus_API_KEY (an
+    pass `--host 0.0.0.0` AND set $env:LOCUS_API_KEY (an
     unauthenticated 0.0.0.0 server refuses to start). See
     deploy/windows/README.md.
 #>
@@ -62,9 +62,9 @@ $ErrorActionPreference = 'Stop'
 # Env-var fallback for the `irm | iex` path, where the param block is
 # unreachable (see header comment). Any explicit -switch wins; env vars
 # only fill in the gaps.
-if (-not $SkipService -and $env:Locus_SKIP_SERVICE) { $SkipService = $true }
-if (-not $Service     -and $env:Locus_SERVICE)      { $Service     = $true }
-if (-not $Force       -and $env:Locus_FORCE)        { $Force       = $true }
+if (-not $SkipService -and $env:LOCUS_SKIP_SERVICE) { $SkipService = $true }
+if (-not $Service     -and $env:LOCUS_SERVICE)      { $Service     = $true }
+if (-not $Force       -and $env:LOCUS_FORCE)        { $Force       = $true }
 
 # ---------------------------------------------------------------------------
 # Output helpers - coloured but plain enough for Constrained Language Mode.
@@ -268,8 +268,8 @@ Write-Ok "uv ($uvExe)"
 # 5. Clone the repo
 # ---------------------------------------------------------------------------
 
-$installRoot = if ($env:Locus_HOME) {
-    $env:Locus_HOME
+$installRoot = if ($env:LOCUS_HOME) {
+    $env:LOCUS_HOME
 } else {
     Join-Path $env:LOCALAPPDATA 'Locus'
 }
@@ -281,10 +281,10 @@ if (-not (Test-Path $installRoot)) {
     New-Item -ItemType Directory -Path $installRoot | Out-Null
 }
 
-$repoUrl = if ($env:Locus_REPO_URL) {
-    $env:Locus_REPO_URL
+$repoUrl = if ($env:LOCUS_REPO_URL) {
+    $env:LOCUS_REPO_URL
 } else {
-    'https://github.com/locus/Locus.git'
+    'https://github.com/aryanjsx/Locus.git'
 }
 
 if (Test-Path (Join-Path $srcDir '.git')) {
@@ -465,7 +465,7 @@ if (-not $ollamaReady) {
 
 $modelPullOk = $false
 if ($ollamaReady) {
-    Write-Info "Pulling qwen3.5:2b (~1.5 GB) so 'jarvis' works on first run..."
+    Write-Info "Pulling qwen3.5:2b (~1.5 GB) so 'locus' works on first run..."
     & $ollamaExe pull 'qwen3.5:2b'
     if ($LASTEXITCODE -eq 0) {
         $modelPullOk = $true
@@ -478,11 +478,11 @@ if ($ollamaReady) {
 }
 
 # ---------------------------------------------------------------------------
-# 9. jarvis.cmd shim - so bare `jarvis` works in any new PowerShell
+# 9. locus.cmd shim - so bare `locus` works in any new PowerShell
 # ---------------------------------------------------------------------------
 
 $binDir = Join-Path $installRoot 'bin'
-$shimPath = Join-Path $binDir 'jarvis.cmd'
+$shimPath = Join-Path $binDir 'locus.cmd'
 
 if (-not (Test-Path $binDir)) {
     New-Item -ItemType Directory -Path $binDir | Out-Null
@@ -497,7 +497,7 @@ $shimContent = @"
 @echo off
 setlocal
 set "SRC=%~dp0..\src"
-uv run --project "%SRC%" jarvis %*
+uv run --project "%SRC%" locus %*
 "@
 Set-Content -Path $shimPath -Value $shimContent -Encoding ASCII
 
@@ -523,13 +523,13 @@ if (-not $pathOnUser) {
     [System.Environment]::SetEnvironmentVariable('Path', $newUserPath, 'User')
     $pathNeedsRefresh = $true
 }
-Write-Ok "jarvis shim installed at $shimPath"
+Write-Ok "locus shim installed at $shimPath"
 
 # ---------------------------------------------------------------------------
 # 10. Optional: register the scheduled-task service
 # ---------------------------------------------------------------------------
 
-$serviceScript = Join-Path $srcDir 'deploy\windows\jarvis-service.ps1'
+$serviceScript = Join-Path $srcDir 'deploy\windows\locus-service.ps1'
 $shouldInstallService = $false
 
 # Pre-check admin if the user wants the service - Register-ScheduledTask
@@ -598,12 +598,12 @@ Write-Host "  Repo:    $srcDir"
 # Tell the truth about what the user can run next, given (a) whether the
 # starter model finished pulling and (b) whether the User-PATH update
 # needs a fresh PowerShell to take effect.
-$nextCmd = if ($modelPullOk) { 'jarvis' } else { 'jarvis doctor' }
+$nextCmd = if ($modelPullOk) { 'locus' } else { 'locus doctor' }
 
 if ($pathNeedsRefresh) {
     Write-Host ""
     Write-Host "  Run it:  open a NEW PowerShell, then: $nextCmd" -ForegroundColor Yellow
-    Write-Host "           (the jarvis shim was added to your User PATH; the"
+    Write-Host "           (the locus shim was added to your User PATH; the"
     Write-Host "            current PowerShell won't see it until restart)"
 } else {
     Write-Host "  Run it:  $nextCmd"
@@ -613,7 +613,7 @@ if (-not $modelPullOk) {
     Write-Host ""
     Write-Host "  NOTE: the qwen3.5:2b model didn't finish downloading." -ForegroundColor Yellow
     Write-Host "        Chat will fail until the bg-orchestrator finishes the retry."
-    Write-Host "        'jarvis doctor' shows progress."
+    Write-Host "        'locus doctor' shows progress."
 }
 
 if ($shouldInstallService) {
@@ -622,5 +622,5 @@ if ($shouldInstallService) {
     Write-Host "           powershell -File `"$serviceScript`" uninstall    (remove)"
 }
 Write-Host ""
-Write-Host "  Docs:    https://locus.github.io/Locus/"
+Write-Host "  Docs:    https://aryanjsx.github.io/Locus/"
 Write-Host ""

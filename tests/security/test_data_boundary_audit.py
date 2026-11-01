@@ -118,7 +118,7 @@ def _low_noise_config():
     """Baseline config with no warn/fail findings under an empty scan root.
 
     JarvisConfig defaults include absolute store paths under the real
-    Locus_HOME; clear those so tests only see artifacts under tmp_path.
+    LOCUS_HOME; clear those so tests only see artifacts under tmp_path.
     """
     config = JarvisConfig()
     config.analytics.enabled = False
@@ -356,7 +356,7 @@ def test_firecrawl_web_search_data_path_includes_url_lookups(tmp_path, monkeypat
     config.tools.enabled = "web_search"
     for key in ("TAVILY_API_KEY", "YOUDOTCOM_API_KEY", "SERPLY_API_KEY"):
         monkeypatch.delenv(key, raising=False)
-    monkeypatch.delenv("Locus_WEB_SEARCH_ENGINE", raising=False)
+    monkeypatch.delenv("LOCUS_WEB_SEARCH_ENGINE", raising=False)
     monkeypatch.setenv("FIRECRAWL_API_KEY", "fc-test")
 
     report = build_data_boundary_report(config, tmp_path)
@@ -634,12 +634,12 @@ def test_config_root_error_returns_fail_without_local_store_scan(tmp_path):
     report = build_data_boundary_report(
         config,
         None,
-        root_error=("ConfigurationError: bad Locus_HOME at /Users/alice/private/locus"),
+        root_error=("ConfigurationError: bad LOCUS_HOME at /Users/alice/private/locus"),
     )
 
     findings = {finding.id: finding for finding in report.findings}
     assert findings["config-root-error"].status == "fail"
-    assert "bad Locus_HOME" not in findings["config-root-error"].evidence
+    assert "bad LOCUS_HOME" not in findings["config-root-error"].evidence
     assert "/Users/alice/private/locus" not in str(report.to_dict())
     assert "path details were redacted" in findings["config-root-error"].evidence
     assert report.root == "<unresolved-locus-home>"
@@ -1439,7 +1439,7 @@ class TestWebSearchDestination:
             "SERPLY_PROXY_LOCATION",
             "FIRECRAWL_API_KEY",
             "FIRECRAWL_API_URL",
-            "Locus_WEB_SEARCH_ENGINE",
+            "LOCUS_WEB_SEARCH_ENGINE",
         ):
             monkeypatch.delenv(key, raising=False)
 
@@ -1468,7 +1468,7 @@ class TestWebSearchDestination:
         from locus.security.data_boundary_audit import _web_search_destination
 
         self._clear(monkeypatch)
-        monkeypatch.setenv("Locus_WEB_SEARCH_ENGINE", "duckduckgo")
+        monkeypatch.setenv("LOCUS_WEB_SEARCH_ENGINE", "duckduckgo")
         assert "DuckDuckGo" in _web_search_destination()
 
     def test_serply_is_named(self, monkeypatch):
@@ -1561,7 +1561,7 @@ class TestWebSearchDestination:
                     if is_set:
                         monkeypatch.setenv(name, value)
                 if engine:
-                    monkeypatch.setenv("Locus_WEB_SEARCH_ENGINE", engine)
+                    monkeypatch.setenv("LOCUS_WEB_SEARCH_ENGINE", engine)
                 resolved = WebSearchTool()._resolve_engine()
                 set_vars = [name for (name, _), is_set in zip(keys, present) if is_set]
                 assert labels[resolved] in _web_search_destination(), (

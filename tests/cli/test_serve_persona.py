@@ -1,4 +1,4 @@
-"""Regression: ``jarvis serve`` must wire the ``SystemPromptBuilder`` into the
+"""Regression: ``locus serve`` must wire the ``SystemPromptBuilder`` into the
 agent it constructs, so SOUL.md / MEMORY.md / USER.md reach the model over HTTP.
 
 ``cli/ask.py`` (and ``cli/chat_cmd.py`` and the managed-agent executor) have

@@ -9,14 +9,24 @@ import pytest
 import tomllib
 from click.testing import CliRunner
 
+from locus.analytics.identity import is_analytics_enabled
 from locus.cli import _analytics_consent
 from locus.cli.init_cmd import init
-from locus.core.config import load_config
+from locus.core.config import AnalyticsConfig, load_config
 
 
 class TerminalInput(io.StringIO):
     def isatty(self) -> bool:
         return True
+
+
+def use_destination(monkeypatch) -> None:
+    """No destination ships by default; give the consent prompt one."""
+    monkeypatch.setattr(
+        _analytics_consent,
+        "AnalyticsConfig",
+        lambda: AnalyticsConfig(host="https://analytics.example.org", key="phc_test"),
+    )
 
 
 def use_input(monkeypatch, stream: io.StringIO) -> None:
@@ -83,6 +93,7 @@ def test_init_persists_interactive_choice(
 ) -> None:
     stream = TerminalInput(answer)
     use_input(monkeypatch, stream)
+    use_destination(monkeypatch)
     result = CliRunner().invoke(
         init, ["--engine", "ollama", "--no-download", "--no-scan"]
     )
@@ -114,7 +125,29 @@ def test_decline_replaces_existing_enabled_value_without_losing_settings() -> No
 
 def test_prompt_discloses_configured_destination(monkeypatch, capsys) -> None:
     use_input(monkeypatch, TerminalInput("n\n"))
-    content = '[analytics]\nhost = "https://analytics.example.org"\n'
+    content = '[analytics]\nhost = "https://analytics.example.org"\nkey = "phc_test"\n'
     result = _analytics_consent.apply_analytics_choice(content, None, prompt=True)
     assert "https://analytics.example.org" in capsys.readouterr().err
     assert tomllib.loads(result)["analytics"]["enabled"] is False
+
+
+def test_no_prompt_without_a_configured_destination(monkeypatch, capsys) -> None:
+    use_input(monkeypatch, TerminalInput("\n"))
+    content = '[analytics]\nhost = "https://analytics.example.org"\n'
+    result = _analytics_consent.apply_analytics_choice(content, None, prompt=True)
+    assert result == content
+    assert capsys.readouterr().err == ""
+
+
+def test_analytics_needs_a_destination_to_be_enabled() -> None:
+    assert AnalyticsConfig().host == ""
+    assert AnalyticsConfig().key == ""
+    assert not is_analytics_enabled(AnalyticsConfig(enabled=True))
+    assert not is_analytics_enabled(
+        AnalyticsConfig(enabled=True, host="https://analytics.example.org")
+    )
+    assert is_analytics_enabled(
+        AnalyticsConfig(
+            enabled=True, host="https://analytics.example.org", key="phc_test"
+        )
+    )

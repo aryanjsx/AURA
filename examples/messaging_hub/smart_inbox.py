@@ -181,7 +181,7 @@ def _run_channel(channel: str, model: str, engine_key: str) -> None:
     setup_help = {
         "slack": (
             "To set up Slack:\n"
-            "  1. Run: jarvis add slack\n"
+            "  1. Run: locus add slack\n"
             "  2. Set SLACK_BOT_TOKEN and SLACK_APP_TOKEN in your .env\n"
             "  3. Invite the bot to your target channel\n"
         ),
@@ -196,7 +196,7 @@ def _run_channel(channel: str, model: str, engine_key: str) -> None:
     help_text = setup_help.get(
         channel,
         f"Channel '{channel}' requires appropriate credentials.\n"
-        f"Run: jarvis channel list   to see available channels.\n",
+        f"Run: locus channel list   to see available channels.\n",
     )
 
     click.echo(help_text)
@@ -210,7 +210,7 @@ def _run_channel(channel: str, model: str, engine_key: str) -> None:
     click.echo("  from locus import Jarvis")
     click.echo(f'  j = Jarvis(model="{model}", engine_key="{engine_key}")')
     click.echo("  # Listen for incoming messages on the channel")
-    click.echo(f'  # See: jarvis channel status  (to verify "{channel}" is connected)')
+    click.echo(f'  # See: locus channel status  (to verify "{channel}" is connected)')
     click.echo('  response = j.ask(message, agent="orchestrator",')
     click.echo('                   tools=["think", "memory_store", "memory_search"])')
     click.echo()

@@ -782,27 +782,27 @@ class TestEngineSelection:
         """Existing installs are unchanged: a Tavily key still means Tavily."""
         monkeypatch.setenv("TAVILY_API_KEY", "tvly-x")
         monkeypatch.delenv("YOUDOTCOM_API_KEY", raising=False)
-        monkeypatch.delenv("Locus_WEB_SEARCH_ENGINE", raising=False)
+        monkeypatch.delenv("LOCUS_WEB_SEARCH_ENGINE", raising=False)
         assert WebSearchTool()._resolve_engine() == "tavily"
 
     def test_auto_uses_youcom_without_any_key(self, monkeypatch):
         """The zero-config path is API-backed rather than the DDG scrape."""
         monkeypatch.delenv("TAVILY_API_KEY", raising=False)
         monkeypatch.delenv("YOUDOTCOM_API_KEY", raising=False)
-        monkeypatch.delenv("Locus_WEB_SEARCH_ENGINE", raising=False)
+        monkeypatch.delenv("LOCUS_WEB_SEARCH_ENGINE", raising=False)
         assert WebSearchTool()._resolve_engine() == "youcom"
 
     def test_auto_prefers_serply_over_the_keyless_tier(self, monkeypatch):
         """A Serply key only ever wins over having no key at all."""
         monkeypatch.delenv("TAVILY_API_KEY", raising=False)
         monkeypatch.delenv("YOUDOTCOM_API_KEY", raising=False)
-        monkeypatch.delenv("Locus_WEB_SEARCH_ENGINE", raising=False)
+        monkeypatch.delenv("LOCUS_WEB_SEARCH_ENGINE", raising=False)
         monkeypatch.setenv("SERPLY_API_KEY", "srp-x")
         assert WebSearchTool()._resolve_engine() == "serply"
 
     def test_serply_never_displaces_an_existing_keyed_engine(self, monkeypatch):
         """Adding a Serply key must not change where an install already goes."""
-        monkeypatch.delenv("Locus_WEB_SEARCH_ENGINE", raising=False)
+        monkeypatch.delenv("LOCUS_WEB_SEARCH_ENGINE", raising=False)
         monkeypatch.setenv("SERPLY_API_KEY", "srp-x")
 
         monkeypatch.setenv("TAVILY_API_KEY", "tvly-x")
@@ -816,13 +816,13 @@ class TestEngineSelection:
         """A Firecrawl key only ever wins over having no key at all."""
         monkeypatch.delenv("TAVILY_API_KEY", raising=False)
         monkeypatch.delenv("YOUDOTCOM_API_KEY", raising=False)
-        monkeypatch.delenv("Locus_WEB_SEARCH_ENGINE", raising=False)
+        monkeypatch.delenv("LOCUS_WEB_SEARCH_ENGINE", raising=False)
         monkeypatch.setenv("FIRECRAWL_API_KEY", "fc-test")
         assert WebSearchTool()._resolve_engine() == "firecrawl"
 
     def test_firecrawl_never_displaces_an_existing_keyed_engine(self, monkeypatch):
         """Adding a Firecrawl key must not change where an install already goes."""
-        monkeypatch.delenv("Locus_WEB_SEARCH_ENGINE", raising=False)
+        monkeypatch.delenv("LOCUS_WEB_SEARCH_ENGINE", raising=False)
         monkeypatch.setenv("FIRECRAWL_API_KEY", "fc-test")
 
         monkeypatch.setenv("TAVILY_API_KEY", "tvly-x")
@@ -841,7 +841,7 @@ class TestEngineSelection:
         FIRECRAWL_API_URL away from the hosted API is enough to opt in."""
         monkeypatch.delenv("TAVILY_API_KEY", raising=False)
         monkeypatch.delenv("YOUDOTCOM_API_KEY", raising=False)
-        monkeypatch.delenv("Locus_WEB_SEARCH_ENGINE", raising=False)
+        monkeypatch.delenv("LOCUS_WEB_SEARCH_ENGINE", raising=False)
         monkeypatch.setenv("FIRECRAWL_API_URL", "http://localhost:3002")
         assert WebSearchTool()._resolve_engine() == "firecrawl"
 
@@ -852,13 +852,13 @@ class TestEngineSelection:
 
     def test_engine_read_from_environment(self, monkeypatch):
         monkeypatch.setenv("TAVILY_API_KEY", "tvly-x")
-        monkeypatch.setenv("Locus_WEB_SEARCH_ENGINE", "youcom")
+        monkeypatch.setenv("LOCUS_WEB_SEARCH_ENGINE", "youcom")
         assert WebSearchTool()._resolve_engine() == "youcom"
 
     def test_unknown_engine_falls_back_to_auto(self, monkeypatch, caplog):
         """A typo in the env must not break tool loading."""
         monkeypatch.delenv("TAVILY_API_KEY", raising=False)
-        monkeypatch.setenv("Locus_WEB_SEARCH_ENGINE", "yuo.com")
+        monkeypatch.setenv("LOCUS_WEB_SEARCH_ENGINE", "yuo.com")
         with caplog.at_level("WARNING"):
             tool = WebSearchTool()
         assert tool._resolve_engine() == "youcom"
@@ -867,7 +867,7 @@ class TestEngineSelection:
     def test_spec_reports_engine_and_optional_keys(self, monkeypatch):
         monkeypatch.delenv("TAVILY_API_KEY", raising=False)
         monkeypatch.delenv("YOUDOTCOM_API_KEY", raising=False)
-        monkeypatch.delenv("Locus_WEB_SEARCH_ENGINE", raising=False)
+        monkeypatch.delenv("LOCUS_WEB_SEARCH_ENGINE", raising=False)
         spec = WebSearchTool().spec
         assert spec.metadata["engine"] == "youcom"
         assert "YOUDOTCOM_API_KEY" in spec.metadata["optional_api_keys"]

@@ -2,7 +2,7 @@
 
 ``locus_rust`` is the native PyO3 extension. It is NOT published to PyPI,
 so it must not appear in the published ``desktop`` extra — listing it there
-breaks ``pip install locus[desktop]`` at install time. It lives in the uv
+breaks ``pip install locus-assistant[desktop]`` at install time. It lives in the uv
 ``desktop-native`` dependency group instead (excluded from wheel metadata),
 which the desktop app installs from source via
 ``uv sync --group desktop-native``.
@@ -36,7 +36,7 @@ def test_locus_rust_not_in_published_desktop_extra() -> None:
     desktop = _pyproject()["project"]["optional-dependencies"]["desktop"]
     assert not any("locus-rust" in dep for dep in desktop), (
         "locus-rust must not be in the published `desktop` extra — it is "
-        "not on PyPI, so it breaks `pip install locus[desktop]`."
+        "not on PyPI, so it breaks `pip install locus-assistant[desktop]`."
     )
 
 

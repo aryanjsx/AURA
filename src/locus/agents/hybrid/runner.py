@@ -5,7 +5,7 @@
     python -m locus.agents.hybrid.runner --cell minions-gaia-qwen27b-opus-3
 
 Reads a cell definition from ``registry/<method>.toml`` (bundled with this
-package or pointed at by ``Locus_HYBRID_REGISTRY_DIR``), constructs
+package or pointed at by ``LOCUS_HYBRID_REGISTRY_DIR``), constructs
 the registered agent, loads bench tasks via Locus's existing dataset
 providers, runs every task, scores it, and writes
 ``<EXPERIMENTS_DIR>/runs/<cell>/results.jsonl`` + ``summary.json``.
@@ -44,7 +44,7 @@ PACKAGE_DIR = Path(__file__).parent
 DEFAULT_REGISTRY_DIR = PACKAGE_DIR / "registry"
 DEFAULT_EXPERIMENTS_DIR = Path(
     os.environ.get(
-        "Locus_HYBRID_EXPERIMENTS_DIR",
+        "LOCUS_HYBRID_EXPERIMENTS_DIR",
         get_config_dir() / "experiments" / "hybrid",
     )
 )
@@ -61,9 +61,9 @@ DEFAULT_RUNS_DIR = DEFAULT_EXPERIMENTS_DIR / "runs"
 # never to abort a healthy task, short enough that a frozen one is
 # abandoned and recorded as an error row (which the resume logic re-runs)
 # instead of silently killing the process. Override with
-# ``Locus_HYBRID_TASK_TIMEOUT_S`` (0 / negative disables).
+# ``LOCUS_HYBRID_TASK_TIMEOUT_S`` (0 / negative disables).
 DEFAULT_TASK_TIMEOUT_S = float(
-    os.environ.get("Locus_HYBRID_TASK_TIMEOUT_S", "1800") or 1800
+    os.environ.get("LOCUS_HYBRID_TASK_TIMEOUT_S", "1800") or 1800
 )
 
 
@@ -103,7 +103,7 @@ def _validate_cells(cells: Dict[str, Dict[str, Any]]) -> None:
 def load_registry(registry_dir: Optional[Path] = None) -> Dict[str, Dict[str, Any]]:
     """Merge every ``<registry_dir>/*.toml``. Cell names must be unique."""
     base = registry_dir or DEFAULT_REGISTRY_DIR
-    env_override = os.environ.get("Locus_HYBRID_REGISTRY_DIR")
+    env_override = os.environ.get("LOCUS_HYBRID_REGISTRY_DIR")
     if env_override:
         base = Path(env_override)
     if not base.is_dir():
@@ -263,8 +263,8 @@ def _get_gaia_scorer():
     """Lazily build the shared GAIA scorer (normalized exact-match + LLM judge).
 
     Judge model defaults to ``gpt-5-mini-2025-08-07`` (override via
-    ``Locus_GAIA_JUDGE_MODEL``); the judge backend is the ``cloud``
-    engine, so ``Locus_CONFIG`` needs a ``[engine.cloud]`` section.
+    ``LOCUS_GAIA_JUDGE_MODEL``); the judge backend is the ``cloud``
+    engine, so ``LOCUS_CONFIG`` needs a ``[engine.cloud]`` section.
     """
     global _GAIA_SCORER
     if _GAIA_SCORER is None:
@@ -276,7 +276,7 @@ def _get_gaia_scorer():
                 from locus.evals.scorers.gaia_exact import GAIAScorer
 
                 judge_model = os.environ.get(
-                    "Locus_GAIA_JUDGE_MODEL", "gpt-5-mini-2025-08-07"
+                    "LOCUS_GAIA_JUDGE_MODEL", "gpt-5-mini-2025-08-07"
                 )
                 try:
                     backend = JarvisDirectBackend(engine_key="cloud")
@@ -744,7 +744,7 @@ def _run_cell_locked(
 
     # Hard per-task wall-clock cap. A cell may override it via the registry
     # (``method_cfg.task_timeout_s``); otherwise the process-wide default
-    # (env ``Locus_HYBRID_TASK_TIMEOUT_S``, 1800s) applies. 0 disables.
+    # (env ``LOCUS_HYBRID_TASK_TIMEOUT_S``, 1800s) applies. 0 disables.
     mcfg = cell.get("method_cfg") or {}
     task_timeout_s = float(mcfg.get("task_timeout_s", DEFAULT_TASK_TIMEOUT_S))
     if task_timeout_s > 0:

@@ -1,4 +1,4 @@
-"""Tests for ``jarvis init --config`` option (regression for #768).
+"""Tests for ``locus init --config`` option (regression for #768).
 
 The ``--config`` option is declared with ``click.Path`` and the command body
 uses the value as a :class:`pathlib.Path` (``config.read_text()`` /
@@ -21,7 +21,7 @@ _NO_DL = "--no-download"
 
 class TestInitConfig:
     def test_init_config_installs_provided_file(self, tmp_path: Path) -> None:
-        """jarvis init --config <file> activates it at the canonical path.
+        """locus init --config <file> activates it at the canonical path.
 
         Regression for #768: the callback receives a Path and can call
         ``read_text()`` / ``write_text()`` on it.

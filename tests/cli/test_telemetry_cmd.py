@@ -1,4 +1,4 @@
-"""Tests for the ``jarvis telemetry`` CLI commands."""
+"""Tests for the ``locus telemetry`` CLI commands."""
 
 from __future__ import annotations
 

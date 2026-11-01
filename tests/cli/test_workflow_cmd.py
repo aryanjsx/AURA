@@ -1,4 +1,4 @@
-"""Tests for the ``jarvis workflow`` CLI commands."""
+"""Tests for the ``locus workflow`` CLI commands."""
 
 from __future__ import annotations
 

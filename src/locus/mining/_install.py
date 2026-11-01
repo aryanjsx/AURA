@@ -11,7 +11,7 @@ These are not on PyPI as of 2026-05; the implementation plan covers a
 build-from-pin fallback in :func:`build_from_pin` (Task 4). This module is
 the single source of truth for "is the user's environment ready?" and is
 called from :class:`~locus.mining.cpu_pearl.CpuPearlProvider.detect`
-plus ``jarvis mine doctor``.
+plus ``locus mine doctor``.
 """
 
 from __future__ import annotations

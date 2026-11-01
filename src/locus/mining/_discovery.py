@@ -3,7 +3,7 @@
 
 Each function answers a single yes/no question and returns ``(ok: bool,
 info: str)`` where ``info`` is a short human-readable explanation surfaced
-verbatim by ``jarvis mine doctor``.
+verbatim by ``locus mine doctor``.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def detect_for_engine_model(
     """Capability matrix for the ``vllm-pearl`` provider.
 
     Pure inspection. No subprocess, no Docker, no network. Used by
-    ``jarvis mine doctor`` and ``jarvis mine init``.
+    ``locus mine doctor`` and ``locus mine init``.
     """
     if provider_id != "vllm-pearl":
         return MiningCapabilities(False, reason=f"unknown provider {provider_id!r}")
@@ -97,7 +97,7 @@ def detect_for_engine_model(
 
 
 # ---------------------------------------------------------------------------
-# Doctor checks (one per row of `jarvis mine doctor` output)
+# Doctor checks (one per row of `locus mine doctor` output)
 # ---------------------------------------------------------------------------
 
 

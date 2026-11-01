@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# jarvis-uninstall.sh — clean removal of Locus from $HOME.
+# locus-uninstall.sh — clean removal of Locus from $HOME.
 #
 # Removes:
 #   ~/.locus/
-#   ~/.local/bin/jarvis
-#   ~/.local/bin/jarvis-uninstall
+#   ~/.local/bin/locus
+#   ~/.local/bin/locus-uninstall
 #
 # Does NOT remove: ollama, uv, or the Rust toolchain.
 
 set -euo pipefail
 
-Locus_HOME="${Locus_HOME:-$HOME/.locus}"
+LOCUS_HOME="${LOCUS_HOME:-$HOME/.locus}"
 ASSUME_YES=false
 
 usage() {
     cat <<'EOF'
-Usage: jarvis-uninstall [-y|--yes]
+Usage: locus-uninstall [-y|--yes]
 
 Removes Locus and its local data. Without --yes, an explicit confirmation
 is required before config, memory, skills, databases, or connector tokens are
@@ -42,12 +42,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 refuse_unsafe_root() {
-    echo "Refusing unsafe Locus_HOME: $Locus_HOME" >&2
+    echo "Refusing unsafe LOCUS_HOME: $LOCUS_HOME" >&2
     exit 2
 }
 
-if [[ -d "$Locus_HOME" ]]; then
-    resolved_install_root="$(cd "$Locus_HOME" && pwd -P)"
+if [[ -d "$LOCUS_HOME" ]]; then
+    resolved_install_root="$(cd "$LOCUS_HOME" && pwd -P)"
     resolved_user_home="$(cd "$HOME" && pwd -P)"
     if [[ -z "$resolved_install_root" ]] \
         || [[ "$resolved_install_root" == "/" ]] \
@@ -75,12 +75,12 @@ if [[ -d "$Locus_HOME" ]]; then
     fi
 
     # Use the exact physical path that passed every check below as well.
-    Locus_HOME="$resolved_install_root"
+    LOCUS_HOME="$resolved_install_root"
 
     if [[ "$ASSUME_YES" != true ]]; then
         cat <<EOF
 WARNING: This permanently deletes all Locus data under:
-  $Locus_HOME
+  $LOCUS_HOME
 
 That includes config.toml, SOUL.md/MEMORY.md/USER.md, skills, scheduler and
 telemetry databases, stored memory, and connector/OAuth credentials.
@@ -98,8 +98,8 @@ EOF
     fi
 fi
 
-if [[ -f "$Locus_HOME/.state/bg.pid" ]]; then
-    pid=$(cat "$Locus_HOME/.state/bg.pid" 2>/dev/null || echo "")
+if [[ -f "$LOCUS_HOME/.state/bg.pid" ]]; then
+    pid=$(cat "$LOCUS_HOME/.state/bg.pid" 2>/dev/null || echo "")
     if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
         echo "Stopping background work (pid=$pid)..."
         kill "$pid" 2>/dev/null || true
@@ -110,12 +110,12 @@ if command -v ollama >/dev/null 2>&1; then
     ollama stop >/dev/null 2>&1 || true
 fi
 
-if [[ -d "$Locus_HOME" ]]; then
-    rm -rf -- "$Locus_HOME"
-    echo "Removed $Locus_HOME"
+if [[ -d "$LOCUS_HOME" ]]; then
+    rm -rf -- "$LOCUS_HOME"
+    echo "Removed $LOCUS_HOME"
 fi
 
-for f in "$HOME/.local/bin/jarvis" "$HOME/.local/bin/jarvis-uninstall"; do
+for f in "$HOME/.local/bin/locus" "$HOME/.local/bin/locus-uninstall"; do
     if [[ -L "$f" ]] || [[ -f "$f" ]]; then
         rm -f "$f"
         echo "Removed $f"

@@ -25,5 +25,5 @@ jobs:
 
       - name: Run bats tests
         env:
-          Locus_TEST_PYTHON: /usr/bin/python3
+          LOCUS_TEST_PYTHON: /usr/bin/python3
         run: bats tests/install/bash/

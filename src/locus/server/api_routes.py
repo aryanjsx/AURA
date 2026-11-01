@@ -347,10 +347,10 @@ def memory_index(req: MemoryIndexRequest, request: Request):
         if not target.exists():
             raise HTTPException(status_code=404, detail=f"Path not found: {req.path}")
 
-        # Sandbox: when workspace roots are configured via Locus_WORKSPACE
+        # Sandbox: when workspace roots are configured via LOCUS_WORKSPACE
         # (os.pathsep-separated), only allow indexing inside them. This endpoint
         # must not become an arbitrary-filesystem read primitive over the API.
-        workspace = os.environ.get("Locus_WORKSPACE", "").strip()
+        workspace = os.environ.get("LOCUS_WORKSPACE", "").strip()
         if workspace:
             roots = [
                 Path(d).expanduser().resolve()
@@ -464,7 +464,7 @@ def _telemetry_db_path(request: Request) -> Path:
     """Resolve telemetry storage from the active app configuration.
 
     ``DEFAULT_CONFIG_DIR`` is fixed when :mod:`locus.core.config` is
-    imported, so it cannot honor a later ``Locus_HOME`` override.  The
+    imported, so it cannot honor a later ``LOCUS_HOME`` override.  The
     running app's config is authoritative; lightweight apps that include these
     routes directly fall back to the env-aware path resolver.
     """
@@ -1334,7 +1334,7 @@ def include_all_routes(app) -> None:
     # WebSocket bridge for real-time agent events. Must subscribe on the
     # same EventBus instance channels/agents actually publish to
     # (app.state.bus, set in server/app.py) — the get_event_bus() global
-    # singleton is a *different* bus that nothing in `jarvis serve` ever
+    # singleton is a *different* bus that nothing in `locus serve` ever
     # publishes to, so events silently never reached this endpoint.
     try:
         from locus.core.events import get_event_bus

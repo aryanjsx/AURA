@@ -19,7 +19,7 @@ sequenceDiagram
     participant TEL as Telemetry
     participant TRC as Trace Collector
 
-    User->>CLI: jarvis ask "query" / j.ask("query")
+    User->>CLI: locus ask "query" / j.ask("query")
     CLI->>CFG: load_config()
     CFG-->>CLI: JarvisConfig (hardware, engine defaults)
 
@@ -83,7 +83,7 @@ In direct mode, the query goes straight to the inference engine with optional me
 
 ```bash
 # CLI
-jarvis ask --agent "" "What is the capital of France?"
+locus ask --agent "" "What is the capital of France?"
 ```
 
 ```python
@@ -100,8 +100,8 @@ In agent mode, the query is handled by a named agent. The CLI's default `SimpleA
 
 ```bash
 # CLI
-jarvis ask "Hello"  # Uses SimpleAgent with the default configuration
-jarvis ask --agent orchestrator --tools calculator,think "What is 2^10 + 3^5?"
+locus ask "Hello"  # Uses SimpleAgent with the default configuration
+locus ask --agent orchestrator --tools calculator,think "What is 2^10 + 3^5?"
 ```
 
 ```python

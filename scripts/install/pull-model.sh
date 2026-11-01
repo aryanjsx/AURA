@@ -3,7 +3,7 @@
 #
 # Usage: pull-model.sh <model-id>
 #
-# State files written under $Locus_HOME/.state/models/:
+# State files written under $LOCUS_HOME/.state/models/:
 #   <model>.downloading  — created on start
 #   <model>.ready        — on success (atomic rename)
 #   <model>.failed       — on failure after retries
@@ -17,8 +17,8 @@ if [[ -z "$MODEL" ]]; then
     exit 2
 fi
 
-Locus_HOME="${Locus_HOME:-$HOME/.locus}"
-STATE_DIR="$Locus_HOME/.state/models"
+LOCUS_HOME="${LOCUS_HOME:-$HOME/.locus}"
+STATE_DIR="$LOCUS_HOME/.state/models"
 mkdir -p "$STATE_DIR"
 
 DOWNLOADING="$STATE_DIR/${MODEL}.downloading"

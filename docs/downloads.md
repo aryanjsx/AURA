@@ -17,7 +17,7 @@ processing happens on your local machine — the app connects to the backend you
 !!! info "Backend required"
     Start the backend before opening the desktop app. The quickstart script handles everything:
     ```bash
-    git clone https://github.com/locus/Locus.git && cd Locus
+    git clone https://github.com/aryanjsx/Locus.git && cd Locus
     ./scripts/quickstart.sh
     ```
 
@@ -25,14 +25,14 @@ processing happens on your local machine — the app connects to the backend you
 
 | Platform | Download | Notes |
 |----------|----------|-------|
-| macOS (Universal) | [:material-download: **Locus.dmg**](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus_1.0.1_universal.dmg) | Apple Silicon + Intel |
-| Windows (64-bit) | [:material-download: **Locus-setup.exe**](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus_1.0.1_x64-setup.exe) | Windows 10+ |
-| Linux (DEB) | [:material-download: **Locus.deb**](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus_1.0.1_amd64.deb) | Ubuntu, Debian |
-| Linux (RPM) | [:material-download: **Locus.rpm**](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus-1.0.1-1.x86_64.rpm) | Fedora, RHEL |
-| Linux (AppImage) | [:material-download: **Locus.AppImage**](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus_1.0.1_amd64.AppImage) | Any distro |
+| macOS (Universal) | [:material-download: **Locus.dmg**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_universal.dmg) | Apple Silicon + Intel |
+| Windows (64-bit) | [:material-download: **Locus-setup.exe**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_x64-setup.exe) | Windows 10+ |
+| Linux (DEB) | [:material-download: **Locus.deb**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_amd64.deb) | Ubuntu, Debian |
+| Linux (RPM) | [:material-download: **Locus.rpm**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/Locus-1.0.1-1.x86_64.rpm) | Fedora, RHEL |
+| Linux (AppImage) | [:material-download: **Locus.AppImage**](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_amd64.AppImage) | Any distro |
 
 !!! tip "All releases"
-    Browse all versions on the [GitHub Releases](https://github.com/locus/Locus/releases) page.
+    Browse all versions on the [GitHub Releases](https://github.com/aryanjsx/Locus/releases) page.
 
 ### macOS: "app is damaged" fix
 
@@ -69,7 +69,7 @@ The backend (Ollama, Python API server, inference) runs separately on your machi
 ### Build from source
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus/desktop
 npm install
 npm run tauri build
@@ -87,7 +87,7 @@ your machine and the frontend connects via `localhost`.
 ### One-command setup
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 ./scripts/quickstart.sh
 ```
@@ -107,7 +107,7 @@ If you prefer to run each step yourself:
 === "Step 1: Clone and install"
 
     ```bash
-    git clone https://github.com/locus/Locus.git
+    git clone https://github.com/aryanjsx/Locus.git
     cd Locus
     uv sync --extra desktop
     cd frontend && npm install && cd ..
@@ -124,7 +124,7 @@ If you prefer to run each step yourself:
 === "Step 3: Start backend"
 
     ```bash
-    uv run jarvis serve --port 8000
+    uv run locus serve --port 8000
     ```
 
 === "Step 4: Start frontend"
@@ -154,7 +154,7 @@ programmatically. Every feature is accessible from the terminal.
 ### Install
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 uv sync
 ```
@@ -162,30 +162,30 @@ uv sync
 ### Verify
 
 ```bash
-jarvis --version
-# jarvis, version 0.1.0
+locus --version
+# locus, version 0.1.0
 ```
 
 ### First commands
 
 ```bash
 # Ask a question
-jarvis ask "What is the capital of France?"
+locus ask "What is the capital of France?"
 
 # Use an agent with tools
-jarvis ask --agent orchestrator --tools calculator "What is 137 * 42?"
+locus ask --agent orchestrator --tools calculator "What is 137 * 42?"
 
 # Start the API server
-jarvis serve --port 8000
+locus serve --port 8000
 
 # Run diagnostics
-jarvis doctor
+locus doctor
 
 # List available models
-jarvis model list
+locus model list
 
 # Interactive chat
-jarvis chat
+locus chat
 ```
 
 !!! info "Inference backend required"
@@ -202,7 +202,7 @@ For programmatic access, the `Jarvis` class provides a high-level sync API.
 ### Install
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 uv sync
 ```

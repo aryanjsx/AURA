@@ -41,7 +41,7 @@ def test_none_persona_build_does_not_raise(tmp_path, monkeypatch):
 
     from locus.core.config import load_config
 
-    monkeypatch.setenv("Locus_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "home"))
     cfg = load_config(tmp_path / "missing-config.toml")
     mf = dataclasses.replace(cfg.memory_files, persona_name="none")
     builder = SystemPromptBuilder(

@@ -14,16 +14,16 @@ ollama pull qwen3.5:4b
 ### 2. Install and initialize Locus
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 uv sync
-jarvis init --preset chat-simple --force
+locus init --preset chat-simple --force
 ```
 
 ### 3. Ask a question
 
 ```bash
-jarvis ask "What is quantum computing?"
+locus ask "What is quantum computing?"
 ```
 
 That's it. No API keys, no tools, no cloud -- just a local model answering your questions.
@@ -32,22 +32,22 @@ That's it. No API keys, no tools, no cloud -- just a local model answering your 
 
 ```bash
 # Single question
-jarvis ask "Explain the difference between TCP and UDP"
+locus ask "Explain the difference between TCP and UDP"
 
 # Interactive chat session (multi-turn conversation)
-jarvis chat
+locus chat
 
 # Start the API server for the browser or desktop app
-jarvis serve
+locus serve
 
 # Override the model for a single query
-jarvis ask -m qwen3.5:9b "Explain general relativity"
+locus ask -m qwen3.5:9b "Explain general relativity"
 
 # Adjust temperature (0.0 = deterministic, 1.0 = creative)
-jarvis ask -t 0.2 "List the planets in our solar system"
+locus ask -t 0.2 "List the planets in our solar system"
 
 # Output raw JSON
-jarvis ask --json "What is 2+2?"
+locus ask --json "What is 2+2?"
 ```
 
 ## Configuration Reference
@@ -83,7 +83,7 @@ port = 8000
 To switch models, either edit `~/.locus/config.toml` or override per-query:
 
 ```bash
-jarvis ask -m qwen3.5:35b "Write a detailed comparison of REST and GraphQL"
+locus ask -m qwen3.5:35b "Write a detailed comparison of REST and GraphQL"
 ```
 
 To pull a new model:
@@ -105,15 +105,15 @@ This opens [http://localhost:5173](http://localhost:5173) in your browser with a
 To run just the API server (for use with the desktop app or external clients):
 
 ```bash
-jarvis serve
+locus serve
 ```
 
 The server is OpenAI-compatible, so any client that works with the OpenAI API can point to `http://localhost:8000/v1`.
 
 ## Using the Desktop App
 
-1. Start the backend: `jarvis serve` (or `./scripts/quickstart.sh`)
-2. Download and open the desktop app from the [releases page](https://github.com/locus/Locus/releases)
+1. Start the backend: `locus serve` (or `./scripts/quickstart.sh`)
+2. Download and open the desktop app from the [releases page](https://github.com/aryanjsx/Locus/releases)
 3. The app connects to `http://localhost:8000` automatically
 
 ## Switching Models
@@ -132,13 +132,13 @@ ${EDITOR:-nano} ~/.locus/config.toml
 
 ```bash
 ollama pull deepseek-r1:14b
-jarvis ask -m deepseek-r1:14b "Hello"
+locus ask -m deepseek-r1:14b "Hello"
 ```
 
 **Use an environment variable:**
 
 ```bash
-Locus_MODEL=qwen3.5:9b jarvis ask "Hello"
+LOCUS_MODEL=qwen3.5:9b locus ask "Hello"
 ```
 
 ## Troubleshooting
@@ -151,4 +151,4 @@ Locus_MODEL=qwen3.5:9b jarvis ask "Hello"
 
 **Want to add tools later?** -- Switch to the [Code Assistant](code-assistant.md) or [Deep Research](deep-research.md) config. Simple chat is intentionally minimal.
 
-**Browser app not loading** -- Make sure both the backend (`jarvis serve`) and frontend are running. The `./scripts/quickstart.sh` script starts both automatically.
+**Browser app not loading** -- Make sure both the backend (`locus serve`) and frontend are running. The `./scripts/quickstart.sh` script starts both automatically.

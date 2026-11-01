@@ -18,6 +18,11 @@ from locus.core.events import EventBus, EventType
 from locus.server import analytics_routes
 from locus.server.auth_middleware import AuthMiddleware
 
+# No analytics destination ships by default, so tests that exercise sending
+# configure one explicitly.
+_TEST_HOST = "https://analytics.example.org"
+_TEST_KEY = "phc_test"
+
 
 @pytest.fixture
 def preference_app(tmp_path: Path, monkeypatch):
@@ -26,6 +31,8 @@ def preference_app(tmp_path: Path, monkeypatch):
     cfg = JarvisConfig()
     cfg._config_path = path
     cfg.analytics.anon_id_path = str(tmp_path / "anon_id")
+    cfg.analytics.host = _TEST_HOST
+    cfg.analytics.key = _TEST_KEY
 
     def fake_sdk(client):
         client._posthog = MagicMock()
@@ -89,24 +96,29 @@ def test_preference_persists_to_active_config(
     app, _, _ = preference_app
     home = tmp_path / "home"
     home.mkdir()
-    monkeypatch.setenv("Locus_HOME", str(home))
-    monkeypatch.delenv("Locus_CONFIG", raising=False)
+    monkeypatch.setenv("LOCUS_HOME", str(home))
+    monkeypatch.delenv("LOCUS_CONFIG", raising=False)
     default_path = home / "config.toml"
     path = default_path
     if config_source in ("environment", "explicit"):
         path = tmp_path / "deployment.toml"
         default_path.write_text("# Leave the default configuration alone\n")
     if config_source == "environment":
-        monkeypatch.setenv("Locus_CONFIG", str(path))
+        monkeypatch.setenv("LOCUS_CONFIG", str(path))
     elif config_source == "explicit":
         # An explicit load path takes precedence over the environment too.
-        monkeypatch.setenv("Locus_CONFIG", str(tmp_path / "unused.toml"))
-    path.write_text(f"[analytics]\nenabled = {str(not enabled).lower()}\n")
+        monkeypatch.setenv("LOCUS_CONFIG", str(tmp_path / "unused.toml"))
+    path.write_text(
+        f"[analytics]\nenabled = {str(not enabled).lower()}\n"
+        f'host = "{_TEST_HOST}"\nkey = "{_TEST_KEY}"\n'
+    )
     load_config.cache_clear()
     try:
         if config_source == "programmatic":
             cfg = JarvisConfig()
             cfg.analytics.enabled = not enabled
+            cfg.analytics.host = _TEST_HOST
+            cfg.analytics.key = _TEST_KEY
         else:
             cfg = load_config(path if config_source == "explicit" else None)
         analytics_routes.configure_analytics(app, cfg)

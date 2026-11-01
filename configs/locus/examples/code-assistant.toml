@@ -2,9 +2,9 @@
 # Copy to ~/.locus/config.toml
 #
 # Usage:
-#   jarvis ask "Write a Python script that parses CSV files"
-#   jarvis ask "Read main.py and explain the architecture"
-#   jarvis ask --agent orchestrator "Find and fix the bug in test_utils.py"
+#   locus ask "Write a Python script that parses CSV files"
+#   locus ask "Read main.py and explain the architecture"
+#   locus ask --agent orchestrator "Find and fix the bug in test_utils.py"
 
 [engine]
 default = "ollama"

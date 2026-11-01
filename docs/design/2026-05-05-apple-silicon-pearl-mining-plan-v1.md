@@ -1599,7 +1599,7 @@ Session
 | `maturin build` complains about `tikv-jemallocator` | macOS SDK too old | Update macOS / Xcode |
 
 For anything not on this list, capture `~/.locus/logs/mining/` and open
-an issue at https://github.com/locus/Locus/issues.
+an issue at https://github.com/aryanjsx/Locus/issues.
 
 ## What changes in v2 / v3
 

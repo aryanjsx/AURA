@@ -5,7 +5,7 @@ must NEVER be inside the Locus source tree. ``resolve_spec_search_root``
 walks up from this module's ``__file__`` looking for a ``pyproject.toml`` that
 identifies the Locus source root, then refuses to operate if the resolved
 root is inside it. Defense in depth — if a user accidentally points
-``Locus_HOME`` at the repo, the system fails loudly instead of silently
+``LOCUS_HOME`` at the repo, the system fails loudly instead of silently
 writing artifacts into the working tree.
 """
 
@@ -43,7 +43,7 @@ def _find_source_root() -> Path | None:
                 content = py.read_text(encoding="utf-8")
             except OSError:
                 continue
-            if 'name = "locus"' in content.lower():
+            if 'name = "locus-assistant"' in content.lower():
                 return candidate
     return None
 
@@ -52,7 +52,7 @@ def _resolve_locus_home() -> Path:
     """Resolve the Locus home directory via the unified core resolver.
 
     Delegates to ``get_config_dir`` so spec-search honors the same env-aware
-    resolution (Locus_HOME and XDG) as the rest of the framework.
+    resolution (LOCUS_HOME and XDG) as the rest of the framework.
     """
     return get_config_dir()
 
@@ -60,7 +60,7 @@ def _resolve_locus_home() -> Path:
 def resolve_spec_search_root() -> Path:
     """Return the absolute path of the spec-search root directory.
 
-    The root is ``$Locus_HOME/learning`` (or ``~/.locus/learning``
+    The root is ``$LOCUS_HOME/learning`` (or ``~/.locus/learning``
     by default). Raises ``ConfigurationError`` if the resolved path lies
     inside the Locus source tree, to prevent dev artifacts from leaking
     into the repo.
@@ -74,9 +74,9 @@ def resolve_spec_search_root() -> Path:
             pass  # Good — not inside the source tree.
         else:
             raise ConfigurationError(
-                f"Locus_HOME ({home}) is inside the source tree "
+                f"LOCUS_HOME ({home}) is inside the source tree "
                 f"({source_root}). Spec search refuses to write runtime "
-                "artifacts inside the Locus repo. Set Locus_HOME "
+                "artifacts inside the Locus repo. Set LOCUS_HOME "
                 "to a directory outside the repo (default: ~/.locus)."
             )
     return home / "learning"

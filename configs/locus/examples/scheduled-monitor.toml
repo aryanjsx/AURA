@@ -7,10 +7,10 @@
 # - Long-running research projects
 #
 # Setup:
-#   1. Index your data: jarvis memory index ~/Documents/
-#   2. Start the scheduler: jarvis scheduler start
+#   1. Index your data: locus memory index ~/Documents/
+#   2. Start the scheduler: locus scheduler start
 #   3. Create a task:
-#      jarvis scheduler create \
+#      locus scheduler create \
 #        --prompt "Check for new emails about Project X and update your notes" \
 #        --schedule "0 9 * * 1-5" \
 #        --agent operative \

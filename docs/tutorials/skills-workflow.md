@@ -16,11 +16,11 @@ Locus can import skills from the [Hermes Agent](https://github.com/NousResearch/
 
 ```bash
 # Install individual skills
-jarvis skill install hermes:llm-wiki
-jarvis skill install hermes:arxiv
+locus skill install hermes:llm-wiki
+locus skill install hermes:arxiv
 
 # Or bulk install an entire category
-jarvis skill sync hermes --category research
+locus skill sync hermes --category research
 ```
 
 The first install clones the Hermes repo to `~/.locus/skill-cache/hermes/` (one-time, ~5s). Subsequent installs reuse the cache.
@@ -28,7 +28,7 @@ The first install clones the Hermes repo to `~/.locus/skill-cache/hermes/` (one-
 Verify what's installed:
 
 ```bash
-jarvis skill list
+locus skill list
 ```
 
 You should see a table with each skill's name, description, version, and tags.
@@ -38,7 +38,7 @@ You should see a table with each skill's name, description, version, and tags.
 Let's look at what the `llm-wiki` skill contains:
 
 ```bash
-jarvis skill info llm-wiki
+locus skill info llm-wiki
 ```
 
 This shows the skill's metadata — author, description, tags, capabilities, whether it has structured steps or markdown instructions, and its invocation flags.
@@ -62,7 +62,7 @@ This shows the source (`hermes:llm-wiki`), the git commit it was imported from, 
 Now let's ask the agent a question that should trigger skill usage:
 
 ```bash
-jarvis ask --agent orchestrator "Use the llm-wiki skill to explain how model entries should be organized" \
+locus ask --agent orchestrator "Use the llm-wiki skill to explain how model entries should be organized" \
   --engine ollama --model qwen3.5:9b
 ```
 
@@ -75,7 +75,7 @@ The agent will:
 Try the other installed skill too:
 
 ```bash
-jarvis ask --agent orchestrator "Use the arxiv skill to outline how you would research transformer efficiency" \
+locus ask --agent orchestrator "Use the arxiv skill to outline how you would research transformer efficiency" \
   --engine ollama --model qwen3.5:9b
 ```
 
@@ -118,13 +118,13 @@ EOF
 Verify it's discovered:
 
 ```bash
-jarvis skill list
+locus skill list
 ```
 
 You should see `my-reviewer` in the table. Try it:
 
 ```bash
-jarvis ask --agent orchestrator "Use the my-reviewer skill to review this function: def login(user, pwd): return db.query(f'SELECT * FROM users WHERE name={user} AND pass={pwd}')" \
+locus ask --agent orchestrator "Use the my-reviewer skill to review this function: def login(user, pwd): return db.query(f'SELECT * FROM users WHERE name={user} AND pass={pwd}')" \
   --engine ollama --model qwen3.5:9b
 ```
 
@@ -136,15 +136,15 @@ For the learning loop to work, we need traces. Run several queries that use skil
 
 ```bash
 # Tracing is disabled in the generated config until you opt in
-jarvis config set traces.enabled true
+locus config set traces.enabled true
 
 # Generate a few traces
-jarvis ask --agent orchestrator "Use llm-wiki to describe a model entry"
-jarvis ask --agent orchestrator "Use my-reviewer to review: def add(a,b): return a+b"
-jarvis ask --agent orchestrator "Use llm-wiki to describe an evaluation entry"
-jarvis ask --agent orchestrator "Use my-reviewer to review: lambda x: x**2"
-jarvis ask --agent orchestrator "Use llm-wiki to describe a dataset entry"
-jarvis ask --agent orchestrator "Use my-reviewer to review: def square(x): return x*x"
+locus ask --agent orchestrator "Use llm-wiki to describe a model entry"
+locus ask --agent orchestrator "Use my-reviewer to review: def add(a,b): return a+b"
+locus ask --agent orchestrator "Use llm-wiki to describe an evaluation entry"
+locus ask --agent orchestrator "Use my-reviewer to review: lambda x: x**2"
+locus ask --agent orchestrator "Use llm-wiki to describe a dataset entry"
+locus ask --agent orchestrator "Use my-reviewer to review: def square(x): return x*x"
 ```
 
 Each query produces one trace in `~/.locus/traces.db`. An invoked skill's tool-call step includes the `skill`, `skill_source`, and `skill_kind` metadata tags.
@@ -155,13 +155,13 @@ Mine the trace store for recurring tool sequences:
 
 ```bash
 # Preview without writing
-jarvis skill discover --dry-run --min-frequency 2 --min-outcome 0
+locus skill discover --dry-run --min-frequency 2 --min-outcome 0
 
 # Write discovered patterns as skill manifests
-jarvis skill discover --min-frequency 2 --min-outcome 0
+locus skill discover --min-frequency 2 --min-outcome 0
 ```
 
-Discovered skills land in `~/.locus/skills/discovered/` and automatically appear in `jarvis skill list` on the next session.
+Discovered skills land in `~/.locus/skills/discovered/` and automatically appear in `locus skill list` on the next session.
 
 Discovery requires recurring sequences of at least two tool calls. `--min-outcome 0` includes new traces that have not yet been scored.
 
@@ -171,10 +171,10 @@ Once you have enough traces (at least 3-5 per skill), run the optimizer:
 
 ```bash
 # Preview what would be optimized
-jarvis optimize skills --dry-run --min-traces 3
+locus optimize skills --dry-run --min-traces 3
 
 # Run DSPy optimization
-jarvis optimize skills --policy dspy --min-traces 3
+locus optimize skills --policy dspy --min-traces 3
 ```
 
 This produces overlay files at `~/.locus/learning/skills/<skill-name>/optimized.toml` with improved descriptions and few-shot examples extracted from your best traces.
@@ -182,8 +182,8 @@ This produces overlay files at `~/.locus/learning/skills/<skill-name>/optimized.
 Inspect what was produced:
 
 ```bash
-jarvis skill show-overlay llm-wiki
-jarvis skill show-overlay my-reviewer
+locus skill show-overlay llm-wiki
+locus skill show-overlay my-reviewer
 ```
 
 The next time you run a query, the agent sees the optimized descriptions and few-shot examples in its system prompt.
@@ -194,7 +194,7 @@ Run a quick benchmark to see if skills + optimization actually help:
 
 ```bash
 # Smoke test: 4 conditions × 1 seed × 5 tasks
-jarvis bench skills --max-samples 5 --seeds 42
+locus bench skills --max-samples 5 --seeds 42
 ```
 
 This runs the PinchBench benchmark in four conditions (no skills, skills on, DSPy-optimized, GEPA-optimized) and produces a markdown report at `docs/superpowers/results/`.
@@ -225,13 +225,13 @@ Now skills are automatically synced from Hermes on session start, and the optimi
 
 | Concept | What you did |
 |---------|-------------|
-| **Installing skills** | `jarvis skill install hermes:arxiv` — imported from public sources |
-| **Using skills** | `jarvis ask --agent orchestrator "Use the llm-wiki skill..."` — a tool-capable agent invokes skills |
+| **Installing skills** | `locus skill install hermes:arxiv` — imported from public sources |
+| **Using skills** | `locus ask --agent orchestrator "Use the llm-wiki skill..."` — a tool-capable agent invokes skills |
 | **Creating skills** | Wrote a `SKILL.md` with YAML frontmatter and markdown instructions |
 | **Generating traces** | Enabled tracing and ran skill-using queries to populate the trace store |
-| **Discovering patterns** | `jarvis skill discover` — mined traces for recurring tool sequences |
-| **Optimizing skills** | `jarvis optimize skills --policy dspy` — improved descriptions + few-shot examples |
-| **Benchmarking** | `jarvis bench skills` — measured the impact across 4 conditions |
+| **Discovering patterns** | `locus skill discover` — mined traces for recurring tool sequences |
+| **Optimizing skills** | `locus optimize skills --policy dspy` — improved descriptions + few-shot examples |
+| **Benchmarking** | `locus bench skills` — measured the impact across 4 conditions |
 | **Auto configuration** | Added `[skills]` and `[learning.skills]` config sections |
 
 ## Next Steps

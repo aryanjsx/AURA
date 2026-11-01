@@ -257,7 +257,7 @@ export function SystemPanel() {
           </button>
 
           <a
-            href="https://locus.github.io/Locus/leaderboard"
+            href="https://aryanjsx.github.io/Locus/leaderboard"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 mt-1.5 px-3 py-1.5 text-[11px] rounded-lg transition-colors"

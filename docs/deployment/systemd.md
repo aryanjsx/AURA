@@ -15,7 +15,7 @@ Create the user and installation directory:
 ```bash
 sudo useradd --system --create-home --home-dir /opt/locus locus
 sudo -u locus python3 -m venv /opt/locus/.venv
-sudo -u locus git clone https://github.com/locus/Locus.git /opt/locus/Locus
+sudo -u locus git clone https://github.com/aryanjsx/Locus.git /opt/locus/Locus
 cd /opt/locus/Locus && sudo -u locus uv sync --extra server
 ```
 
@@ -27,7 +27,7 @@ declares `EnvironmentFile=/etc/locus/env` (no `-` prefix), so it will
 
 ```bash
 sudo mkdir -p /etc/locus
-echo "Locus_API_KEY=$(jarvis auth generate-key)" | sudo tee /etc/locus/env
+echo "LOCUS_API_KEY=$(locus auth generate-key)" | sudo tee /etc/locus/env
 sudo chmod 600 /etc/locus/env
 ```
 
@@ -63,7 +63,7 @@ After=network.target
 Type=simple
 User=locus
 WorkingDirectory=/opt/locus
-ExecStart=/opt/locus/.venv/bin/jarvis serve --host 0.0.0.0 --port 8000
+ExecStart=/opt/locus/.venv/bin/locus serve --host 0.0.0.0 --port 8000
 Restart=on-failure
 RestartSec=5
 Environment=HOME=/opt/locus
@@ -86,7 +86,7 @@ WantedBy=multi-user.target
 | `Type`             | `simple`                                                           | The process started by `ExecStart` is the main service process. systemd considers the service started immediately. |
 | `User`             | `locus`                                                       | Runs the server as the `locus` user rather than root, limiting the blast radius of any security issue. |
 | `WorkingDirectory` | `/opt/locus`                                                  | Sets the working directory for the process. This is where Locus looks for local files and writes data. |
-| `ExecStart`        | `/opt/locus/.venv/bin/jarvis serve --host 0.0.0.0 --port 8000` | The command to start the server. Uses the full path to the `jarvis` binary inside the virtual environment. |
+| `ExecStart`        | `/opt/locus/.venv/bin/locus serve --host 0.0.0.0 --port 8000` | The command to start the server. Uses the full path to the `locus` binary inside the virtual environment. |
 | `Restart`          | `on-failure`                                                       | Automatically restarts the service if it exits with a non-zero exit code. Does not restart on clean shutdown (`systemctl stop`). |
 | `RestartSec`       | `5`                                                                | Waits 5 seconds before attempting a restart, preventing rapid restart loops if the service crashes immediately on startup. |
 | `Environment`      | `HOME=/opt/locus`                                             | Sets the `HOME` environment variable so Locus finds its configuration at `~/.locus/config.toml` (resolving to `/opt/locus/.locus/config.toml`). |
@@ -104,7 +104,7 @@ WantedBy=multi-user.target
 Edit the `ExecStart` line to change the host or port:
 
 ```ini
-ExecStart=/opt/locus/.venv/bin/jarvis serve --host 127.0.0.1 --port 9000
+ExecStart=/opt/locus/.venv/bin/locus serve --host 127.0.0.1 --port 9000
 ```
 
 !!! tip
@@ -112,10 +112,10 @@ ExecStart=/opt/locus/.venv/bin/jarvis serve --host 127.0.0.1 --port 9000
 
 ### Setting the Engine and Model
 
-Pass additional flags to `jarvis serve`:
+Pass additional flags to `locus serve`:
 
 ```ini
-ExecStart=/opt/locus/.venv/bin/jarvis serve --host 0.0.0.0 --port 8000 --engine ollama --model qwen3:8b
+ExecStart=/opt/locus/.venv/bin/locus serve --host 0.0.0.0 --port 8000 --engine ollama --model qwen3:8b
 ```
 
 ### Adding Environment Variables
@@ -125,8 +125,8 @@ Add multiple `Environment` directives or use `EnvironmentFile` for complex confi
 ```ini
 [Service]
 Environment=HOME=/opt/locus
-Environment=Locus_ENGINE_DEFAULT=vllm
-Environment=Locus_OLLAMA_HOST=http://localhost:11434
+Environment=LOCUS_ENGINE_DEFAULT=vllm
+Environment=LOCUS_OLLAMA_HOST=http://localhost:11434
 ```
 
 Or load from a file:
@@ -144,7 +144,7 @@ If you prefer a different service user, update both the `User` directive and the
 [Service]
 User=myuser
 WorkingDirectory=/home/myuser/locus
-ExecStart=/home/myuser/locus/.venv/bin/jarvis serve --host 0.0.0.0 --port 8000
+ExecStart=/home/myuser/locus/.venv/bin/locus serve --host 0.0.0.0 --port 8000
 Environment=HOME=/home/myuser/locus
 ```
 
@@ -210,12 +210,12 @@ Example output:
 ● locus.service - Locus API Server
      Loaded: loaded (/etc/systemd/system/locus.service; enabled; preset: enabled)
      Active: active (running) since Fri 2026-02-21 10:00:00 UTC; 2h ago
-   Main PID: 12345 (jarvis)
+   Main PID: 12345 (locus)
       Tasks: 4 (limit: 4915)
      Memory: 256.0M
         CPU: 1min 23s
      CGroup: /system.slice/locus.service
-             └─12345 /opt/locus/.venv/bin/python /opt/locus/.venv/bin/jarvis serve --host 0.0.0.0 --port 8000
+             └─12345 /opt/locus/.venv/bin/python /opt/locus/.venv/bin/locus serve --host 0.0.0.0 --port 8000
 ```
 
 ### Enable and Disable on Boot

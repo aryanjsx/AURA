@@ -113,7 +113,7 @@ class TaskScheduler:
             return
         self._stop_event.clear()
         self._thread = threading.Thread(
-            target=self._poll_loop, daemon=True, name="jarvis-scheduler"
+            target=self._poll_loop, daemon=True, name="locus-scheduler"
         )
         self._thread.start()
         logger.info("Scheduler started (poll_interval=%ds)", self._poll_interval)
