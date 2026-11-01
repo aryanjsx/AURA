@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -54,15 +55,13 @@ def test_read_document_utf8_fallback(tmp_path: Path):
     assert "caf" in text
 
 
-def test_read_document_pdf_missing_dep(tmp_path: Path):
+def test_read_document_pdf_missing_dep(tmp_path: Path, monkeypatch):
     p = tmp_path / "doc.pdf"
     p.write_bytes(b"%PDF-1.4 fake pdf content")
-    # Should raise ImportError when pdfplumber not installed
-    # or succeed if it IS installed — either way just check it's handled
-    try:
+    # Simulate pdfplumber not being installed; the server extra installs it.
+    monkeypatch.setitem(sys.modules, "pdfplumber", None)
+    with pytest.raises(ImportError, match="pdfplumber"):
         read_document(p)
-    except ImportError as exc:
-        assert "pdfplumber" in str(exc)
 
 
 def test_read_document_not_found(tmp_path: Path):

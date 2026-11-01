@@ -20,10 +20,12 @@ from locus.server.analytics_routes import (
     router as analytics_router,
 )
 from locus.server.api_routes import include_all_routes
+from locus.server.attachments import router as attachments_router
 from locus.server.comparison import comparison_router
 from locus.server.connectors_router import create_connectors_router
 from locus.server.dashboard import dashboard_router
 from locus.server.digest_routes import create_digest_router
+from locus.server.profile_routes import router as profile_router
 from locus.server.research_router import router as research_router
 from locus.server.routes import router
 from locus.server.upload_router import router as upload_router
@@ -480,6 +482,8 @@ def create_app(
     app.include_router(create_connectors_router())
     app.include_router(create_digest_router())
     app.include_router(upload_router)
+    app.include_router(attachments_router)
+    app.include_router(profile_router)
     app.include_router(research_router)
     app.include_router(analytics_router)
     include_all_routes(app)

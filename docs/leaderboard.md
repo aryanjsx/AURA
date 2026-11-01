@@ -7,8 +7,8 @@ hide:
 
 See how the Locus community saves money, energy, and compute by running AI locally instead of using cloud providers.
 
-!!! info "Win a Mac Mini!"
-    Opt in to share your savings from the Locus browser app or desktop app for a chance to win a Mac Mini. Your data is fully anonymous — no email, no IP, no hardware info.
+!!! info "Sharing is opt-in"
+    You can choose to share your savings from the Locus browser app or desktop app. Nothing is shared unless you opt in.
 
 <div id="leaderboard-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin:24px 0;">
   <div class="lb-stat-card">

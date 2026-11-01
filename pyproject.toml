@@ -90,12 +90,18 @@ server = [
     "uvicorn>=0.30",
     "pydantic>=2.0",
     "python-multipart>=0.0.9",
+    # Reading chat attachments: PDF text and images (server/attachments.py).
+    "pdfplumber>=0.10",
+    "pillow>=10",
 ]
 desktop = [
     "fastapi>=0.110",
     "uvicorn>=0.30",
     "pydantic>=2.0",
     "python-multipart>=0.0.9",
+    # Reading chat attachments: PDF text and images (server/attachments.py).
+    "pdfplumber>=0.10",
+    "pillow>=10",
     "faster-whisper>=1.0",
     # faster-whisper 1.2.1 passes metadata_errors to av.open(), which PyAV 19 removed (#1077).
     "av>=11,<19",

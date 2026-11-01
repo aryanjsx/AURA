@@ -13,10 +13,10 @@ import { SetupScreen } from './components/SetupScreen';
 import { Toaster } from './components/ui/sonner';
 import { useAppStore } from './lib/store';
 import { fetchModels, fetchServerInfo, fetchSavings, submitSavings, isTauri } from './lib/api';
-import { OptInModal } from './components/OptInModal';
+import { ProfileModal } from './components/ProfileModal';
 import { UpdateChecker } from './components/Desktop/UpdateChecker';
 import { track, hashId } from './lib/analytics';
-import { offerAnalyticsChoice } from './lib/analytics-invitation';
+import { fetchProfile, offerProfilePrompt } from './lib/profile';
 
 export default function App() {
   const [setupDone, setSetupDone] = useState(!isTauri());
@@ -42,10 +42,9 @@ export default function App() {
   const optInDisplayName = useAppStore((s) => s.optInDisplayName);
   const optInEmail = useAppStore((s) => s.optInEmail);
   const optInAnonId = useAppStore((s) => s.optInAnonId);
-  const optInModalSeen = useAppStore((s) => s.optInModalSeen);
-  const optInModalOpen = useAppStore((s) => s.optInModalOpen);
-  const setOptInModalOpen = useAppStore((s) => s.setOptInModalOpen);
-  const markOptInModalSeen = useAppStore((s) => s.markOptInModalSeen);
+  const profileModalOpen = useAppStore((s) => s.profileModalOpen);
+  const setProfileModalOpen = useAppStore((s) => s.setProfileModalOpen);
+  const setProfile = useAppStore((s) => s.setProfile);
   const savings = useAppStore((s) => s.savings);
 
   // Apply theme class to <html>
@@ -118,13 +117,12 @@ export default function App() {
     return () => clearInterval(interval);
   }, [optInEnabled, optInDisplayName, optInEmail, optInAnonId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Wait for desktop setup before fetching identity or marking the dialog seen.
-  useEffect(() => offerAnalyticsChoice({
-    ready: setupDone,
-    sharingModalSeen: optInModalSeen,
-    open: () => setOptInModalOpen(true),
-    markSharingModalSeen: markOptInModalSeen,
-  }), [setupDone, optInModalSeen, setOptInModalOpen, markOptInModalSeen]);
+  // Once the backend is up, load the user's name and ask for it once.
+  useEffect(() => {
+    if (!setupDone) return;
+    fetchProfile().then(setProfile).catch(() => {});
+    offerProfilePrompt({ ready: setupDone, open: () => setProfileModalOpen(true) });
+  }, [setupDone, setProfile, setProfileModalOpen]);
 
   // Fire model_changed when the user switches models. First mount is
   // not a "change" — only emit when both prev and current are real and
@@ -195,8 +193,8 @@ export default function App() {
       </Routes>
       <Toaster position="bottom-right" />
       {commandPaletteOpen && <CommandPalette />}
-      {optInModalOpen && (
-        <OptInModal onClose={() => setOptInModalOpen(false)} />
+      {profileModalOpen && (
+        <ProfileModal onClose={() => setProfileModalOpen(false)} />
       )}
     </>
   );

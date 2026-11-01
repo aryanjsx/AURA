@@ -13,8 +13,11 @@ import type {
   StreamState,
   ToolCallInfo,
   TokenUsage,
+  WebSearchInfo,
 } from '../types';
 import type { ManagedAgent } from './api';
+import { deletePayloads } from './attachments';
+import type { UserProfile } from './profile';
 import { isEmbedOnlyModel } from './model-capabilities';
 import { serializeToolCallArguments } from './tool-call';
 
@@ -40,7 +43,7 @@ const OPTIN_KEY = 'locus-optin';
 const OPTIN_NAME_KEY = 'locus-display-name';
 const OPTIN_EMAIL_KEY = 'locus-email';
 const OPTIN_ANONID_KEY = 'locus-anon-id';
-const OPTIN_SEEN_KEY = 'locus-optin-seen';
+const WEB_SEARCH_KEY = 'locus-web-search';
 
 interface ConversationStore {
   version: 1;
@@ -179,8 +182,9 @@ interface AppState {
   optInDisplayName: string;
   optInEmail: string;
   optInAnonId: string;
-  optInModalSeen: boolean;
-  optInModalOpen: boolean;
+  // The user's name (see lib/profile.ts) and the dialog that asks for it
+  profile: UserProfile | null;
+  profileModalOpen: boolean;
 
   // Actions: conversations
   loadConversations: () => void;
@@ -206,6 +210,15 @@ interface AppState {
   // Deep Research toggle
   deepResearch: boolean;
   setDeepResearch: (on: boolean) => void;
+
+  // Web search toggle (remembered across launches) and what an answer searched
+  webSearch: boolean;
+  setWebSearch: (on: boolean) => void;
+  setLastAssistantWebSearch: (
+    conversationId: string,
+    webSearch: WebSearchInfo,
+    sources: ResearchSource[],
+  ) => void;
 
   // Actions: models & server
   setModels: (models: ModelInfo[]) => void;
@@ -252,8 +265,8 @@ interface AppState {
 
   // Actions: opt-in sharing
   setOptIn: (enabled: boolean, displayName: string, email: string) => void;
-  setOptInModalOpen: (open: boolean) => void;
-  markOptInModalSeen: () => void;
+  setProfile: (profile: UserProfile | null) => void;
+  setProfileModalOpen: (open: boolean) => void;
 
   // Logs
   logEntries: LogEntry[];
@@ -296,8 +309,8 @@ export const useAppStore = create<AppState>((set, get) => {
     optInDisplayName: localStorage.getItem(OPTIN_NAME_KEY) || '',
     optInEmail: localStorage.getItem(OPTIN_EMAIL_KEY) || '',
     optInAnonId: localStorage.getItem(OPTIN_ANONID_KEY) || crypto.randomUUID(),
-    optInModalSeen: localStorage.getItem(OPTIN_SEEN_KEY) === 'true',
-    optInModalOpen: false,
+    profile: null,
+    profileModalOpen: false,
 
     // ── Conversations ───────────────────────────────────────────────
 
@@ -386,6 +399,10 @@ export const useAppStore = create<AppState>((set, get) => {
       if (streamState.isStreaming && streamState.conversationId === id) return;
 
       const store = loadConversations();
+      const attachmentIds = (store.conversations[id]?.messages ?? []).flatMap(
+        (m) => m.attachments?.map((a) => a.id) ?? [],
+      );
+      void deletePayloads(attachmentIds);
       delete store.conversations[id];
       if (store.activeId === id) {
         const remaining = Object.keys(store.conversations);
@@ -478,6 +495,25 @@ export const useAppStore = create<AppState>((set, get) => {
     // ── Deep Research ─────────────────────────────────────────────
     deepResearch: false,
     setDeepResearch: (on: boolean) => set({ deepResearch: on }),
+
+    // ── Web search ────────────────────────────────────────────────
+    webSearch: localStorage.getItem(WEB_SEARCH_KEY) === 'true',
+    setWebSearch: (on: boolean) => {
+      localStorage.setItem(WEB_SEARCH_KEY, String(on));
+      set({ webSearch: on });
+    },
+    setLastAssistantWebSearch: (conversationId, webSearch, sources) => {
+      const store = loadConversations();
+      const conv = store.conversations[conversationId];
+      const lastMsg = conv?.messages[conv.messages.length - 1];
+      if (!conv || !lastMsg || lastMsg.role !== 'assistant') return;
+      lastMsg.webSearch = webSearch;
+      lastMsg.researchSources = sources;
+      saveConversations(store);
+      if (get().activeId === conversationId) {
+        set({ messages: [...conv.messages] });
+      }
+    },
 
     // ── Models & server ────────────────────────────────────────────
 
@@ -593,11 +629,8 @@ export const useAppStore = create<AppState>((set, get) => {
       localStorage.setItem(OPTIN_ANONID_KEY, anonId);
       set({ optInEnabled: enabled, optInDisplayName: displayName, optInEmail: email });
     },
-    setOptInModalOpen: (open: boolean) => set({ optInModalOpen: open }),
-    markOptInModalSeen: () => {
-      localStorage.setItem(OPTIN_SEEN_KEY, 'true');
-      set({ optInModalSeen: true });
-    },
+    setProfile: (profile: UserProfile | null) => set({ profile }),
+    setProfileModalOpen: (open: boolean) => set({ profileModalOpen: open }),
   };
 });
 

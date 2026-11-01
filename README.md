@@ -30,6 +30,8 @@ Locus is that stack. It is a framework for local-first personal AI, built around
 ## What Locus can do
 
 - **Chat on your PC:** talk to a local AI model in the desktop app, your browser, or the terminal, by typing or by voice.
+- **Attach files and images:** drop documents (PDF, Word, Excel, PowerPoint, OpenDocument, EPUB, HTML, CSV, code, plain text and more) or images into a chat and ask about them. Images need a vision model such as `qwen3.5` or `gemma3`.
+- **Search the web:** turn on **Web search** and Locus looks up your question online first, reads the top pages, and answers with numbered links to its sources. It's off until you turn it on, since it sends your question to a search engine.
 - **Work with your files:** read and write files and PDFs, search your own documents, run code in a sandbox, and remember facts between conversations.
 - **Connect your apps:** Gmail, Outlook, Google Calendar, Google Drive, Dropbox, Notion, Obsidian, GitHub, Slack and more, each only after you sign in.
 - **Reply on messaging apps:** run it as a bot on Telegram, Slack, Discord, WhatsApp, Teams, Signal, email, SMS and about 25 other channels.
@@ -188,6 +190,7 @@ Full documentation—including Docker deployment, cloud engines, development set
 
 - **Local by default:** models run on your machine through Ollama or another local engine. Nothing goes to a cloud model unless you add your own API key.
 - **No analytics:** Locus ships with no analytics destination, so no usage data is sent anywhere. See [telemetry](https://aryanjsx.github.io/Locus/telemetry/) for details.
+- **Attachments stay local:** attached files are read by Locus on your machine and kept in the app's own storage. Web search is off by default; when you turn it on, only your question goes to the search engine, never your files.
 - **Opt-in connections:** email, calendar, messaging and other services only work after you connect them, and the data you index stays on your machine.
 - **Approval for risky actions:** shell commands and similar tools go through an approval step first.
 

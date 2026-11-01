@@ -9,10 +9,10 @@ import {
   HardDrive,
   Hash,
   X,
-  Trophy,
-  ExternalLink,
+  UserRound,
 } from 'lucide-react';
 import { useAppStore } from '../../lib/store';
+import { displayName } from '../../lib/profile';
 import { getBase } from '../../lib/api';
 
 interface EnergyData {
@@ -37,8 +37,8 @@ const CLOUD_PRICING = [
 export function SystemPanel() {
   const savings = useAppStore((s) => s.savings);
   const toggleSystemPanel = useAppStore((s) => s.toggleSystemPanel);
-  const optInEnabled = useAppStore((s) => s.optInEnabled);
-  const setOptInModalOpen = useAppStore((s) => s.setOptInModalOpen);
+  const callUser = displayName(useAppStore((s) => s.profile));
+  const setProfileModalOpen = useAppStore((s) => s.setProfileModalOpen);
   const liveEnergy = useAppStore((s) => s.liveEnergy);
   const [energy, setEnergy] = useState<EnergyData | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryStats | null>(null);
@@ -210,64 +210,31 @@ export function SystemPanel() {
 
         </section>
 
-        {/* Leaderboard / Share */}
+        {/* The user's name */}
         <section>
           <h4
             className="text-[11px] font-medium uppercase tracking-wide mb-2"
             style={{ color: 'var(--color-text-tertiary)' }}
           >
-            Leaderboard
+            You
           </h4>
 
           <button
-            onClick={() => setOptInModalOpen(true)}
+            onClick={() => setProfileModalOpen(true)}
             className="w-full flex items-center gap-2 rounded-lg px-3 py-2.5 transition-colors cursor-pointer"
             style={{
-              background: optInEnabled
-                ? 'var(--color-accent-subtle)'
-                : 'var(--color-bg-secondary)',
-              border: optInEnabled
-                ? '1px solid var(--color-accent)'
-                : '1px solid var(--color-border)',
+              background: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-border)',
             }}
           >
-            <Trophy
-              size={14}
-              style={{
-                color: optInEnabled ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
-              }}
-            />
-            <span
-              className="text-xs flex-1 text-left"
-              style={{
-                color: optInEnabled ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-              }}
-            >
-              {optInEnabled ? 'Sharing Savings' : 'Share Your Savings'}
+            <UserRound size={14} style={{ color: 'var(--color-text-tertiary)' }} />
+            <span className="text-xs flex-1 text-left truncate" style={{ color: 'var(--color-text-secondary)' }}>
+              {callUser ? <>Locus calls you <b style={{ color: 'var(--color-text)' }}>{callUser}</b></> : 'Add your name'}
             </span>
-            <span
-              className="text-[9px] px-1.5 py-0.5 rounded-full"
-              style={{
-                background: optInEnabled ? 'var(--color-accent)' : 'var(--color-bg-tertiary, var(--color-bg-secondary))',
-                color: optInEnabled ? 'white' : 'var(--color-text-tertiary)',
-              }}
-            >
-              {optInEnabled ? 'ON' : 'OFF'}
+            <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
+              Edit
             </span>
           </button>
-
-          <a
-            href="https://aryanjsx.github.io/Locus/leaderboard"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 mt-1.5 px-3 py-1.5 text-[11px] rounded-lg transition-colors"
-            style={{ color: 'var(--color-text-tertiary)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-accent)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-tertiary)')}
-          >
-            <ExternalLink size={10} />
-            View Leaderboard
-          </a>
         </section>
       </div>
     </div>

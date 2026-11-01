@@ -112,10 +112,34 @@ def _openrouter_model_id(model: str) -> str:
 
 
 def _to_openai_msgs(messages: Sequence[Message]) -> list[dict[str, Any]]:
+    """OpenAI chat messages; images become ``image_url`` content parts."""
     out = []
     for m in messages:
         role = m.role.value if hasattr(m.role, "value") else str(m.role)
-        out.append({"role": role, "content": m.content or ""})
+        if getattr(m, "images", None):
+            parts: list[dict[str, Any]] = [{"type": "text", "text": m.content or ""}]
+            parts.extend(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{img}"},
+                }
+                for img in m.images
+            )
+            out.append({"role": role, "content": parts})
+        else:
+            out.append({"role": role, "content": m.content or ""})
+    return out
+
+
+def _to_ollama_msgs(messages: Sequence[Message]) -> list[dict[str, Any]]:
+    """Ollama /api/chat messages; images go in each message's ``images`` list."""
+    out = []
+    for m in messages:
+        role = m.role.value if hasattr(m.role, "value") else str(m.role)
+        msg: dict[str, Any] = {"role": role, "content": m.content or ""}
+        if getattr(m, "images", None):
+            msg["images"] = list(m.images)
+        out.append(msg)
     return out
 
 
@@ -318,7 +342,7 @@ async def stream_local(
     """Stream tokens directly from Ollama, bypassing the engine system."""
     payload = {
         "model": model,
-        "messages": _to_openai_msgs(messages),
+        "messages": _to_ollama_msgs(messages),
         "stream": True,
         # Disable extended thinking (Qwen3.5 etc.) — when enabled all tokens
         # go into the 'thinking' field and 'content' stays empty.

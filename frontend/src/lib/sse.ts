@@ -3,10 +3,19 @@ import { getBase, authHeaders } from './api';
 
 export interface ChatRequest {
   model: string;
-  messages: Array<{ role: string; content: string }>;
+  messages: Array<{
+    role: string;
+    content: string;
+    /** Base64 JPEGs for vision models (from /v1/attachments). */
+    images?: string[];
+    /** Documents, folded into the prompt by the server. */
+    attachments?: Array<{ name: string; format: string; text: string; truncated?: boolean; note?: string }>;
+  }>;
   stream: true;
   temperature?: number;
   max_tokens?: number;
+  /** Search the web for the latest user message before answering. */
+  web_search?: boolean;
 }
 
 export async function* streamChat(

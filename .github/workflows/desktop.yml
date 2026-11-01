@@ -271,7 +271,7 @@ jobs:
           - platform: ubuntu-22.04
             # Verbose so a linuxdeploy (AppImage) failure shows its cause.
             args: '--verbose'
-          - platform: macos-14
+          - platform: macos-15
             args: '--target universal-apple-darwin'
           - platform: windows-latest
             args: ''
@@ -307,7 +307,7 @@ jobs:
       # `xcrun` is preinstalled on macOS runners, hence placement before the
       # toolchain steps rather than next to "Configure Apple signing".
       - name: Preflight Apple notarization credentials
-        if: matrix.platform == 'macos-14'
+        if: matrix.platform == 'macos-15'
         env:
           CERT: ${{ secrets.APPLE_CERTIFICATE }}
           A_ID: ${{ secrets.APPLE_ID }}
@@ -411,7 +411,7 @@ jobs:
         with:
           # macOS builds a universal app; Windows ARM64 also builds the x64
           # locus_rust wheel for its emulated Python backend.
-          targets: ${{ matrix.platform == 'macos-14' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.platform == 'windows-11-arm' && 'x86_64-pc-windows-msvc' || '' }}
+          targets: ${{ matrix.platform == 'macos-15' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.platform == 'windows-11-arm' && 'x86_64-pc-windows-msvc' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -444,7 +444,7 @@ jobs:
           OLLAMA_TARGET: ${{ matrix.target }}
         run: |
           cd frontend/src-tauri/scripts && chmod +x download-ollama.sh
-          if [[ "${{ matrix.platform }}" == "macos-14" ]]; then
+          if [[ "${{ matrix.platform }}" == "macos-15" ]]; then
             # Tauri builds each architecture first, then bundles the universal
             # app. Ollama's darwin archive already contains both slices, so
             # download it once and supply all three names Tauri looks for.
@@ -473,7 +473,7 @@ jobs:
         run: |
           cd frontend/src-tauri/scripts
           case "${{ matrix.platform }}" in
-            macos-14)
+            macos-15)
               ./download-uv.sh universal-apple-darwin
               for arch in aarch64 x86_64; do
                 cp ../binaries/uv-universal-apple-darwin "../binaries/uv-${arch}-apple-darwin"

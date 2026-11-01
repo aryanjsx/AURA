@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Send, Square, Paperclip, Search } from 'lucide-react';
+import { Send, Square, Paperclip, Search, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore, generateId } from '../../lib/store';
 import { streamChat, streamResearch } from '../../lib/sse';
@@ -11,8 +11,18 @@ import {
   resolveChatEngine,
 } from '../../lib/chat-telemetry';
 import { MicButton } from './MicButton';
+import { AttachmentChip } from './AttachmentChip';
 import { useSpeech } from '../../hooks/useSpeech';
+import {
+  apiAttachmentFields,
+  deletePayloads,
+  MAX_FILE_BYTES,
+  MAX_FILES_PER_MESSAGE,
+  readAttachments,
+  savePayload,
+} from '../../lib/attachments';
 import type {
+  AttachmentMeta,
   ChatMessage,
   MessageTelemetry,
   ResearchSearchTrace,
@@ -20,6 +30,15 @@ import type {
   TokenUsage,
   ToolCallInfo,
 } from '../../types';
+
+/** A file in the input box: being read by the server, ready, or failed. */
+interface PendingAttachment {
+  key: string;
+  name: string;
+  status: 'reading' | 'ready' | 'error';
+  meta?: AttachmentMeta;
+  error?: string;
+}
 
 // While Deep Research is toggled on, poll connected sources for sync
 // progress so we can surface "Searching over N items — sync in progress"
@@ -100,7 +119,76 @@ export function InputArea() {
   const modelLoading = useAppStore((s) => s.modelLoading);
   const deepResearch = useAppStore((s) => s.deepResearch);
   const setDeepResearch = useAppStore((s) => s.setDeepResearch);
+  const webSearch = useAppStore((s) => s.webSearch);
+  const setWebSearch = useAppStore((s) => s.setWebSearch);
+  const setLastAssistantWebSearch = useAppStore((s) => s.setLastAssistantWebSearch);
   const corpusSync = useResearchCorpusSync(deepResearch);
+
+  const [pending, setPending] = useState<PendingAttachment[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const readyAttachments = pending.filter((p) => p.status === 'ready' && p.meta);
+  const attachmentsReading = pending.some((p) => p.status === 'reading');
+
+  const addFiles = useCallback(async (incoming: File[]) => {
+    let files = incoming;
+    if (files.length === 0) return;
+    const room = MAX_FILES_PER_MESSAGE - pending.filter((p) => p.status !== 'error').length;
+    if (room <= 0) {
+      toast.error(`Attach at most ${MAX_FILES_PER_MESSAGE} files per message.`);
+      return;
+    }
+    if (files.length > room) {
+      toast.error(`Only the first ${room} file(s) were added (${MAX_FILES_PER_MESSAGE} per message).`);
+      files = files.slice(0, room);
+    }
+    for (const f of files.filter((f) => f.size > MAX_FILE_BYTES)) {
+      toast.error(`${f.name} is larger than 25 MB.`);
+    }
+    files = files.filter((f) => f.size <= MAX_FILE_BYTES);
+    if (files.length === 0) return;
+
+    const keys = files.map(() => generateId());
+    setPending((prev) => [
+      ...prev,
+      ...files.map((f, i) => ({ key: keys[i], name: f.name, status: 'reading' as const })),
+    ]);
+    try {
+      const results = await readAttachments(files);
+      await Promise.all(results.map((res) => savePayload(res.meta.id, res.payload)));
+      setPending((prev) =>
+        prev.map((p) => {
+          const i = keys.indexOf(p.key);
+          return i === -1 ? p : { ...p, status: 'ready', meta: results[i]?.meta };
+        }),
+      );
+    } catch (err: any) {
+      const message = err?.message || 'Could not read the file.';
+      toast.error(message);
+      setPending((prev) =>
+        prev.map((p) => (keys.includes(p.key) ? { ...p, status: 'error', error: message } : p)),
+      );
+    }
+  }, [pending]);
+
+  const removePending = useCallback((key: string) => {
+    setPending((prev) => {
+      const item = prev.find((p) => p.key === key);
+      if (item?.meta) void deletePayloads([item.meta.id]);
+      return prev.filter((p) => p.key !== key);
+    });
+  }, []);
+
+  // Web search and Deep Research are separate modes; turning one on turns
+  // the other off.
+  const toggleWebSearch = () => {
+    setWebSearch(!webSearch);
+    if (!webSearch && deepResearch) setDeepResearch(false);
+  };
+  const toggleDeepResearch = () => {
+    setDeepResearch(!deepResearch);
+    if (!deepResearch && webSearch) setWebSearch(false);
+  };
   const isCurrentChatStreaming = streamState.isStreaming && streamState.conversationId === activeId;
 
   const {
@@ -173,13 +261,24 @@ export function InputArea() {
 
   const sendMessage = useCallback(async () => {
     const content = input.trim();
-    if (!content || streamState.isStreaming) return;
+    const attachments = readyAttachments.map((p) => p.meta!);
+    if ((!content && attachments.length === 0) || streamState.isStreaming) return;
+    if (attachmentsReading) {
+      toast.error('Wait for the attached files to finish reading.');
+      return;
+    }
     if (!selectedModel) {
       toast.error('Pick a model first (⌘K)');
       return;
     }
+    if (deepResearch && attachments.length > 0) {
+      toast.error("Deep Research can't use attached files. Turn it off to ask about them.");
+      return;
+    }
+    const searchWeb = webSearch && !deepResearch;
 
     setInput('');
+    setPending([]);
 
     let convId = activeId;
     if (!convId) {
@@ -191,15 +290,20 @@ export function InputArea() {
       role: 'user',
       content,
       timestamp: Date.now(),
+      ...(attachments.length > 0 ? { attachments } : {}),
     };
     addMessage(convId, userMsg);
 
-    // Build API messages before adding assistant placeholder
+    // Build API messages before adding assistant placeholder. Attachment
+    // content is read back from IndexedDB for every message that has some.
     const currentMessages = useAppStore.getState().messages;
-    const apiMessages = currentMessages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+    const apiMessages = await Promise.all(
+      currentMessages.map(async (m) => ({
+        role: m.role,
+        content: m.content,
+        ...(m.role === 'user' ? await apiAttachmentFields(m.attachments) : {}),
+      })),
+    );
 
     const assistantMsg: ChatMessage = {
       id: generateId(),
@@ -235,7 +339,7 @@ export function InputArea() {
     setStreamState({
       conversationId: convId,
       isStreaming: true,
-      phase: deepResearch ? 'Researching...' : 'Generating...',
+      phase: deepResearch ? 'Researching...' : searchWeb ? 'Searching the web...' : 'Generating...',
       elapsedMs: 0,
       activeToolCalls: [],
       content: '',
@@ -376,12 +480,44 @@ export function InputArea() {
         }
       } else {
       for await (const sseEvent of streamChat(
-        { model: selectedModel, messages: apiMessages, stream: true, temperature, max_tokens: maxTokens },
+        {
+          model: selectedModel,
+          messages: apiMessages,
+          stream: true,
+          temperature,
+          max_tokens: maxTokens,
+          ...(searchWeb ? { web_search: true } : {}),
+        },
         controller.signal,
       )) {
         const eventName = sseEvent.event;
 
-        if (eventName === 'agent_turn_start') {
+        if (eventName === 'web_search') {
+          try {
+            const data = JSON.parse(sseEvent.data);
+            const sources: ResearchSource[] = (data.sources ?? []).map((src: any) => ({
+              ref: src.ref,
+              title: src.title,
+              url: src.url,
+            }));
+            setLastAssistantWebSearch(
+              convId,
+              { query: data.query, engine: data.engine || undefined, error: data.error || undefined },
+              sources,
+            );
+            setStreamState({
+              phase: data.error ? 'Web search failed, answering without it...' : 'Generating...',
+            });
+            useAppStore.getState().addLogEntry({
+              timestamp: Date.now(),
+              level: data.error ? 'warn' : 'info',
+              category: 'chat',
+              message: data.error
+                ? `Web search failed: ${data.error}`
+                : `Web search found ${sources.length} source(s)`,
+            });
+          } catch {}
+        } else if (eventName === 'agent_turn_start') {
           setStreamState({ phase: 'Agent thinking...' });
         } else if (eventName === 'inference_start') {
           setStreamState({ phase: 'Generating...' });
@@ -552,6 +688,10 @@ export function InputArea() {
     deepResearch,
     temperature,
     maxTokens,
+    readyAttachments,
+    attachmentsReading,
+    webSearch,
+    setLastAssistantWebSearch,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -567,7 +707,27 @@ export function InputArea() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setDeepResearch(!deepResearch)}
+            onClick={toggleWebSearch}
+            disabled={streamState.isStreaming}
+            aria-pressed={webSearch}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs transition-colors cursor-pointer disabled:cursor-default disabled:opacity-50"
+            style={{
+              background: webSearch ? 'var(--color-accent-subtle)' : 'transparent',
+              border: `1px solid ${webSearch ? 'var(--color-accent)' : 'var(--color-border)'}`,
+              color: webSearch ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
+            }}
+            title={
+              webSearch
+                ? 'Web search: on. Your message is sent to a search engine before Locus answers.'
+                : 'Web search: off. Turn on to look things up online.'
+            }
+          >
+            <Globe size={12} />
+            Web search
+          </button>
+          <button
+            type="button"
+            onClick={toggleDeepResearch}
             disabled={streamState.isStreaming}
             aria-pressed={deepResearch}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs transition-colors cursor-pointer disabled:cursor-default disabled:opacity-50"
@@ -596,18 +756,76 @@ export function InputArea() {
         )}
       </div>
       <div
-        className="flex items-center gap-2 rounded-2xl px-4 py-3 transition-shadow"
+        className="rounded-2xl px-4 py-3 transition-shadow"
         style={{
           background: 'var(--color-input-bg)',
-          border: '1px solid var(--color-input-border)',
+          border: `1px ${dragging ? 'dashed' : 'solid'} ${dragging ? 'var(--color-accent)' : 'var(--color-input-border)'}`,
           boxShadow: 'var(--shadow-sm)',
         }}
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes('Files')) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+        }}
+        onDrop={(e) => {
+          if (!e.dataTransfer.files.length) return;
+          e.preventDefault();
+          setDragging(false);
+          void addFiles(Array.from(e.dataTransfer.files));
+        }}
       >
+        {pending.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {pending.map((p) => (
+              <AttachmentChip
+                key={p.key}
+                name={p.name}
+                meta={p.meta}
+                status={p.status}
+                error={p.error}
+                onRemove={() => removePending(p.key)}
+              />
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          hidden
+          onChange={(e) => {
+            void addFiles(Array.from(e.target.files ?? []));
+            e.target.value = '';
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={streamState.isStreaming || modelLoading}
+          title="Attach files or images (or drop them here)"
+          aria-label="Attach files"
+          className="p-1.5 -ml-1.5 rounded-lg transition-colors shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-default"
+          style={{ color: 'var(--color-text-tertiary)' }}
+        >
+          <Paperclip size={16} />
+        </button>
         <textarea
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={(e) => {
+            const files = Array.from(e.clipboardData.files);
+            if (files.length === 0) return;
+            // Pasting a screenshot or copied files attaches them; any text
+            // on the clipboard is still pasted.
+            if (!e.clipboardData.getData('text')) e.preventDefault();
+            void addFiles(files);
+          }}
           placeholder={selectedModel ? 'Message Locus...' : 'Pick a model first (⌘K)...'}
           rows={1}
           className="flex-1 bg-transparent outline-none resize-none text-sm leading-relaxed"
@@ -633,18 +851,31 @@ export function InputArea() {
             />
             <button
               onClick={sendMessage}
-              disabled={streamState.isStreaming || !input.trim() || modelLoading || !selectedModel}
-              title={selectedModel ? 'Send message' : 'Pick a model first (⌘K)'}
+              disabled={
+                streamState.isStreaming ||
+                (!input.trim() && readyAttachments.length === 0) ||
+                attachmentsReading ||
+                modelLoading ||
+                !selectedModel
+              }
+              title={
+                !selectedModel
+                  ? 'Pick a model first (⌘K)'
+                  : attachmentsReading
+                    ? 'Reading attached files...'
+                    : 'Send message'
+              }
               className="p-2 rounded-xl transition-colors shrink-0 cursor-pointer disabled:opacity-30 disabled:cursor-default"
               style={{
-                background: input.trim() ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
-                color: input.trim() ? 'white' : 'var(--color-text-tertiary)',
+                background: input.trim() || readyAttachments.length > 0 ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
+                color: input.trim() || readyAttachments.length > 0 ? 'white' : 'var(--color-text-tertiary)',
               }}
             >
               <Send size={16} />
             </button>
           </div>
         )}
+        </div>
       </div>
       <div className="flex items-center justify-center mt-2 text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
         <span>

@@ -423,7 +423,7 @@ export function SavingsDashboard({ apiUrl }: { apiUrl: string }) {
             Share Your Savings
           </div>
           <div style={{ fontSize: 13, color: colors.textMuted, marginBottom: 14, lineHeight: 1.5 }}>
-            Opt in to privately share your savings for the chance to win a Mac Mini!
+            Opt in to share your savings on the public leaderboard. Your display name and savings are public; your email isn't shown.
           </div>
           <div style={{ marginBottom: 8 }}>
             <input

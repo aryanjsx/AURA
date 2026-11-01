@@ -13,12 +13,26 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 
+class MessageAttachment(BaseModel):
+    """A document attached to a chat message (see ``server/attachments.py``)."""
+
+    name: str
+    format: str = ""
+    text: str = ""
+    truncated: bool = False
+    note: Optional[str] = None
+
+
 class ChatMessage(BaseModel):
     role: str
     content: str = ""
     name: Optional[str] = None
     tool_calls: Optional[List[Dict[str, Any]]] = None
     tool_call_id: Optional[str] = None
+    # Locus extensions, read from /v1/attachments. Images are base64 JPEGs for
+    # vision models; attachments are documents, folded into the prompt.
+    images: Optional[List[str]] = None
+    attachments: Optional[List[MessageAttachment]] = None
 
 
 class ChatCompletionRequest(BaseModel):
@@ -28,6 +42,8 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int = 1024
     stream: bool = False
     tools: Optional[List[Dict[str, Any]]] = None
+    # Locus extension: search the web for the latest user message first.
+    web_search: bool = False
 
 
 # ---------------------------------------------------------------------------
