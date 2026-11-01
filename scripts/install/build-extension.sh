@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # build-extension.sh — build the Rust maturin extension into the venv.
 #
-# State files under $Locus_HOME/.state/:
+# State files under $LOCUS_HOME/.state/:
 #   extension-built   — atomic marker written on success
 #   extension-failed  — written on failure with stderr tail
 #   extension-build.log — captured stderr/stdout
 
 set -euo pipefail
 
-Locus_HOME="${Locus_HOME:-$HOME/.locus}"
+LOCUS_HOME="${LOCUS_HOME:-$HOME/.locus}"
 # Self-heal PATH for cargo: install-rust.sh installs to ~/.cargo/bin, but
 # its export doesn't propagate to subsequent subprocess invocations.
 export PATH="$HOME/.cargo/bin:$PATH"
-SRC_DIR="$Locus_HOME/src"
-STATE_DIR="$Locus_HOME/.state"
+SRC_DIR="$LOCUS_HOME/src"
+STATE_DIR="$LOCUS_HOME/.state"
 LOG="$STATE_DIR/extension-build.log"
 BUILT="$STATE_DIR/extension-built"
 FAILED="$STATE_DIR/extension-failed"

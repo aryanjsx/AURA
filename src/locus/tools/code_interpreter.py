@@ -200,7 +200,7 @@ class CodeInterpreterTool(BaseTool):
                 text=True,
                 timeout=self._timeout,
                 env=safe_env,
-                cwd=os.environ.get("Locus_CODE_CWD") or None,
+                cwd=os.environ.get("LOCUS_CODE_CWD") or None,
                 preexec_fn=preexec,  # noqa: PLW1509 - intentional child hardening
             )
             output = result.stdout

@@ -1,4 +1,4 @@
-"""Tests for bare ``jarvis`` routing with model picker."""
+"""Tests for bare ``locus`` routing with model picker."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Tests for ``jarvis model pull`` multi-engine support."""
+"""Tests for ``locus model pull`` multi-engine support."""
 
 from __future__ import annotations
 

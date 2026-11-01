@@ -29,6 +29,6 @@ Register Locus as a launch agent on macOS.
 
 ## API Server
 
-Run Locus as an OpenAI-compatible HTTP server via `jarvis serve`.
+Run Locus as an OpenAI-compatible HTTP server via `locus serve`.
 
 [:octicons-arrow-right-24: API server guide](api-server.md)

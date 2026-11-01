@@ -46,7 +46,7 @@ def test_morning_digest_run(tmp_path):
         mock_engine,
         "test-model",
         tools=[],
-        persona="jarvis",
+        persona="locus",
         sections=["world"],
         section_sources={"world": ["hackernews", "news_rss"]},
         digest_store_path=str(tmp_path / "digest.db"),

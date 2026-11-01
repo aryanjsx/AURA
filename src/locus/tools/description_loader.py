@@ -1,4 +1,4 @@
-"""Load tool description overrides from $Locus_HOME/tools/descriptions.toml.
+"""Load tool description overrides from $LOCUS_HOME/tools/descriptions.toml.
 
 LLM-guided spec search (M1) proposes tool description edits that get written to disk by
 ``EditToolDescriptionApplier``.  This module loads those overrides so agents

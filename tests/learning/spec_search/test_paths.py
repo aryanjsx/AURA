@@ -17,7 +17,7 @@ class TestResolveSpecSearchRoot:
     def test_default_is_under_home(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from locus.learning.spec_search.storage import paths
 
-        monkeypatch.delenv("Locus_HOME", raising=False)
+        monkeypatch.delenv("LOCUS_HOME", raising=False)
         result = paths.resolve_spec_search_root()
         assert result == Path.home() / ".locus" / "learning"
 
@@ -29,7 +29,7 @@ class TestResolveSpecSearchRoot:
         from locus.learning.spec_search.storage import paths
 
         custom = tmp_path / "custom_oj"
-        monkeypatch.setenv("Locus_HOME", str(custom))
+        monkeypatch.setenv("LOCUS_HOME", str(custom))
         result = paths.resolve_spec_search_root()
         assert result == custom / "learning"
 
@@ -40,7 +40,7 @@ class TestResolveSpecSearchRoot:
     ) -> None:
         from locus.learning.spec_search.storage import paths
 
-        monkeypatch.setenv("Locus_HOME", str(tmp_path / "rel"))
+        monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "rel"))
         result = paths.resolve_spec_search_root()
         assert result.is_absolute()
 
@@ -54,8 +54,8 @@ class TestResolveSpecSearchRoot:
         source_root = paths._find_source_root()
         assert source_root is not None  # We must be running inside the repo.
 
-        # Force Locus_HOME to point inside the source tree.
-        monkeypatch.setenv("Locus_HOME", str(source_root / "junk_dir"))
+        # Force LOCUS_HOME to point inside the source tree.
+        monkeypatch.setenv("LOCUS_HOME", str(source_root / "junk_dir"))
 
         with pytest.raises(paths.ConfigurationError, match="inside the source tree"):
             paths.resolve_spec_search_root()
@@ -83,7 +83,7 @@ class TestEnsureSpecSearchDirs:
     ) -> None:
         from locus.learning.spec_search.storage import paths
 
-        monkeypatch.setenv("Locus_HOME", str(tmp_path / "oj"))
+        monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "oj"))
         root = paths.ensure_spec_search_dirs()
 
         assert root.exists()
@@ -99,7 +99,7 @@ class TestEnsureSpecSearchDirs:
     ) -> None:
         from locus.learning.spec_search.storage import paths
 
-        monkeypatch.setenv("Locus_HOME", str(tmp_path / "oj"))
+        monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "oj"))
         first = paths.ensure_spec_search_dirs()
         second = paths.ensure_spec_search_dirs()
 

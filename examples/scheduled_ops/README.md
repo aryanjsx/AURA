@@ -5,7 +5,7 @@ This tutorial demonstrates how to use Locus to run **autonomous scheduled agents
 ## What This Demonstrates
 
 - Using the `Jarvis` SDK with different agent types (`orchestrator`, `native_react`) and tool sets
-- Configuring recurring schedules via TOML and the `jarvis scheduler` CLI
+- Configuring recurring schedules via TOML and the `locus scheduler` CLI
 - Integrating with the `TaskScheduler` Python API for programmatic task registration
 - Graceful error handling when an inference engine is not available
 
@@ -41,26 +41,26 @@ uv run python examples/scheduled_ops/daily_digest.py \
 
 ### 2. Set up schedules using the CLI
 
-Register each script as a recurring task with `jarvis scheduler create`:
+Register each script as a recurring task with `locus scheduler create`:
 
 ```bash
 # Morning digest every day at 9 AM
-jarvis scheduler create "Run daily news digest" \
+locus scheduler create "Run daily news digest" \
     --type cron --value "0 9 * * *"
 
 # Weekly code review every Monday at 8 AM
-jarvis scheduler create "Run weekly code review" \
+locus scheduler create "Run weekly code review" \
     --type cron --value "0 8 * * 1"
 
 # Gym check on MWF at 6 AM
-jarvis scheduler create "Check gym schedule" \
+locus scheduler create "Check gym schedule" \
     --type cron --value "0 6 * * 1,3,5"
 ```
 
 Then start the scheduler daemon:
 
 ```bash
-jarvis scheduler start
+locus scheduler start
 ```
 
 ### 3. Use the TOML configuration
@@ -109,7 +109,7 @@ To send results to a Slack channel (or any other supported channel), pipe the ou
 
 ```bash
 # Pipe output to a channel
-uv run python examples/scheduled_ops/daily_digest.py | jarvis channel send slack
+uv run python examples/scheduled_ops/daily_digest.py | locus channel send slack
 
 # Or add channel output inside the script:
 # from locus.channels import ChannelRegistry
@@ -117,7 +117,7 @@ uv run python examples/scheduled_ops/daily_digest.py | jarvis channel send slack
 # channel.send(response)
 ```
 
-See `jarvis channel list` for all available channels.
+See `locus channel list` for all available channels.
 
 ## Customization Tips
 

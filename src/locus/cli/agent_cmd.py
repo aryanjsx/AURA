@@ -1,4 +1,4 @@
-"""``jarvis agents`` — persistent agent lifecycle management."""
+"""``locus agents`` — persistent agent lifecycle management."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def list_agents() -> None:
         agents = mgr.list_agents()
         if not agents:
             console.print(
-                "[dim]No agents found. Create one with: jarvis agents create[/dim]"
+                "[dim]No agents found. Create one with: locus agents create[/dim]"
             )
             return
         table = Table(title="Managed Agents")
@@ -524,7 +524,7 @@ def run_agent(agent_id):
     if not instruction and not pending:
         click.echo(
             "Agent has no instruction set. Use "
-            f"'jarvis agents ask {agent_id} <message>' to set one.",
+            f"'locus agents ask {agent_id} <message>' to set one.",
             err=True,
         )
         raise SystemExit(1)

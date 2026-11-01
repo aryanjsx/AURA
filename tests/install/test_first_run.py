@@ -15,7 +15,7 @@ def _ctx_with_invocation(name: str | None) -> MagicMock:
 
 
 def test_passes_through_when_subcommand_present(tmp_locus_home: Path) -> None:
-    """If user typed `jarvis ask ...`, guard is a no-op."""
+    """If user typed `locus ask ...`, guard is a no-op."""
     ctx = _ctx_with_invocation("ask")
     result = _first_run.check_and_route(ctx)
     assert result is None
@@ -57,7 +57,7 @@ def test_handles_missing_state_dir(tmp_path: Path, monkeypatch) -> None:
 def test_root_group_invokes_guard_on_bare_jarvis(
     tmp_locus_home: Path, monkeypatch
 ) -> None:
-    """End-to-end: bare `jarvis` invocation calls the first-run guard.
+    """End-to-end: bare `locus` invocation calls the first-run guard.
 
     We monkeypatch check_and_route to a recorder so we can verify it was
     called with a click.Context whose invoked_subcommand is None.

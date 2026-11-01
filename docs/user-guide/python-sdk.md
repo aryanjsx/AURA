@@ -12,7 +12,7 @@ The Locus Python SDK provides a high-level interface for interacting with local 
 ## Installation
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 uv sync
 ```

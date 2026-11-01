@@ -22,8 +22,8 @@ from locus.engine._stubs import InferenceEngine
 logger = logging.getLogger(__name__)
 
 # Sentinel markers (same as ClaudeCodeAgent)
-_OUTPUT_START = "---Locus_OUTPUT_START---"
-_OUTPUT_END = "---Locus_OUTPUT_END---"
+_OUTPUT_START = "---LOCUS_OUTPUT_START---"
+_OUTPUT_END = "---LOCUS_OUTPUT_END---"
 
 
 class ContainerRunner:

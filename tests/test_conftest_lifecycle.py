@@ -33,8 +33,8 @@ def recording_mkdtemp(*args, **kwargs):
     return path
 
 tempfile.mkdtemp = recording_mkdtemp
-os.environ["Locus_HOME"] = "/tmp/locus-original-home-sentinel"
-os.environ["Locus_CONFIG"] = "/tmp/locus-original-config-sentinel"
+os.environ["LOCUS_HOME"] = "/tmp/locus-original-home-sentinel"
+os.environ["LOCUS_CONFIG"] = "/tmp/locus-original-config-sentinel"
 
 bad_test = pathlib.Path("tests") / f"test_bad_collection_{os.getpid()}.py"
 try:
@@ -50,8 +50,8 @@ try:
 finally:
     bad_test.unlink(missing_ok=True)
 
-assert os.environ["Locus_HOME"] == "/tmp/locus-original-home-sentinel"
-assert os.environ["Locus_CONFIG"] == "/tmp/locus-original-config-sentinel"
+assert os.environ["LOCUS_HOME"] == "/tmp/locus-original-home-sentinel"
+assert os.environ["LOCUS_CONFIG"] == "/tmp/locus-original-config-sentinel"
 assert len(created) == 1, created
 assert not pathlib.Path(created[0]).exists(), created[0]
 """

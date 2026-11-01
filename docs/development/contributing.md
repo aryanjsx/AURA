@@ -18,7 +18,7 @@ contribute code to Locus.
 ### Clone and Install
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 uv sync --extra dev
 ```
@@ -46,8 +46,8 @@ dependencies (pytest, ruff, respx, pytest-asyncio, pytest-cov).
 ### Verify Installation
 
 ```bash
-uv run jarvis --version   # Should print 0.1.0
-uv run jarvis --help      # Show all subcommands
+uv run locus --version   # Should print 0.1.0
+uv run locus --help      # Show all subcommands
 ```
 
 ---
@@ -259,13 +259,13 @@ src/locus/
 
     cli/                        # Click CLI commands
         __init__.py             # main group
-        ask.py                  # jarvis ask
-        init_cmd.py             # jarvis init
-        model.py                # jarvis model list/info
-        memory_cmd.py           # jarvis memory index/search/stats
-        telemetry_cmd.py        # jarvis telemetry stats/export/clear
-        bench_cmd.py            # jarvis bench run
-        serve.py                # jarvis serve
+        ask.py                  # locus ask
+        init_cmd.py             # locus init
+        model.py                # locus model list/info
+        memory_cmd.py           # locus memory index/search/stats
+        telemetry_cmd.py        # locus telemetry stats/export/clear
+        bench_cmd.py            # locus bench run
+        serve.py                # locus serve
 ```
 
 ---

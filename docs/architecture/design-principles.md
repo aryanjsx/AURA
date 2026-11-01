@@ -134,10 +134,10 @@ The `recommend_engine()` function maps hardware to engines:
 | AMD datacenter (MI300, MI325, MI350, MI355) | `vllm` (high throughput) |
 | AMD consumer | `lemonade` (AMD GPU/NPU support) |
 
-This recommendation is written to `config.toml` during `jarvis init` and used as the default engine:
+This recommendation is written to `config.toml` during `locus init` and used as the default engine:
 
 ```bash
-jarvis init --force
+locus init --force
 # Detects hardware, writes ~/.locus/config.toml with:
 # [engine]
 # default = "vllm"  # (for A100)
@@ -177,8 +177,8 @@ The `instrumented_generate()` wrapper handles all telemetry transparently:
 The `TelemetryAggregator` provides read-only queries over stored records:
 
 ```bash
-jarvis telemetry stats          # Aggregated statistics
-jarvis telemetry export --json  # Export all records
+locus telemetry stats          # Aggregated statistics
+locus telemetry export --json  # Export all records
 ```
 
 !!! note "Telemetry is best-effort"
@@ -228,7 +228,7 @@ Design choices that support this principle:
 
 ## 7. OpenAI-Compatible
 
-The API server (`jarvis serve`) implements the **OpenAI chat completions API format**, making Locus a drop-in replacement for OpenAI in existing applications.
+The API server (`locus serve`) implements the **OpenAI chat completions API format**, making Locus a drop-in replacement for OpenAI in existing applications.
 
 Supported endpoints:
 

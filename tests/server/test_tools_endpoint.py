@@ -81,7 +81,7 @@ def test_weather_tool_picker_recognizes_connector_credential(tmp_path, monkeypat
         '{"api_key":"connector-key","location":"Boston,US"}',
         encoding="utf-8",
     )
-    monkeypatch.setenv("Locus_HOME", str(root))
+    monkeypatch.setenv("LOCUS_HOME", str(root))
     monkeypatch.delenv("OPENWEATHERMAP_API_KEY", raising=False)
 
     tools = build_tools_list()
@@ -103,7 +103,7 @@ def test_tool_credentials_browser_lifecycle(tmp_path, monkeypatch):
 
     from locus.server.agent_manager_routes import create_agent_manager_router
 
-    monkeypatch.setenv("Locus_HOME", str(tmp_path / "locus-home"))
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "locus-home"))
     monkeypatch.delenv("TAVILY_API_KEY", raising=False)
     monkeypatch.delenv("YOUDOTCOM_API_KEY", raising=False)
     monkeypatch.delenv("SERPLY_API_KEY", raising=False)
@@ -146,7 +146,7 @@ def test_weather_tool_credentials_browser_lifecycle(tmp_path, monkeypatch):
 
     from locus.server.agent_manager_routes import create_agent_manager_router
 
-    monkeypatch.setenv("Locus_HOME", str(tmp_path / "locus-home"))
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "locus-home"))
     monkeypatch.delenv("OPENWEATHERMAP_API_KEY", raising=False)
     app = FastAPI()
     tools_router = create_agent_manager_router(MagicMock())[3]

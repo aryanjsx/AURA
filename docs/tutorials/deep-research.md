@@ -159,7 +159,7 @@ response = system.ask("quantum computing advances 2026")
 system.close()
 ```
 
-This is useful when you want to version-control the research configuration, share it with collaborators, or feed it to the `jarvis eval` runner for benchmarking.
+This is useful when you want to version-control the research configuration, share it with collaborators, or feed it to the `locus eval` runner for benchmarking.
 
 ## Customization
 
@@ -180,7 +180,7 @@ tools = ["web_search", "think", "file_write",
          "memory_store", "memory_search", "knowledge_graph_query"]
 ```
 
-Run `jarvis agent info orchestrator` to see the full tool catalog.
+Run `locus agent info orchestrator` to see the full tool catalog.
 
 ### Adjust temperature
 

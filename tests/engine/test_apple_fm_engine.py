@@ -602,7 +602,7 @@ class TestAfmIsTreatedAsLocal:
         assert _target_is_cloud("afm", "afm-3-core") is False
 
     def test_image_privacy_guard_does_not_warn_for_afm(self):
-        """`jarvis ask -i photo.png --engine afm` must not claim the image
+        """`locus ask -i photo.png --engine afm` must not claim the image
         leaves the machine."""
         from locus.cli.ask import LOCAL_ENGINES
 

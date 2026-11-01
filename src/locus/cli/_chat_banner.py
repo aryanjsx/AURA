@@ -15,13 +15,13 @@ def render_startup_banner(status: BgStatus) -> str:
     if status.rust_extension == "pending":
         parts.append("Rust extension building")
     elif status.rust_extension == "failed":
-        parts.append("⚠ Rust extension failed (run `jarvis doctor`)")
+        parts.append("⚠ Rust extension failed (run `locus doctor`)")
 
     for model_id, state in status.models.items():
         if state == "downloading":
             parts.append(f"{model_id} downloading")
         elif state == "failed":
-            parts.append(f"⚠ {model_id} failed (run `jarvis doctor`)")
+            parts.append(f"⚠ {model_id} failed (run `locus doctor`)")
         # 'ready' models don't show in the banner.
 
     if not parts:

@@ -7,7 +7,7 @@ Run manually::
 
 Or register as a scheduled task::
 
-    jarvis scheduler create "Gym schedule check" --type cron --value "0 6 * * 1,3,5"
+    locus scheduler create "Gym schedule check" --type cron --value "0 6 * * 1,3,5"
 
 This script also demonstrates using the ``TaskScheduler`` API directly to
 register itself as a recurring task.
@@ -126,7 +126,7 @@ def _register_task(gym: str) -> None:
         click.echo(f"  Next run: {task.next_run}")
         click.echo(
             "\nStart the scheduler daemon to execute tasks automatically:\n"
-            "  jarvis scheduler start"
+            "  locus scheduler start"
         )
     except Exception as exc:
         click.echo(f"Error registering task: {exc}", err=True)

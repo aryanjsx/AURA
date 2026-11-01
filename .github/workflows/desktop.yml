@@ -80,7 +80,7 @@ jobs:
         run: |
           uv sync --locked --extra dev --extra desktop --extra inference-cloud --extra inference-google --group desktop-native
           uv run python -c "import sysconfig, locus_rust; assert sysconfig.get_platform() == 'win-amd64'; print('x64 backend and Rust extension import OK')"
-          uv run jarvis --version
+          uv run locus --version
           uv run pytest tests/hardware/test_hardware_profiles.py tests/core/test_utils.py -q
 
       - name: Download ARM64 Ollama and stage test bundle
@@ -541,8 +541,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # tauri-action runs beforeBuildCommand (npm run build:tauri -> vite
-          # build), which requires this at build time (#587). Strict for
-          # releases: a missing/empty secret fails the build by design.
+          # build). The leaderboard is enabled only when both the URL and the
+          # anon key are set (see src/lib/supabase.ts).
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
           projectPath: frontend

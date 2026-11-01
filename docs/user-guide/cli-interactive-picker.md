@@ -1,6 +1,6 @@
 # Interactive CLI model and runtime picker (TUI)
 
-Optional terminal UX for `jarvis chat` and bare `jarvis` on an interactive TTY.
+Optional terminal UX for `locus chat` and bare `locus` on an interactive TTY.
 Upstream previously relied on `default_model` in config or `-m` / `--model` only.
 
 ## Who may find this useful
@@ -27,8 +27,8 @@ On a TTY (unless skipped):
 Skip picker:
 
 - `JARVIS_SKIP_MODEL_PICK=1`
-- `jarvis chat` without bare `jarvis` (picker only auto-runs on bare `jarvis` unless `--pick-model`)
-- `jarvis chat --pick-model` forces the list
+- `locus chat` without bare `locus` (picker only auto-runs on bare `locus` unless `--pick-model`)
+- `locus chat --pick-model` forces the list
 
 ### Runtime panel (Ollama-focused)
 
@@ -67,6 +67,6 @@ model_code = ""
 
 | Command | Role |
 |---------|------|
-| `jarvis model list` | Inspect models without starting chat |
-| `jarvis chat -m MODEL` | Skip picker, fixed model |
-| `jarvis chat --num-ctx N --num-gpu N` | Skip runtime panel |
+| `locus model list` | Inspect models without starting chat |
+| `locus chat -m MODEL` | Skip picker, fixed model |
+| `locus chat --num-ctx N --num-gpu N` | Skip runtime panel |

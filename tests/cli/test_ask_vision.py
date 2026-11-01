@@ -1,4 +1,4 @@
-"""CLI-level regression tests for ``jarvis ask`` vision input.
+"""CLI-level regression tests for ``locus ask`` vision input.
 
 The unit tests in ``tests/test_vision.py`` cover the ``Message.images`` ->
 ``messages_to_dicts`` serialization contract in isolation. These tests lock
@@ -59,7 +59,7 @@ class _RecordingEngine:
 
 
 def _patch_ask(monkeypatch, tmp_path: Path, *, engine_name: str) -> _RecordingEngine:
-    """Wire ``jarvis ask`` to a recording engine reported under ``engine_name``."""
+    """Wire ``locus ask`` to a recording engine reported under ``engine_name``."""
     cfg = JarvisConfig()
     cfg.telemetry.db_path = str(tmp_path / "telemetry.db")
     # Keep memory context out of the picture so the user message we inspect is

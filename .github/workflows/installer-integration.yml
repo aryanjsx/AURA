@@ -50,7 +50,7 @@ jobs:
         run: |
           chown -R testuser:testuser /home/testuser "$GITHUB_WORKSPACE/locus-src"
           su testuser -c '
-            export Locus_REPO_URL=file://'"$GITHUB_WORKSPACE"'/locus-src
+            export LOCUS_REPO_URL=file://'"$GITHUB_WORKSPACE"'/locus-src
             cd '"$GITHUB_WORKSPACE"'/locus-src
             bash scripts/install/install.sh --no-bg-orchestrator
           '
@@ -62,21 +62,21 @@ jobs:
             test -d ~/.locus/.venv
             test -f ~/.locus/config.toml
             test -f ~/.locus/.state/install-state.json
-            test -L ~/.local/bin/jarvis
+            test -L ~/.local/bin/locus
           '
 
-      - name: Verify jarvis --version
-        run: su testuser -c '~/.local/bin/jarvis --version'
+      - name: Verify locus --version
+        run: su testuser -c '~/.local/bin/locus --version'
 
-      - name: Verify jarvis doctor exits 0
-        run: su testuser -c '~/.local/bin/jarvis doctor'
+      - name: Verify locus doctor exits 0
+        run: su testuser -c '~/.local/bin/locus doctor'
 
       - name: Verify uninstall is clean
         run: |
           su testuser -c '
-            ~/.local/bin/jarvis-uninstall --yes
+            ~/.local/bin/locus-uninstall --yes
             test ! -d ~/.locus
-            test ! -L ~/.local/bin/jarvis
+            test ! -L ~/.local/bin/locus
           '
 
   macos:
@@ -95,7 +95,7 @@ jobs:
 
       - name: Run installer
         run: |
-          export Locus_REPO_URL=file://$(pwd)
+          export LOCUS_REPO_URL=file://$(pwd)
           bash scripts/install/install.sh --no-bg-orchestrator
 
       - name: Verify install state
@@ -103,16 +103,16 @@ jobs:
           test -d ~/.locus/src
           test -d ~/.locus/.venv
           test -f ~/.locus/config.toml
-          test -L ~/.local/bin/jarvis
+          test -L ~/.local/bin/locus
 
-      - name: Verify jarvis --version
-        run: ~/.local/bin/jarvis --version
+      - name: Verify locus --version
+        run: ~/.local/bin/locus --version
 
-      - name: Verify jarvis doctor exits 0
-        run: ~/.local/bin/jarvis doctor
+      - name: Verify locus doctor exits 0
+        run: ~/.local/bin/locus doctor
 
       - name: Verify uninstall is clean
         run: |
-          ~/.local/bin/jarvis-uninstall --yes
+          ~/.local/bin/locus-uninstall --yes
           test ! -d ~/.locus
-          test ! -L ~/.local/bin/jarvis
+          test ! -L ~/.local/bin/locus

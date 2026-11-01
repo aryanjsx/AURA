@@ -1,4 +1,4 @@
-"""Screen capture for vision input (``jarvis ask --screen``).
+"""Screen capture for vision input (``locus ask --screen``).
 
 Captures the primary monitor to a temporary PNG so it can be handed to a
 vision-capable model. On Windows this uses the built-in .NET

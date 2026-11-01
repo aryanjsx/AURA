@@ -47,7 +47,7 @@ class TestSkillsConfigWithSources:
     def test_loads_source_tables_as_config_objects(
         self, tmp_path: Path, monkeypatch
     ) -> None:
-        monkeypatch.setenv("Locus_HOME", str(tmp_path / "home"))
+        monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "home"))
         toml_file = tmp_path / "config.toml"
         toml_file.write_text(
             "[[skills.sources]]\n"

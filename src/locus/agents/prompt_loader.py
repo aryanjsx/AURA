@@ -1,10 +1,10 @@
-"""Load system prompt and few-shot overrides from $Locus_HOME.
+"""Load system prompt and few-shot overrides from $LOCUS_HOME.
 
 LLM-guided spec search (M1) proposes edits that get written to disk by appliers.
 This module lets agents pick those overrides up at runtime:
 
-- System prompts: ``$Locus_HOME/agents/{name}/system_prompt.md``
-- Few-shot exemplars: ``$Locus_HOME/agents/{name}/few_shot.json``
+- System prompts: ``$LOCUS_HOME/agents/{name}/system_prompt.md``
+- Few-shot exemplars: ``$LOCUS_HOME/agents/{name}/few_shot.json``
 
 Override files are templates — they may contain ``{tool_descriptions}`` and
 other format placeholders that the agent fills in via ``.format()``, exactly
@@ -24,15 +24,15 @@ logger = logging.getLogger(__name__)
 
 
 def _locus_home() -> Path:
-    """Resolve the Locus root, honoring Locus_HOME / XDG_DATA_HOME."""
+    """Resolve the Locus root, honoring LOCUS_HOME / XDG_DATA_HOME."""
     return get_config_dir()
 
 
 def load_system_prompt_override(agent_name: str) -> str | None:
     """Return the override prompt for *agent_name*, or ``None``.
 
-    Looks for ``$Locus_HOME/agents/<agent_name>/system_prompt.md``.
-    ``Locus_HOME`` defaults to ``~/.locus`` when unset.
+    Looks for ``$LOCUS_HOME/agents/<agent_name>/system_prompt.md``.
+    ``LOCUS_HOME`` defaults to ``~/.locus`` when unset.
     """
     home = _locus_home()
     prompt_path = home / "agents" / agent_name / "system_prompt.md"
@@ -56,7 +56,7 @@ def load_few_shot_exemplars(
 ) -> list[dict[str, Any]]:
     """Return few-shot exemplars for *agent_name*, or empty list.
 
-    Looks for ``$Locus_HOME/agents/<agent_name>/few_shot.json``.
+    Looks for ``$LOCUS_HOME/agents/<agent_name>/few_shot.json``.
     Expected format: ``[{"input": "Q", "output": "A"}, ...]``.
     """
     home = _locus_home()

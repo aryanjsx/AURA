@@ -9,9 +9,9 @@
 
 set -euo pipefail
 
-Locus_HOME="${Locus_HOME:-$HOME/.locus}"
-STATE_DIR="$Locus_HOME/.state"
-SCRIPTS_DIR="$Locus_HOME/.scripts"
+LOCUS_HOME="${LOCUS_HOME:-$HOME/.locus}"
+STATE_DIR="$LOCUS_HOME/.state"
+SCRIPTS_DIR="$LOCUS_HOME/.scripts"
 PID_FILE="$STATE_DIR/bg.pid"
 LOG="$STATE_DIR/bg-orchestrator.log"
 

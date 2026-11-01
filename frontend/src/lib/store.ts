@@ -96,8 +96,8 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 interface Settings {
   theme: ThemeMode;
   apiUrl: string;
-  // Local server API key (Locus_API_KEY). Sent as a Bearer token on
-  // /v1 + /api requests so a key-protected `jarvis serve` doesn't 401 the
+  // Local server API key (LOCUS_API_KEY). Sent as a Bearer token on
+  // /v1 + /api requests so a key-protected `locus serve` doesn't 401 the
   // frontend (#266). Empty = no auth header (keyless local default).
   apiKey: string;
   fontSize: 'small' | 'default' | 'large';

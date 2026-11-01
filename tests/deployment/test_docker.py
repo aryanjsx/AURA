@@ -59,7 +59,7 @@ class TestDockerFiles:
     def test_dockerfile_has_entrypoint(self):
         content = (DOCKER_DIR / "Dockerfile").read_text()
         assert "ENTRYPOINT" in content
-        assert "jarvis" in content
+        assert "locus" in content
 
     def test_dockerfile_copies_forced_package_includes(self):
         # Every Dockerfile that builds the wheel from an explicit `COPY src/`
@@ -112,7 +112,7 @@ class TestDockerFiles:
 
         # Basic structural checks without requiring PyYAML
         assert "services:" in content
-        assert "jarvis:" in content
+        assert "locus:" in content
 
         if yaml_mod is not None:
             data = yaml_mod.safe_load(content)
@@ -120,7 +120,7 @@ class TestDockerFiles:
 
     def test_docker_compose_has_services(self):
         content = (DOCKER_DIR / "docker-compose.yml").read_text()
-        assert "jarvis:" in content
+        assert "locus:" in content
         assert "ollama:" in content
 
     def test_dockerfiles_build_native_rust_extension(self):

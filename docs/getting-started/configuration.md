@@ -15,7 +15,7 @@ The configuration file lives at:
 ~/.locus/config.toml
 ```
 
-Locus creates the `~/.locus/` directory and populates it with a default config when you run `jarvis init`.
+Locus creates the `~/.locus/` directory and populates it with a default config when you run `locus init`.
 
 ## Relocating the Locus directory
 
@@ -26,7 +26,7 @@ clutters your home directory beyond one folder. By default that root is
 
 The root is resolved in priority order:
 
-1. **`$Locus_HOME`** — explicit override. Honored by both the installer
+1. **`$LOCUS_HOME`** — explicit override. Honored by both the installer
    and the Python runtime.
 2. **`$XDG_DATA_HOME/locus`** — used when `$XDG_DATA_HOME` is set (a single
    `locus` directory nested under it, per the XDG Base Directory spec).
@@ -35,26 +35,26 @@ The root is resolved in priority order:
 
 ```bash
 # Relocate the whole install + runtime tree at install time:
-Locus_HOME=~/apps/locus curl -fsSL https://locus.github.io/Locus/install.sh | bash
+LOCUS_HOME=~/apps/locus curl -fsSL https://aryanjsx.github.io/Locus/install.sh | bash
 
 # Or for a single run / your shell profile:
-export Locus_HOME=~/apps/locus
+export LOCUS_HOME=~/apps/locus
 ```
 
 Confirm where your data lives with:
 
 ```bash
-jarvis config path
+locus config path
 ```
 
 !!! note "Migration"
     Because the default is unchanged, **no data migration is required** for
-    existing installs. If you set `Locus_HOME` (or `XDG_DATA_HOME`) on a
+    existing installs. If you set `LOCUS_HOME` (or `XDG_DATA_HOME`) on a
     machine that already has data in `~/.locus`, Locus will look in
     the new location and not see your old data — move it yourself if you want
-    to keep it: `mv ~/.locus "$Locus_HOME"`.
+    to keep it: `mv ~/.locus "$LOCUS_HOME"`.
 
-`$Locus_CONFIG` still points at an explicit `config.toml` file
+`$LOCUS_CONFIG` still points at an explicit `config.toml` file
 independently of the root, if you need to override just the config file path.
 
 ## Generating Configuration
@@ -62,7 +62,7 @@ independently of the root, if you need to override just the config file path.
 ### First-Time Setup
 
 ```bash
-jarvis init
+locus init
 ```
 
 This command:
@@ -76,7 +76,7 @@ This command:
 To overwrite an existing config:
 
 ```bash
-jarvis init --force
+locus init --force
 ```
 
 !!! warning
@@ -341,7 +341,7 @@ policy = "heuristic"
 You can also override the router policy per-query via the CLI:
 
 ```bash
-jarvis ask --router heuristic "Hello"
+locus ask --router heuristic "Hello"
 ```
 
 !!! note "Backward compatibility"
@@ -438,7 +438,7 @@ environment variable is present.
 
 ### `[server]` — API Server
 
-Controls the OpenAI-compatible API server started by `jarvis serve`.
+Controls the OpenAI-compatible API server started by `locus serve`.
 
 ```toml
 [server]
@@ -460,14 +460,14 @@ workers = 1
 CLI options override config values:
 
 ```bash
-jarvis serve --host 127.0.0.1 --port 9000 --model qwen3:8b --agent simple
+locus serve --host 127.0.0.1 --port 9000 --model qwen3:8b --agent simple
 ```
 
 ---
 
 ### `[analytics]` — Optional External Usage Analytics
 
-External analytics default to off. Interactive Bash installation and `jarvis
+External analytics default to off. Interactive Bash installation and `locus
 init` ask whether to share: **Press Enter or Y to consent, or N to decline**.
 Unattended runs do not consent automatically; `--analytics` explicitly enables
 sharing and `--no-analytics` declines it.
@@ -477,7 +477,7 @@ sharing and `--no-analytics` declines it.
 enabled = false
 ```
 
-Use `jarvis config set analytics.enabled true` to enable sharing or `false` to
+Use `locus config set analytics.enabled true` to enable sharing or `false` to
 disable it, then restart the server and reload the frontend. This setting is
 independent of local telemetry and leaderboard participation. See
 [Telemetry](../telemetry.md) for the event catalog and sharing details.
@@ -662,7 +662,7 @@ enforce_tool_confirmation = true
 
 ## Hardware Auto-Detection
 
-When you run `jarvis init`, Locus probes your system to detect available hardware. The detection runs in this order:
+When you run `locus init`, Locus probes your system to detect available hardware. The detection runs in this order:
 
 ### GPU Detection
 
@@ -748,7 +748,7 @@ graph TD
 Start an MLX server with the same model ID used in the configuration:
 
 ```bash
-jarvis host mlx-community/Qwen2.5-7B-4bit --backend mlx --port 8080
+locus host mlx-community/Qwen2.5-7B-4bit --backend mlx --port 8080
 ```
 
 ```toml
@@ -1152,7 +1152,7 @@ Locus respects the following environment variables:
 | `FXMACRODATA_API_KEY` | API key for the `fx_macro_data` tool. Optional: recent USD releases, the USD release calendar and every currency's indicator catalogue work without it. The key unlocks other currencies, full history and FX rates. Keys: [fxmacrodata.com](https://fxmacrodata.com/subscribe). |
 | `FIRECRAWL_API_KEY` | API key for the Firecrawl web search engine. Optional. When set and no other search key is, `auto` engine selection prefers Firecrawl over the keyless tier, and URL queries return the page or PDF as markdown. Keys: [firecrawl.dev](https://www.firecrawl.dev/app/api-keys?utm_source=locus&utm_medium=integration). |
 | `FIRECRAWL_API_URL` | Base URL of the Firecrawl API, for example a [self-hosted Firecrawl](https://docs.firecrawl.dev/contributing/self-host). Optional. Defaults to `https://api.firecrawl.dev`. Any other URL enables the Firecrawl engine without a key, for instances that run without auth. |
-| `Locus_WEB_SEARCH_ENGINE` | Web search engine for the `web_search` tool: `auto` (default), `youcom`, `tavily`, `serply`, `firecrawl`, or `duckduckgo`. |
+| `LOCUS_WEB_SEARCH_ENGINE` | Web search engine for the `web_search` tool: `auto` (default), `youcom`, `tavily`, `serply`, `firecrawl`, or `duckduckgo`. |
 
 In the desktop app, you can save `ATLASCLOUD_API_KEY` in **Cloud Models** or
 **Settings → API Keys** instead of setting an environment variable.

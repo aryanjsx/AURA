@@ -2,7 +2,7 @@
 # install.sh — Locus curl-pipe-bash installer.
 #
 # Usage:
-#   curl -fsSL https://locus.github.io/Locus/install.sh | bash
+#   curl -fsSL https://aryanjsx.github.io/Locus/install.sh | bash
 #
 # Flags (only used in tests / power users):
 #   --no-bg-orchestrator   Skip the detached background orchestrator
@@ -12,9 +12,9 @@
 #   --no-analytics         Decline analytics without an interactive prompt
 #
 # Environment overrides:
-#   Locus_HOME        Install dir (default: $HOME/.locus)
-#   Locus_REPO_URL    git repo URL (default: https://github.com/locus/Locus.git)
-#   Locus_FORCE_WSL   Set 1 to force WSL detection (testing)
+#   LOCUS_HOME        Install dir (default: $HOME/.locus)
+#   LOCUS_REPO_URL    git repo URL (default: https://github.com/aryanjsx/Locus.git)
+#   LOCUS_FORCE_WSL   Set 1 to force WSL detection (testing)
 
 set -euo pipefail
 
@@ -60,13 +60,13 @@ Locus runs on Windows via WSL2. Two paths:
 
      Open the Ubuntu shell that gets installed, then re-run:
 
-       curl -fsSL https://locus.github.io/Locus/install.sh | bash
+       curl -fsSL https://aryanjsx.github.io/Locus/install.sh | bash
 
   2. Desktop app — download the .exe from the Releases page:
-     https://github.com/locus/Locus/releases
+     https://github.com/aryanjsx/Locus/releases
 
 See the WSL2 install guide for the full walkthrough:
-  https://locus.github.io/Locus/getting-started/wsl2/
+  https://aryanjsx.github.io/Locus/getting-started/wsl2/
 EOF
         exit 1
         ;;
@@ -159,7 +159,7 @@ Two ways forward:
        Arch:          sudo pacman -S $tool
 
   2. Pre-authenticate sudo before piping (caches credentials for 5 min):
-       sudo -v && curl -fsSL https://locus.github.io/Locus/install.sh | bash
+       sudo -v && curl -fsSL https://aryanjsx.github.io/Locus/install.sh | bash
 EOF
         exit 1
     fi
@@ -223,25 +223,25 @@ fi
 # ---- env ----
 # Locus keeps ALL of its state (install tree + runtime data, configs,
 # databases, caches, logs) under a single root so it never clutters $HOME
-# beyond one directory. Relocate it by exporting Locus_HOME before
+# beyond one directory. Relocate it by exporting LOCUS_HOME before
 # running the installer, e.g.:
-#     Locus_HOME=~/apps/locus curl ... | bash
-# The Python runtime honors the same override (and, when Locus_HOME is
+#     LOCUS_HOME=~/apps/locus curl ... | bash
+# The Python runtime honors the same override (and, when LOCUS_HOME is
 # unset, $XDG_DATA_HOME/locus if XDG_DATA_HOME is set). With nothing set
 # the root is ~/.locus, so existing installs are untouched.
-Locus_HOME="${Locus_HOME:-$HOME/.locus}"
-Locus_REPO_URL="${Locus_REPO_URL:-https://github.com/locus/Locus.git}"
-SRC_DIR="$Locus_HOME/src"
-VENV_DIR="$Locus_HOME/.venv"
-STATE_DIR="$Locus_HOME/.state"
-SCRIPTS_DIR="$Locus_HOME/.scripts"
+LOCUS_HOME="${LOCUS_HOME:-$HOME/.locus}"
+LOCUS_REPO_URL="${LOCUS_REPO_URL:-https://github.com/aryanjsx/Locus.git}"
+SRC_DIR="$LOCUS_HOME/src"
+VENV_DIR="$LOCUS_HOME/.venv"
+STATE_DIR="$LOCUS_HOME/.state"
+SCRIPTS_DIR="$LOCUS_HOME/.scripts"
 STATE_FILE="$STATE_DIR/install-state.json"
 
-mkdir -p "$Locus_HOME" "$STATE_DIR" "$SCRIPTS_DIR"
+mkdir -p "$LOCUS_HOME" "$STATE_DIR" "$SCRIPTS_DIR"
 
 # ---- WSL detection ----
 WSL=0
-if [[ "${Locus_FORCE_WSL:-0}" == "1" ]]; then
+if [[ "${LOCUS_FORCE_WSL:-0}" == "1" ]]; then
     WSL=1
 elif [[ -f /proc/sys/kernel/osrelease ]] && grep -qi "microsoft" /proc/sys/kernel/osrelease 2>/dev/null; then
     WSL=1
@@ -254,9 +254,10 @@ fi
 # Install payloads contain OS, arch, elapsed time, stage name, and a
 # random installation ID. Beacons are disabled until consent is given.
 #
-ANALYTICS_HOST="${Locus_ANALYTICS_HOST:-https://34.231.106.201.sslip.io}"
-ANALYTICS_KEY="${Locus_ANALYTICS_KEY:-phc_ysKu72QaxzYNmDpHFcesD2ZZAe68zkdWJEKoYYkc5e3n}"
-ANON_ID_FILE="$Locus_HOME/anon_id"
+# No destination ships by default; set both variables to enable beacons.
+ANALYTICS_HOST="${LOCUS_ANALYTICS_HOST:-}"
+ANALYTICS_KEY="${LOCUS_ANALYTICS_KEY:-}"
+ANON_ID_FILE="$LOCUS_HOME/anon_id"
 INSTALL_START_EPOCH="$(date +%s)"
 CURRENT_STAGE=""
 
@@ -265,6 +266,9 @@ analytics_enabled() {
 }
 
 choose_analytics() {
+    if [[ -z "$ANALYTICS_HOST" || -z "$ANALYTICS_KEY" ]]; then
+        return
+    fi
     # The usual curl | bash entry point occupies stdin. Read a real
     # controlling terminal instead; EOF/unattended runs never consent.
     case "$ANALYTICS_CHOICE" in
@@ -282,8 +286,8 @@ Help improve Locus by sharing optional install and usage statistics.
 Data includes installation and feature usage, timings, token counts, error
 categories, environment metadata, and a random installation ID.
 Recipient: the Locus team's PostHog analytics endpoint.
-Privacy details: https://locus.github.io/Locus/telemetry/
-You can disable sharing later: jarvis config set analytics.enabled false
+Privacy details: https://aryanjsx.github.io/Locus/telemetry/
+You can disable sharing later: locus config set analytics.enabled false
 (then restart the server and reload the app).
 Declining does not change Locus functionality.
 EOF
@@ -310,7 +314,7 @@ EOF
 
 persist_analytics_choice() {
     # Always run, including when the installer skips write_config on a
-    # rerun. Use the installed TOML editor directly: an older jarvis CLI
+    # rerun. Use the installed TOML editor directly: an older locus CLI
     # rejects the new choice_recorded key before it can save the choice.
     local enabled=false
     if analytics_enabled; then
@@ -326,7 +330,7 @@ import tomlkit
 
 from locus.core.config import DEFAULT_CONFIG_PATH
 
-path = Path(os.environ.get("Locus_CONFIG") or DEFAULT_CONFIG_PATH).expanduser().resolve()
+path = Path(os.environ.get("LOCUS_CONFIG") or DEFAULT_CONFIG_PATH).expanduser().resolve()
 path.parent.mkdir(parents=True, exist_ok=True)
 doc = tomlkit.parse(path.read_text(encoding="utf-8")) if path.exists() else tomlkit.document()
 if "analytics" not in doc:
@@ -544,10 +548,10 @@ clone_repo() {
     fi
     # Keep commit/tag history for hatch-vcs. Local sources may themselves be
     # shallow and cannot safely serve a partial clone's lazy object fetches.
-    if [[ "$Locus_REPO_URL" == file://* || -e "$Locus_REPO_URL" ]]; then
-        git clone "$Locus_REPO_URL" "$SRC_DIR"
+    if [[ "$LOCUS_REPO_URL" == file://* || -e "$LOCUS_REPO_URL" ]]; then
+        git clone "$LOCUS_REPO_URL" "$SRC_DIR"
     else
-        git clone --filter=blob:none "$Locus_REPO_URL" "$SRC_DIR"
+        git clone --filter=blob:none "$LOCUS_REPO_URL" "$SRC_DIR"
     fi
 }
 
@@ -696,19 +700,19 @@ pull_default_model() {
 }
 
 write_config() {
-    "$VENV_DIR/bin/jarvis" _bootstrap --write-config \
+    "$VENV_DIR/bin/locus" _bootstrap --write-config \
         --engine ollama --model qwen3.5:2b \
         --prefer-cloud-when-available
 }
 
 install_symlinks() {
     mkdir -p "$HOME/.local/bin"
-    ln -sf "$SCRIPTS_DIR/jarvis-wrapper.sh" "$HOME/.local/bin/jarvis"
-    ln -sf "$SCRIPTS_DIR/jarvis-uninstall.sh" "$HOME/.local/bin/jarvis-uninstall"
+    ln -sf "$SCRIPTS_DIR/locus-wrapper.sh" "$HOME/.local/bin/locus"
+    ln -sf "$SCRIPTS_DIR/locus-uninstall.sh" "$HOME/.local/bin/locus-uninstall"
 }
 
 # Tracks whether the user needs to source ~/.bashrc / ~/.zshrc / open a
-# new terminal before `jarvis` will resolve. Set only when ensure_path
+# new terminal before `locus` will resolve. Set only when ensure_path
 # actually modified the user's rc file.
 PATH_MODIFIED=0
 
@@ -766,7 +770,7 @@ PYEOF
 
 # ---- run ----
 echo "Locus installer"
-echo "  install dir: $Locus_HOME"
+echo "  install dir: $LOCUS_HOME"
 echo "  WSL2:        $WSL"
 echo
 
@@ -801,16 +805,16 @@ echo
 # the foreground model pull actually succeeded and (b) whether the PATH
 # update needs a shell refresh. The four combinations:
 #
-#   PATH ok + model ok   -> "type jarvis"
-#   PATH new + model ok  -> "source rc && jarvis  (or open new terminal)"
-#   PATH ok + model bad  -> "model still downloading; jarvis doctor"
-#   PATH new + model bad -> "source rc && jarvis doctor; chat works once download finishes"
+#   PATH ok + model ok   -> "type locus"
+#   PATH new + model ok  -> "source rc && locus  (or open new terminal)"
+#   PATH ok + model bad  -> "model still downloading; locus doctor"
+#   PATH new + model bad -> "source rc && locus doctor; chat works once download finishes"
 #
-# `jarvis` and `jarvis doctor` need PATH equally, so the source/restart
+# `locus` and `locus doctor` need PATH equally, so the source/restart
 # guidance goes first when PATH was modified.
-NEXT_CMD="jarvis"
+NEXT_CMD="locus"
 if [[ "$MODEL_PULL_OK" -ne 1 ]]; then
-    NEXT_CMD="jarvis doctor"
+    NEXT_CMD="locus doctor"
 fi
 
 if [[ "$PATH_MODIFIED" -eq 1 ]]; then
@@ -832,7 +836,7 @@ fi
 
 if [[ "$MODEL_PULL_OK" -ne 1 ]]; then
     cat <<EOF
-NOTE: the qwen3.5:2b model didn't finish downloading. 'jarvis doctor'
+NOTE: the qwen3.5:2b model didn't finish downloading. 'locus doctor'
 shows the retry progress; chat will work once the download completes
 in the background.
 
@@ -843,5 +847,5 @@ cat <<EOF
 Background work continues silently:
   - Rust toolchain + maturin extension build
   - Bigger model downloads
-  Run 'jarvis doctor' to check status anytime.
+  Run 'locus doctor' to check status anytime.
 EOF

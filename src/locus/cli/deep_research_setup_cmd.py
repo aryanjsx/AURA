@@ -1,4 +1,4 @@
-"""``jarvis deep-research-setup`` — auto-detect local sources, ingest, and chat.
+"""``locus deep-research-setup`` — auto-detect local sources, ingest, and chat.
 
 Walks the user through connecting local data sources (Apple Notes, iMessage,
 Obsidian), ingesting them into a shared KnowledgeStore, and launching an

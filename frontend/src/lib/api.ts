@@ -76,7 +76,7 @@ export const getBase = (): string => {
   return '';
 };
 
-// Resolve the local server API key (Locus_API_KEY). When `jarvis serve`
+// Resolve the local server API key (LOCUS_API_KEY). When `locus serve`
 // is started with a key, AuthMiddleware 401s every /v1 and /api request that
 // lacks a Bearer token — so the frontend must send it (#266). Sourced from the
 // same settings blob as the API URL, with an optional build-time env override.

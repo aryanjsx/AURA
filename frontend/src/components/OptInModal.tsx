@@ -204,7 +204,7 @@ export function OptInModal({ onClose }: OptInModalProps) {
             Your name and savings are public; email is not displayed.
           </p>
           <a
-            href="https://locus.github.io/Locus/telemetry/"
+            href="https://aryanjsx.github.io/Locus/telemetry/"
             target="_blank"
             rel="noreferrer"
             className="inline-block underline mt-1"

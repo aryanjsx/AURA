@@ -68,12 +68,12 @@ tools = ["web_search", "think", "file_read"]
 prompt = "Research the given topic and write a summary."
 ```
 
-Run with: `jarvis compose run research_assistant "quantum computing advances"`
+Run with: `locus compose run research_assistant "quantum computing advances"`
 
 ## API Server (1 command)
 
 ```bash
-jarvis serve --port 8000 --engine ollama --model qwen3:8b
+locus serve --port 8000 --engine ollama --model qwen3:8b
 ```
 
 Any OpenAI-compatible client works against this endpoint.

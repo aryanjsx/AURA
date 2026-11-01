@@ -10,7 +10,7 @@ refuses to start on a non-loopback address without one. Set it first:
 ```bash
 cd deploy/docker
 cp .env.example .env
-echo "Locus_API_KEY=$(jarvis auth generate-key)" > .env   # or paste your own
+echo "LOCUS_API_KEY=$(locus auth generate-key)" > .env   # or paste your own
 ```
 
 Then start both the API server and an Ollama backend with Docker Compose:
@@ -19,7 +19,7 @@ Then start both the API server and an Ollama backend with Docker Compose:
 docker compose up -d
 ```
 
-`docker compose` reads `Locus_API_KEY` from `.env` (or your shell
+`docker compose` reads `LOCUS_API_KEY` from `.env` (or your shell
 environment) and fails fast if it is unset. Clients must then send
 `Authorization: Bearer <key>` on `/v1/*` and `/api/*` requests.
 
@@ -27,7 +27,7 @@ This brings up two services:
 
 | Service  | Port  | Description                        |
 |----------|-------|------------------------------------|
-| `jarvis` | 8000  | Locus API server              |
+| `locus` | 8000  | Locus API server              |
 | `ollama` | 11434 | Ollama inference engine            |
 
 Verify the server is running:
@@ -71,7 +71,7 @@ WORKDIR /app
 
 EXPOSE 8000
 
-ENTRYPOINT ["jarvis"]
+ENTRYPOINT ["locus"]
 CMD ["serve", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
@@ -117,7 +117,7 @@ WORKDIR /app
 
 EXPOSE 8000
 
-ENTRYPOINT ["jarvis"]
+ENTRYPOINT ["locus"]
 CMD ["serve", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
@@ -144,15 +144,15 @@ The `docker-compose.yml` defines a complete deployment with the Locus API server
 version: "3.9"
 
 services:
-  jarvis:
+  locus:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
-      - Locus_ENGINE_DEFAULT=ollama
-      - Locus_OLLAMA_HOST=http://ollama:11434
+      - LOCUS_ENGINE_DEFAULT=ollama
+      - LOCUS_OLLAMA_HOST=http://ollama:11434
     depends_on:
       - ollama
     restart: unless-stopped
@@ -171,12 +171,12 @@ volumes:
 
 ### Environment Variables
 
-The `jarvis` service is configured through environment variables:
+The `locus` service is configured through environment variables:
 
 | Variable                      | Description                                             | Default                    |
 |-------------------------------|---------------------------------------------------------|----------------------------|
-| `Locus_ENGINE_DEFAULT`   | Inference engine backend to use                         | `ollama`                   |
-| `Locus_OLLAMA_HOST`      | URL of the Ollama server (uses Docker service name)     | `http://ollama:11434`      |
+| `LOCUS_ENGINE_DEFAULT`   | Inference engine backend to use                         | `ollama`                   |
+| `LOCUS_OLLAMA_HOST`      | URL of the Ollama server (uses Docker service name)     | `http://ollama:11434`      |
 
 ### Volumes
 
@@ -184,7 +184,7 @@ The `ollama-models` named volume persists downloaded models across container res
 
 ### Service Dependencies
 
-The `jarvis` service declares `depends_on: ollama`, ensuring the Ollama container starts before the API server. Both services use `restart: unless-stopped` to automatically recover from crashes.
+The `locus` service declares `depends_on: ollama`, ensuring the Ollama container starts before the API server. Both services use `restart: unless-stopped` to automatically recover from crashes.
 
 ## Custom Configuration
 
@@ -194,7 +194,7 @@ To use a custom `config.toml`, mount it into the container at the expected path 
 
 ```yaml
 services:
-  jarvis:
+  locus:
     build:
       context: .
       dockerfile: Dockerfile
@@ -203,8 +203,8 @@ services:
     volumes:
       - ./my-config.toml:/root/.locus/config.toml:ro
     environment:
-      - Locus_ENGINE_DEFAULT=ollama
-      - Locus_OLLAMA_HOST=http://ollama:11434
+      - LOCUS_ENGINE_DEFAULT=ollama
+      - LOCUS_OLLAMA_HOST=http://ollama:11434
     depends_on:
       - ollama
     restart: unless-stopped
@@ -216,7 +216,7 @@ To persist telemetry data, memory databases, and trace records across container 
 
 ```yaml
 services:
-  jarvis:
+  locus:
     # ... other config ...
     volumes:
       - locus-data:/root/.locus
@@ -239,7 +239,7 @@ To use the GPU Dockerfile in your Compose setup, change the `dockerfile` field a
 
 ```yaml
 services:
-  jarvis:
+  locus:
     build:
       context: .
       dockerfile: Dockerfile.gpu
@@ -253,8 +253,8 @@ services:
               count: all
               capabilities: [gpu]
     environment:
-      - Locus_ENGINE_DEFAULT=ollama
-      - Locus_OLLAMA_HOST=http://ollama:11434
+      - LOCUS_ENGINE_DEFAULT=ollama
+      - LOCUS_OLLAMA_HOST=http://ollama:11434
     depends_on:
       - ollama
     restart: unless-stopped
@@ -284,7 +284,7 @@ You can integrate this into your Docker Compose healthcheck:
 
 ```yaml
 services:
-  jarvis:
+  locus:
     # ... other config ...
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -307,7 +307,7 @@ RUN pip install --no-cache-dir uv && \
 
 ### Overriding the Default Command
 
-The entrypoint is `jarvis` and the default command is `serve --host 0.0.0.0 --port 8000`. Override the command to change server options:
+The entrypoint is `locus` and the default command is `serve --host 0.0.0.0 --port 8000`. Override the command to change server options:
 
 ```bash
 docker run -d -p 9000:9000 locus:latest \
@@ -318,14 +318,14 @@ Or in Docker Compose:
 
 ```yaml
 services:
-  jarvis:
+  locus:
     build: .
     command: ["serve", "--host", "0.0.0.0", "--port", "9000", "--model", "qwen3:8b"]
     ports:
       - "9000:9000"
 ```
 
-### Available CLI Options for `jarvis serve`
+### Available CLI Options for `locus serve`
 
 | Option               | Description                                         |
 |----------------------|-----------------------------------------------------|

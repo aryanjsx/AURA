@@ -81,7 +81,7 @@ def test_install_uses_cached_skill_and_displays_warning(
     resolver, tmp_path, monkeypatch
 ):
     cached_skill(resolver)
-    monkeypatch.setenv("Locus_HOME", str(tmp_path / "installed"))
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "installed"))
     with (
         patch("subprocess.run", side_effect=failed_pull),
         patch("locus.cli.skill_cmd._get_resolver", return_value=resolver),
@@ -99,7 +99,7 @@ def test_install_uses_cached_skill_and_displays_warning(
 
 def test_cache_cannot_satisfy_missing_skill(resolver, tmp_path, monkeypatch):
     cached_skill(resolver)
-    monkeypatch.setenv("Locus_HOME", str(tmp_path / "installed"))
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "installed"))
     with (
         patch("subprocess.run", side_effect=failed_pull),
         patch("locus.cli.skill_cmd._get_resolver", return_value=resolver),

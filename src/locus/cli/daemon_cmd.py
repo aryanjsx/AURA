@@ -1,4 +1,4 @@
-"""``jarvis start|stop|restart|status`` — daemon management commands."""
+"""``locus start|stop|restart|status`` — daemon management commands."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ _LOG_FILE = DEFAULT_CONFIG_DIR / "server.log"
 # and `restart` fall back to the config defaults and misreport (or silently
 # move) the port whenever `start` was given an explicit --host/--port.
 _STATE_FILE = DEFAULT_CONFIG_DIR / "server.json"
-_LAUNCH_TOKEN_ENV = "Locus_DAEMON_LAUNCH_TOKEN"
+_LAUNCH_TOKEN_ENV = "LOCUS_DAEMON_LAUNCH_TOKEN"
 
 
 def _pid_alive(pid: int) -> bool:
@@ -76,7 +76,7 @@ def _read_pid_identity() -> dict:
 
 def _legacy_cli_args(argv: list[str]) -> list[str] | None:
     """Find CLI arguments without treating script arguments as Python options."""
-    entry_points = {"jarvis", "jarvis.exe"}
+    entry_points = {"locus", "locus.exe"}
     if not argv:
         return None
     executable = Path(argv[0]).name
@@ -351,10 +351,10 @@ def _server_url(host: str, port: int) -> str:
 
 
 def record_server_state(pid: int, host: str, port: int) -> None:
-    """Register a running server so `jarvis status` can find it.
+    """Register a running server so `locus status` can find it.
 
-    Called by `jarvis serve` itself, so a server supervised by launchd/systemd
-    (which never goes through `jarvis start`) is still reported as running.
+    Called by `locus serve` itself, so a server supervised by launchd/systemd
+    (which never goes through `locus start`) is still reported as running.
     """
     _write_pid(pid, host, port, launch_token=os.environ.get(_LAUNCH_TOKEN_ENV))
 
@@ -389,14 +389,14 @@ def start(
     existing = _read_pid()
     if existing is not None:
         console.print(f"[yellow]Server already running (PID {existing}).[/yellow]")
-        console.print("Use 'jarvis stop' to stop it first, or 'jarvis restart'.")
+        console.print("Use 'locus stop' to stop it first, or 'locus restart'.")
         sys.exit(1)
 
     config = load_config()
     bind_host = host or config.server.host
     bind_port = port if port is not None else config.server.port
 
-    # Build command to run jarvis serve
+    # Build command to run locus serve
     cmd = [sys.executable, "-m", "locus.cli", "serve"]
     if host:
         cmd.extend(["--host", host])
@@ -417,7 +417,7 @@ def start(
     # that console — or logging off — delivers CTRL_CLOSE_EVENT and kills the
     # daemon. CREATE_NO_WINDOW gives it its own hidden console, which its
     # children inherit. DETACHED_PROCESS (no console at all) is not enough for a
-    # venv install: ``jarvis.exe``/``python.exe`` there are launcher stubs that
+    # venv install: ``locus.exe``/``python.exe`` there are launcher stubs that
     # spawn the real interpreter, and that child, finding no console to inherit,
     # allocates a NEW visible one (a terminal window) that kills the server when
     # closed. The new process group additionally stops a Ctrl-C in the parent
@@ -459,7 +459,7 @@ def start(
 
     if existing is not None:
         console.print(f"[yellow]Server already running (PID {existing}).[/yellow]")
-        console.print("Use 'jarvis stop' to stop it first, or 'jarvis restart'.")
+        console.print("Use 'locus stop' to stop it first, or 'locus restart'.")
         sys.exit(1)
     assert proc is not None
     if registration_error is not None:
@@ -481,7 +481,7 @@ def stop() -> None:
     # Stop the graphical frontend too. It is a sibling process, not a child of
     # the daemon, so it otherwise outlives `stop` and keeps holding its port —
     # leaving both a GUI that serves pages but fails every request, and a next
-    # `jarvis gui` that dies on "Frontend port 5173 is unavailable".
+    # `locus gui` that dies on "Frontend port 5173 is unavailable".
     # Imported here rather than at module scope: gui_cmd is a sibling CLI
     # module and only `stop` needs it.
     from locus.cli.gui_cmd import stop_frontend

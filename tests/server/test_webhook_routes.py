@@ -48,7 +48,7 @@ class TestTwilioWebhook:
                 "/webhooks/twilio",
                 data={
                     "From": "+15551234567",
-                    "Body": "hello jarvis",
+                    "Body": "hello locus",
                     "MessageSid": "SM123",
                 },
             )

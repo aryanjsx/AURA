@@ -38,7 +38,7 @@ class TestCorsPreflightWithApiKey:
     def test_environment_origins_used_when_factory_argument_is_omitted(
         self, monkeypatch
     ):
-        monkeypatch.setenv("Locus_CORS_ORIGINS", "https://frontend.example")
+        monkeypatch.setenv("LOCUS_CORS_ORIGINS", "https://frontend.example")
         app = create_app(
             _make_engine(),
             "test-model",
@@ -61,7 +61,7 @@ class TestCorsPreflightWithApiKey:
         )
 
     def test_explicit_factory_origins_override_environment(self, monkeypatch):
-        monkeypatch.setenv("Locus_CORS_ORIGINS", "https://env.example")
+        monkeypatch.setenv("LOCUS_CORS_ORIGINS", "https://env.example")
         app = create_app(
             _make_engine(),
             "test-model",
@@ -90,7 +90,7 @@ class TestCorsPreflightWithApiKey:
         assert env.status_code == 400
 
     def test_wildcard_origin_is_removed(self, monkeypatch):
-        monkeypatch.setenv("Locus_CORS_ORIGINS", "*")
+        monkeypatch.setenv("LOCUS_CORS_ORIGINS", "*")
         app = create_app(
             _make_engine(),
             "test-model",

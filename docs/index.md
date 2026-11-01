@@ -30,7 +30,7 @@ Build personal AI that runs on your hardware. Cloud APIs are optional.
 
 ## Why Locus?
 
-Personal AI agents are exploding in popularity, but nearly all of them still route intelligence through cloud APIs. Your "personal" AI continues to depend on someone else's server. At the same time, our [Intelligence Per Watt](https://www.intelligence-per-watt.ai/) research showed that local language models already handle 88.7% of single-turn chat and reasoning queries, with intelligence efficiency improving 5.3× from 2023 to 2025. The models and hardware are increasingly ready. What has been missing is the software stack to make local-first personal AI practical.
+Personal AI agents are exploding in popularity, but nearly all of them still route intelligence through cloud APIs. Your "personal" AI continues to depend on someone else's server. At the same time, [Intelligence Per Watt](https://www.intelligence-per-watt.ai/) research from Stanford's Hazy Research showed that local language models already handle 88.7% of single-turn chat and reasoning queries, with intelligence efficiency improving 5.3× from 2023 to 2025. The models and hardware are increasingly ready. What has been missing is the software stack to make local-first personal AI practical.
 
 Locus is that stack. It is a framework for local-first personal AI, built around three core ideas: shared primitives for building on-device agents; evaluations that treat energy, FLOPs, latency, and dollar cost as first-class constraints alongside accuracy; and a learning loop that improves models using local trace data. The goal is simple: make it possible to build personal AI agents that run locally by default, calling the cloud only when truly necessary. Locus aims to be both a research platform and a production foundation for local AI, in the spirit of PyTorch.
 
@@ -43,7 +43,7 @@ Locus is that stack. It is a framework for local-first personal AI, built around
     Run the full chat UI locally with one script:
 
     ```bash
-    git clone https://github.com/locus/Locus.git
+    git clone https://github.com/aryanjsx/Locus.git
     cd Locus
     ./scripts/quickstart.sh
     ```
@@ -59,16 +59,16 @@ Locus is that stack. It is a framework for local-first personal AI, built around
     **Step 1.** Start the backend:
 
     ```bash
-    git clone https://github.com/locus/Locus.git
+    git clone https://github.com/aryanjsx/Locus.git
     cd Locus
     ./scripts/quickstart.sh
     ```
 
     **Step 2.** Download and open the desktop app:
 
-    [Download for macOS](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus_1.0.1_universal.dmg){ .md-button .md-button--primary }
+    [Download for macOS](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_universal.dmg){ .md-button .md-button--primary }
 
-    Also available for [Windows](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus_1.0.1_x64-setup.exe), [Linux (DEB)](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus_1.0.1_amd64.deb), and [Linux (RPM)](https://github.com/locus/Locus/releases/download/desktop-v1.0.2/Locus-1.0.1-1.x86_64.rpm). See the [Downloads](downloads.md) page for details.
+    Also available for [Windows](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_x64-setup.exe), [Linux (DEB)](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/LOCUS_1.0.1_amd64.deb), and [Linux (RPM)](https://github.com/aryanjsx/Locus/releases/download/desktop-v1.0.2/Locus-1.0.1-1.x86_64.rpm). See the [Downloads](downloads.md) page for details.
 
     The app connects to `http://localhost:8000` automatically.
 
@@ -101,14 +101,14 @@ Locus is that stack. It is a framework for local-first personal AI, built around
 === "CLI"
 
     ```bash
-    jarvis ask "What is the capital of France?"
+    locus ask "What is the capital of France?"
 
-    jarvis ask --agent orchestrator --tools calculator "What is 137 * 42?"
+    locus ask --agent orchestrator --tools calculator "What is 137 * 42?"
 
-    jarvis serve --port 8000
+    locus serve --port 8000
 
-    jarvis memory index ./docs/
-    jarvis memory search "configuration options"
+    locus memory index ./docs/
+    locus memory search "configuration options"
     ```
 
 ---
@@ -157,7 +157,7 @@ Locus is built around five composable layers. Each has a clean interface and can
 
     ---
 
-    `jarvis serve` starts a FastAPI server with SSE streaming. Drop-in replacement for OpenAI clients.
+    `locus serve` starts a FastAPI server with SSE streaming. Drop-in replacement for OpenAI clients.
 
 -   **Energy & Cost Tracking**
 
@@ -211,17 +211,15 @@ Locus is built around five composable layers. Each has a clean interface and can
 
 </div>
 
-## Research
+## Acknowledgments
 
-Locus is part of [Intelligence Per Watt](https://www.intelligence-per-watt.ai/), a research initiative studying the efficiency of on-device AI systems. Developed at [Hazy Research](https://hazyresearch.stanford.edu/) and the [Scaling Intelligence Lab](https://scalingintelligence.stanford.edu/) at [Stanford SAIL](https://ai.stanford.edu/).
+Locus is a modified version of [OpenJarvis](https://github.com/open-jarvis/OpenJarvis), an open-source framework for local-first personal AI developed at [Hazy Research](https://hazyresearch.stanford.edu/) and the [Scaling Intelligence Lab](https://scalingintelligence.stanford.edu/) at [Stanford SAIL](https://ai.stanford.edu/) as part of [Intelligence Per Watt](https://www.intelligence-per-watt.ai/). OpenJarvis is licensed under Apache 2.0; see [NOTICE](https://github.com/aryanjsx/Locus/blob/main/NOTICE) for details. Locus is an independent project and is not affiliated with or endorsed by Stanford or the OpenJarvis authors.
 
-Read the [blog post](https://locus.stanford.edu/) for the full research motivation, architecture details, and experimental results.
-
-## Citation
+If you use the underlying research, please cite the OpenJarvis paper:
 
 ```bibtex
-@misc{saadfalcon2026locuspersonalaipersonal,
-      title={Locus: Personal AI, On Personal Devices}, 
+@misc{saadfalcon2026openjarvispersonalaipersonal,
+      title={OpenJarvis: Personal AI, On Personal Devices}, 
       author={Jon Saad-Falcon and Avanika Narayan and Robby Manihani and Tanvir Bhathal and Herumb Shandilya and Hakki Orhun Akengin and Gabriel Bo and Andrew Park and Matthew Hart and Caia Costello and Chuan Li and Christopher Ré and Azalia Mirhoseini},
       year={2026},
       eprint={2605.17172},
@@ -231,16 +229,4 @@ Read the [blog post](https://locus.stanford.edu/) for the full research motivati
 }
 ```
 
-## Sponsors
-
-<p>
-  <a href="https://www.laude.org/">Laude Institute</a> &bull;
-  <a href="https://datascience.stanford.edu/marlowe">Stanford Marlowe</a> &bull;
-  <a href="https://cloud.google.com/">Google Cloud Platform</a> &bull;
-  <a href="https://lambda.ai/">Lambda Labs</a> &bull;
-  <a href="https://ollama.com/">Ollama</a> &bull;
-  <a href="https://research.ibm.com/">IBM Research</a> &bull;
-  <a href="https://hai.stanford.edu/">Stanford HAI</a>
-</p>
-
-Follow [@LocusAI](https://x.com/LocusAI) on X for updates.
+Read the [OpenJarvis project site](https://openjarvis.stanford.edu/) for the original research motivation, architecture details, and experimental results.

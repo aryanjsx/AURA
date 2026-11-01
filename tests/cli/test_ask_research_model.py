@@ -1,4 +1,4 @@
-"""Tests for the ``jarvis ask --research`` planner-model resolution."""
+"""Tests for the ``locus ask --research`` planner-model resolution."""
 
 from __future__ import annotations
 

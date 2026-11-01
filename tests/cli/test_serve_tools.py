@@ -1,4 +1,4 @@
-"""Regression tests for tool selection during ``jarvis serve`` startup."""
+"""Regression tests for tool selection during ``locus serve`` startup."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def test_serve_defaults_tools_when_no_selection_is_configured():
 
 def test_cors_environment_overrides_configured_defaults(monkeypatch):
     monkeypatch.setenv(
-        "Locus_CORS_ORIGINS",
+        "LOCUS_CORS_ORIGINS",
         " https://frontend.example, https://admin.example ",
     )
 
@@ -65,7 +65,7 @@ def test_cors_environment_overrides_configured_defaults(monkeypatch):
 
 
 def test_cors_config_is_used_without_environment(monkeypatch):
-    monkeypatch.delenv("Locus_CORS_ORIGINS", raising=False)
+    monkeypatch.delenv("LOCUS_CORS_ORIGINS", raising=False)
 
     origins = _resolve_server_cors_origins(["http://localhost:5173"])
 

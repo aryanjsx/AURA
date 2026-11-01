@@ -46,28 +46,28 @@ def _load_creds(filename: str) -> Dict[str, str]:
 
 _google = _load_creds("google.json")
 GOOGLE_CLIENT_ID = (
-    os.environ.get("Locus_GOOGLE_CLIENT_ID", "") or _google["client_id"]
+    os.environ.get("LOCUS_GOOGLE_CLIENT_ID", "") or _google["client_id"]
 )
 GOOGLE_CLIENT_SECRET = (
-    os.environ.get("Locus_GOOGLE_CLIENT_SECRET", "")
+    os.environ.get("LOCUS_GOOGLE_CLIENT_SECRET", "")
     or _google["client_secret"]
 )
 
 _strava = _load_creds("strava.json")
 STRAVA_CLIENT_ID = (
-    os.environ.get("Locus_STRAVA_CLIENT_ID", "") or _strava["client_id"]
+    os.environ.get("LOCUS_STRAVA_CLIENT_ID", "") or _strava["client_id"]
 )
 STRAVA_CLIENT_SECRET = (
-    os.environ.get("Locus_STRAVA_CLIENT_SECRET", "")
+    os.environ.get("LOCUS_STRAVA_CLIENT_SECRET", "")
     or _strava["client_secret"]
 )
 
 _spotify = _load_creds("spotify.json")
 SPOTIFY_CLIENT_ID = (
-    os.environ.get("Locus_SPOTIFY_CLIENT_ID", "") or _spotify["client_id"]
+    os.environ.get("LOCUS_SPOTIFY_CLIENT_ID", "") or _spotify["client_id"]
 )
 SPOTIFY_CLIENT_SECRET = (
-    os.environ.get("Locus_SPOTIFY_CLIENT_SECRET", "")
+    os.environ.get("LOCUS_SPOTIFY_CLIENT_SECRET", "")
     or _spotify["client_secret"]
 )
 

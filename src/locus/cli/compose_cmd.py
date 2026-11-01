@@ -1,4 +1,4 @@
-"""``jarvis compose`` — unified composition CLI for discrete agents and operators."""
+"""``locus compose`` — unified composition CLI for discrete agents and operators."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def compose() -> None:
 
 
 # ------------------------------------------------------------------ #
-# jarvis compose list
+# locus compose list
 # ------------------------------------------------------------------ #
 
 
@@ -80,7 +80,7 @@ def compose_list(kind: Optional[str]) -> None:
 
 
 # ------------------------------------------------------------------ #
-# jarvis compose show
+# locus compose show
 # ------------------------------------------------------------------ #
 
 
@@ -151,7 +151,7 @@ def compose_show(name: str) -> None:
 
 
 # ------------------------------------------------------------------ #
-# jarvis compose run
+# locus compose run
 # ------------------------------------------------------------------ #
 
 
@@ -235,7 +235,7 @@ def compose_run(name: str, query: tuple[str, ...], output_json: bool) -> None:
 
 
 # ------------------------------------------------------------------ #
-# jarvis compose bench
+# locus compose bench
 # ------------------------------------------------------------------ #
 
 
@@ -351,7 +351,7 @@ def compose_bench(
 
 
 # ------------------------------------------------------------------ #
-# jarvis compose deploy
+# locus compose deploy
 # ------------------------------------------------------------------ #
 
 
@@ -399,7 +399,7 @@ def compose_deploy(name: str) -> None:
 
 
 # ------------------------------------------------------------------ #
-# jarvis compose stop
+# locus compose stop
 # ------------------------------------------------------------------ #
 
 
@@ -433,7 +433,7 @@ def compose_stop(name: str) -> None:
 
 
 # ------------------------------------------------------------------ #
-# jarvis compose status
+# locus compose status
 # ------------------------------------------------------------------ #
 
 

@@ -1,4 +1,4 @@
-"""Tests for the ``jarvis registry`` CLI commands."""
+"""Tests for the ``locus registry`` CLI commands."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from locus.core.registry import (
 
 
 class TestRegistryCmd:
-    """Test cases for the jarvis registry CLI group."""
+    """Test cases for the locus registry CLI group."""
 
     def test_registry_group_help(self) -> None:
         """Test that the registry group help displays correctly."""

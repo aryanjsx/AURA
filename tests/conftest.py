@@ -13,7 +13,7 @@ import pytest
 
 # Set BEFORE importing locus.core.config: DEFAULT_CONFIG_DIR /
 # DEFAULT_CONFIG_PATH are resolved once at import time (the install-script
-# model, where Locus_HOME is set before the process starts). Without
+# model, where LOCUS_HOME is set before the process starts). Without
 # this, the very first import of locus.core.config in the session --
 # this file imports it below, and it's transitively imported by nearly
 # everything -- permanently binds those constants (and the ~45 modules that
@@ -21,15 +21,15 @@ import pytest
 # run, so tests touching e.g. AgentConfigEvolver or LearningOrchestrator
 # read/write real files under the developer's home directory (#787).
 _MISSING = object()
-_ORIGINAL_Locus_HOME = os.environ.get("Locus_HOME", _MISSING)
-_ORIGINAL_Locus_CONFIG = os.environ.get("Locus_CONFIG", _MISSING)
+_ORIGINAL_Locus_HOME = os.environ.get("LOCUS_HOME", _MISSING)
+_ORIGINAL_Locus_CONFIG = os.environ.get("LOCUS_CONFIG", _MISSING)
 _TEST_HOME = Path(tempfile.mkdtemp(prefix="locus-test-home-"))
 _TEST_HOME_CLEANED = False
-os.environ["Locus_HOME"] = str(_TEST_HOME)
+os.environ["LOCUS_HOME"] = str(_TEST_HOME)
 # An explicit config path takes precedence inside load_config(). It may point
-# at a developer's real file even when Locus_HOME is isolated, so remove
+# at a developer's real file even when LOCUS_HOME is isolated, so remove
 # it before config.py and its import-time constants are initialized.
-os.environ.pop("Locus_CONFIG", None)
+os.environ.pop("LOCUS_CONFIG", None)
 
 from locus.core.config import GpuInfo, HardwareInfo, load_config  # noqa: E402
 from locus.core.events import EventBus, reset_event_bus  # noqa: E402
@@ -70,13 +70,13 @@ def _cleanup_test_home() -> None:
     shutil.rmtree(_TEST_HOME, ignore_errors=True)
 
     if _ORIGINAL_Locus_HOME is _MISSING:
-        os.environ.pop("Locus_HOME", None)
+        os.environ.pop("LOCUS_HOME", None)
     else:
-        os.environ["Locus_HOME"] = str(_ORIGINAL_Locus_HOME)
+        os.environ["LOCUS_HOME"] = str(_ORIGINAL_Locus_HOME)
     if _ORIGINAL_Locus_CONFIG is _MISSING:
-        os.environ.pop("Locus_CONFIG", None)
+        os.environ.pop("LOCUS_CONFIG", None)
     else:
-        os.environ["Locus_CONFIG"] = str(_ORIGINAL_Locus_CONFIG)
+        os.environ["LOCUS_CONFIG"] = str(_ORIGINAL_Locus_CONFIG)
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:
@@ -101,22 +101,22 @@ def _no_update_check(monkeypatch: pytest.MonkeyPatch) -> None:
     set, but that only helps in CI; locally (e.g. a dev with a stale
     version-check cache and network access) it fires for real.
     """
-    monkeypatch.setenv("Locus_NO_UPDATE_CHECK", "1")
+    monkeypatch.setenv("LOCUS_NO_UPDATE_CHECK", "1")
 
 
 @pytest.fixture(autouse=True)
 def _isolated_locus_home(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Re-assert Locus_HOME and clear load_config()'s cache per test.
+    """Re-assert LOCUS_HOME and clear load_config()'s cache per test.
 
-    Two related leaks (#787): (1) something changing Locus_HOME
+    Two related leaks (#787): (1) something changing LOCUS_HOME
     without going through monkeypatch, so it never gets reverted for later
     tests -- re-asserting it here every test is a cheap defense regardless
     of cause; (2) load_config()'s functools.lru_cache(maxsize=1) serving a
     config computed under a *different* test's environment/monkeypatched
     values instead of the current test's.
     """
-    monkeypatch.setenv("Locus_HOME", str(_TEST_HOME))
-    monkeypatch.delenv("Locus_CONFIG", raising=False)
+    monkeypatch.setenv("LOCUS_HOME", str(_TEST_HOME))
+    monkeypatch.delenv("LOCUS_CONFIG", raising=False)
     load_config.cache_clear()
     yield
     load_config.cache_clear()

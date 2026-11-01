@@ -65,7 +65,7 @@ class TextToSpeechTool(BaseTool):
         backend_key = params.get("backend", "")
 
         # Fall back to the configured speech voice so the agent-facing tool
-        # speaks in the same voice as `jarvis chat --voice` instead of the
+        # speaks in the same voice as `locus chat --voice` instead of the
         # backend default. Explicit params always win.
         if not voice_id or not backend_key:
             try:
@@ -121,7 +121,7 @@ class TextToSpeechTool(BaseTool):
         if output_dir:
             out_dir = Path(output_dir)
         else:
-            out_dir = Path(tempfile.mkdtemp(prefix="jarvis-tts-"))
+            out_dir = Path(tempfile.mkdtemp(prefix="locus-tts-"))
 
         out_dir.mkdir(parents=True, exist_ok=True)
         ext = result.format or "mp3"

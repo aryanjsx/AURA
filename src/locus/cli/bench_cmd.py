@@ -1,4 +1,4 @@
-"""``jarvis bench`` — run inference benchmarks."""
+"""``locus bench`` — run inference benchmarks."""
 
 from __future__ import annotations
 

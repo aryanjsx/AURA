@@ -7,7 +7,7 @@ Run manually::
 
 Or register as a scheduled task::
 
-    jarvis scheduler create "Weekly code review" --type cron --value "0 8 * * 1"
+    locus scheduler create "Weekly code review" --type cron --value "0 8 * * 1"
 """
 
 from __future__ import annotations

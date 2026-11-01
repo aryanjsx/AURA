@@ -57,7 +57,7 @@ second prompt asks the agent to summarize the inbox grouped by category.
 
 1. Add the Slack MCP server:
    ```bash
-   jarvis add slack
+   locus add slack
    ```
 2. Set credentials in your `.env`:
    ```
@@ -86,7 +86,7 @@ Locus supports many channels — LINE, Viber, Mastodon, Rocket.Chat, and
 more. List all available channels with:
 
 ```bash
-jarvis channel list
+locus channel list
 ```
 
 ## Channel Configuration via TOML
@@ -137,7 +137,7 @@ mode this is printed to the terminal. In a production setup you could schedule
 this via the Locus scheduler:
 
 ```bash
-jarvis scheduler create "Daily inbox summary" --type cron --value "0 17 * * *"
+locus scheduler create "Daily inbox summary" --type cron --value "0 17 * * *"
 ```
 
 Or use the operator recipe pattern to run a persistent triage agent on a

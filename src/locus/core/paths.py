@@ -5,7 +5,7 @@ credentials, skills, recipes, …) under a single root so it never clutters the
 user's home directory beyond one directory. That root is resolved here, with
 the following precedence (highest first):
 
-1. ``$Locus_HOME`` — explicit override (also honored by the shell
+1. ``$LOCUS_HOME`` — explicit override (also honored by the shell
    installer, see ``scripts/install/install.sh``).
 2. ``$XDG_DATA_HOME/locus`` — when ``$XDG_DATA_HOME`` is set, follow the
    XDG Base Directory spec by nesting a single ``locus`` directory under
@@ -22,7 +22,7 @@ should call :func:`get_config_dir` (or :func:`get_data_dir` /
 :func:`get_cache_dir`) instead.
 
 Defense in depth: the resolved root must never live inside the Locus
-source tree (a misconfigured ``$Locus_HOME`` pointing at the repo would
+source tree (a misconfigured ``$LOCUS_HOME`` pointing at the repo would
 otherwise scatter runtime artifacts into the working tree). This mirrors the
 guard in ``learning/spec_search/storage/paths.py`` and fails loudly per
 REVIEW.md's no-silent-failure discipline.
@@ -45,7 +45,7 @@ def _find_source_root() -> Path | None:
     """Walk upward from this module to find the Locus source root.
 
     Returns the directory containing the Locus ``pyproject.toml`` (the one
-    whose ``name = "locus"``), or ``None`` when running from an installed
+    whose ``name = "locus-assistant"``), or ``None`` when running from an installed
     wheel rather than a source checkout.
     """
     here = Path(__file__).resolve()
@@ -56,7 +56,7 @@ def _find_source_root() -> Path | None:
                 content = py.read_text(encoding="utf-8")
             except OSError:
                 continue
-            if 'name = "locus"' in content.lower():
+            if 'name = "locus-assistant"' in content.lower():
                 return candidate
     return None
 
@@ -73,7 +73,7 @@ def _reject_source_tree(path: Path) -> Path:
             raise ConfigurationError(
                 f"Locus home ({path}) is inside the source tree "
                 f"({source_root}). Locus refuses to write runtime state "
-                "inside its own repo. Set Locus_HOME (or XDG_DATA_HOME) "
+                "inside its own repo. Set LOCUS_HOME (or XDG_DATA_HOME) "
                 "to a directory outside the repo (default: ~/.locus)."
             )
     return path
@@ -82,11 +82,11 @@ def _reject_source_tree(path: Path) -> Path:
 def get_config_dir() -> Path:
     """Resolve Locus' single root directory, honoring env overrides.
 
-    Precedence: ``$Locus_HOME`` > ``$XDG_DATA_HOME/locus`` >
+    Precedence: ``$LOCUS_HOME`` > ``$XDG_DATA_HOME/locus`` >
     ``~/.locus``. The result is always absolute and is rejected if it
     falls inside the Locus source tree.
     """
-    env_home = os.environ.get("Locus_HOME")
+    env_home = os.environ.get("LOCUS_HOME")
     if env_home:
         resolved = Path(env_home).expanduser().resolve()
         return _reject_source_tree(resolved)

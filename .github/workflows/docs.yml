@@ -47,15 +47,18 @@ jobs:
       # and JSON-encoded into a JS string literal to avoid any injection.
       - name: Inject leaderboard Supabase anon key
         env:
-          Locus_LEADERBOARD_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          LOCUS_LEADERBOARD_URL: ${{ vars.VITE_SUPABASE_URL }}
+          LOCUS_LEADERBOARD_ANON: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           python3 - <<'PY'
           import json, os, pathlib
 
-          key = os.environ.get("Locus_LEADERBOARD_ANON", "")
+          url = os.environ.get("LOCUS_LEADERBOARD_URL", "")
+          key = os.environ.get("LOCUS_LEADERBOARD_ANON", "")
           pathlib.Path("docs/javascripts/leaderboard-config.js").write_text(
-              "// Generated at docs-build time from the VITE_SUPABASE_ANON_KEY secret.\n"
-              "window.Locus_SUPABASE_ANON_KEY = " + json.dumps(key) + ";\n",
+              "// Generated at docs-build time from VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.\n"
+              "window.LOCUS_SUPABASE_URL = " + json.dumps(url) + ";\n"
+              "window.LOCUS_SUPABASE_ANON_KEY = " + json.dumps(key) + ";\n",
               encoding="utf-8",
           )
           print("leaderboard anon key:", "set" if key else "empty (leaderboard disabled)")

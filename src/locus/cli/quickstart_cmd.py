@@ -1,4 +1,4 @@
-"""``jarvis quickstart`` — guided 5-step setup for new users."""
+"""``locus quickstart`` — guided 5-step setup for new users."""
 
 from __future__ import annotations
 
@@ -132,7 +132,7 @@ def quickstart(force: bool) -> None:
             )
             console.print()
             console.print(f"  Start the {engine_key} server and try again.")
-            console.print("  Run [bold]jarvis doctor[/bold] for detailed diagnostics.")
+            console.print("  Run [bold]locus doctor[/bold] for detailed diagnostics.")
             raise SystemExit(1)
     else:
         console.print(f"  [green]Engine '{engine_key}' is healthy.[/green]")
@@ -156,5 +156,5 @@ def quickstart(force: bool) -> None:
 
     console.print()
     console.print(
-        '[bold green]Setup complete![/bold green] Try: [bold]jarvis ask "Hello"[/bold]'
+        '[bold green]Setup complete![/bold green] Try: [bold]locus ask "Hello"[/bold]'
     )

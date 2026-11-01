@@ -434,7 +434,7 @@ def build_data_boundary_report(
                 f"{error_type} while resolving Locus home; path details were redacted"
             ),
             recommendation=(
-                "Fix Locus_HOME or XDG_DATA_HOME before relying on "
+                "Fix LOCUS_HOME or XDG_DATA_HOME before relying on "
                 "local-store data-boundary checks."
             ),
         )
@@ -471,7 +471,7 @@ def build_data_boundary_report(
             potential_data_path="configuration defaults -> data-boundary report",
             evidence="config_loaded = false",
             recommendation=(
-                "Run `jarvis init` before relying on config-derived checks. "
+                "Run `locus init` before relying on config-derived checks. "
                 "Local store and environment checks still run."
             ),
         )
@@ -1156,7 +1156,7 @@ def _web_search_destination() -> str:
     resolution here. It mirrors ``WebSearchTool._resolve_engine``, which is the
     source of truth; ``test_data_boundary_audit`` asserts the two agree.
     """
-    engine = (os.environ.get("Locus_WEB_SEARCH_ENGINE") or "auto").strip().lower()
+    engine = (os.environ.get("LOCUS_WEB_SEARCH_ENGINE") or "auto").strip().lower()
     if engine not in {"auto", "youcom", "tavily", "duckduckgo", "serply", "firecrawl"}:
         engine = "auto"
     if engine == "auto":

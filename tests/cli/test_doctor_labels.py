@@ -1,4 +1,4 @@
-"""Tests for ``jarvis doctor`` optional dependency labels."""
+"""Tests for ``locus doctor`` optional dependency labels."""
 
 from __future__ import annotations
 

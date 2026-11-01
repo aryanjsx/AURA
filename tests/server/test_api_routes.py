@@ -266,7 +266,7 @@ class TestMetricsRoute:
         machine's real telemetry database and makes any other response a
         regression rather than accepting all possible production states.
         """
-        monkeypatch.setenv("Locus_HOME", str(tmp_path))
+        monkeypatch.setenv("LOCUS_HOME", str(tmp_path))
 
         client = TestClient(_make_app())
         resp = client.get("/metrics")
@@ -289,7 +289,7 @@ class TestMetricsRoute:
         from locus.core.types import TelemetryRecord
         from locus.telemetry.store import TelemetryStore
 
-        monkeypatch.setenv("Locus_HOME", str(tmp_path))
+        monkeypatch.setenv("LOCUS_HOME", str(tmp_path))
 
         db_path = tmp_path / "telemetry.db"
         store = TelemetryStore(db_path)
@@ -320,7 +320,7 @@ class TestMetricsRoute:
         raise ZeroDivisionError when computing average latency."""
         from locus.telemetry.store import TelemetryStore
 
-        monkeypatch.setenv("Locus_HOME", str(tmp_path))
+        monkeypatch.setenv("LOCUS_HOME", str(tmp_path))
 
         db_path = tmp_path / "telemetry.db"
         TelemetryStore(db_path).close()  # creates the schema, no records

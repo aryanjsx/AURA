@@ -1,4 +1,4 @@
-"""Tests for jarvis optimize skills CLI command (Plan 2A)."""
+"""Tests for locus optimize skills CLI command (Plan 2A)."""
 
 from __future__ import annotations
 

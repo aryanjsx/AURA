@@ -11,7 +11,7 @@ through the cloud engine.
    fork.
 2. Provide `OPENAI_API_KEY` when Render asks for the Blueprint secret.
 3. Apply the Blueprint and wait for `/health` to become healthy.
-4. Retrieve the generated `Locus_API_KEY` from the Render dashboard and
+4. Retrieve the generated `LOCUS_API_KEY` from the Render dashboard and
    send it as `Authorization: Bearer <key>` with API requests.
 
 The Blueprint pins both the `PORT` environment variable and the server's

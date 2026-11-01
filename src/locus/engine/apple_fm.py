@@ -13,7 +13,7 @@ Swift bindings at install time::
     DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \\
         uv pip install -e '.[afm]'
 
-    jarvis ask --engine afm --model afm-3-core "..."
+    locus ask --engine afm --model afm-3-core "..."
 
 Measurement caveats specific to this backend — read before comparing numbers
 against MLX or Ollama:

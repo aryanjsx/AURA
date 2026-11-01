@@ -119,7 +119,7 @@ python examples/code_companion/debugger.py --model claude-sonnet-4-20250514 --en
 
 To change which tools an agent can use, edit the `tools` list in the script.
 Available tools include `calculator`, `web_search`, `shell_exec`, `code_interpreter`,
-`memory_store`, `memory_search`, and more. Run `uv run jarvis eval list` or
+`memory_store`, `memory_search`, and more. Run `uv run locus eval list` or
 inspect `src/locus/tools/` for the full registry.
 
 ### Prompts

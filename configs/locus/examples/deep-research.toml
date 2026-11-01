@@ -2,12 +2,12 @@
 # Copy to ~/.locus/config.toml
 #
 # First index your documents:
-#   jarvis memory index ./docs/
-#   jarvis memory index ~/Documents/papers/
+#   locus memory index ./docs/
+#   locus memory index ~/Documents/papers/
 #
 # Then ask complex questions:
-#   jarvis ask --agent deep_research "Summarize all emails about Project X"
-#   jarvis ask --agent deep_research "What meetings did I have with Alice last month?"
+#   locus ask --agent deep_research "Summarize all emails about Project X"
+#   locus ask --agent deep_research "What meetings did I have with Alice last month?"
 
 [engine]
 default = "ollama"

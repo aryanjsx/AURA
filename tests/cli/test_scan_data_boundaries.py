@@ -16,7 +16,7 @@ def _low_noise_config():
     """Baseline config with no warn/fail findings under an empty scan root.
 
     JarvisConfig defaults include absolute store paths under the real
-    Locus_HOME; clear those so tests only see artifacts under tmp_path.
+    LOCUS_HOME; clear those so tests only see artifacts under tmp_path.
     """
     config = JarvisConfig()
     config.analytics.enabled = False
@@ -286,7 +286,7 @@ def test_top_level_scan_data_boundaries_does_not_check_for_updates(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["jarvis", "scan", "--data-boundaries", "--json"],
+        ["locus", "scan", "--data-boundaries", "--json"],
     )
 
     result = CliRunner().invoke(cli, ["scan", "--data-boundaries", "--json"])
@@ -300,7 +300,7 @@ def test_update_check_skip_helper_is_precise():
 
     from locus.cli import _should_skip_update_check
 
-    ctx = Context(Command("jarvis"))
+    ctx = Context(Command("locus"))
     ctx.invoked_subcommand = "scan"
     assert _should_skip_update_check(ctx, ["scan", "--data-boundaries"])
 
@@ -340,8 +340,8 @@ def test_data_boundary_loader_honors_locus_config(
         "[telemetry]\nenabled = false\n",
         encoding="utf-8",
     )
-    monkeypatch.setenv("Locus_CONFIG", str(config_path))
-    monkeypatch.setenv("Locus_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LOCUS_CONFIG", str(config_path))
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "home"))
     load_config.cache_clear()
 
     _config, _root, loaded, error, root_error = scan_cmd._load_data_boundary_config()
@@ -371,7 +371,7 @@ def test_data_boundary_cli_reports_real_root_error_without_import_crash():
     repo_root = Path(__file__).resolve().parents[2]
     invalid_home = repo_root / ".invalid-locus-home"
     env = os.environ.copy()
-    env["Locus_HOME"] = str(invalid_home)
+    env["LOCUS_HOME"] = str(invalid_home)
     env["PYTHONPATH"] = str(repo_root / "src")
 
     result = subprocess.run(

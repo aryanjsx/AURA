@@ -5,7 +5,7 @@ chosen topics and produces a concise, structured summary.
 
 ## Requirements
 
-- Locus installed (`git clone https://github.com/locus/Locus.git && cd Locus && uv sync` or `uv sync --extra dev`)
+- Locus installed (`git clone https://github.com/aryanjsx/Locus.git && cd Locus && uv sync` or `uv sync --extra dev`)
 - An inference engine running (Ollama, cloud API, vLLM, etc.)
 
 ## Usage

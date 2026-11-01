@@ -114,9 +114,9 @@ struct BootPlan {
     model_to_pull: Option<String>,
     /// Optional `(engine_key, bare_host)` override for a custom endpoint,
     /// e.g. `("lmstudio", "http://localhost:1234")`. Written into
-    /// ~/.locus/config.toml so `jarvis serve` picks it up.
+    /// ~/.locus/config.toml so `locus serve` picks it up.
     engine_host: Option<(String, String)>,
-    /// Args appended after `uv run jarvis serve --port <port>`.
+    /// Args appended after `uv run locus serve --port <port>`.
     serve_args: Vec<String>,
 }
 
@@ -160,7 +160,7 @@ fn boot_plan(cfg: &InferenceConfig, ram_gb: f64) -> BootPlan {
                 .clone()
                 .filter(|h| !h.is_empty())
                 .map(|h| (engine.clone(), h));
-            // `model` may be empty if the config is malformed; `jarvis serve`
+            // `model` may be empty if the config is malformed; `locus serve`
             // surfaces a clear error then (there is no universal default model
             // for an arbitrary endpoint).
             let model = cfg.model.clone().unwrap_or_default();
@@ -285,11 +285,11 @@ fn resolve_bin(name: &str) -> String {
 }
 
 /// Find the Locus project root (contains pyproject.toml).
-/// Checks Locus_ROOT env var, the checkout beside the executable,
+/// Checks LOCUS_ROOT env var, the checkout beside the executable,
 /// then walks up from the executable before probing common clone locations.
 fn find_project_root() -> Option<std::path::PathBuf> {
     // 1. Explicit env var override
-    if let Ok(root) = std::env::var("Locus_ROOT") {
+    if let Ok(root) = std::env::var("LOCUS_ROOT") {
         let path = std::path::PathBuf::from(&root);
         if path.join("pyproject.toml").exists() {
             return Some(path);
@@ -308,7 +308,6 @@ fn find_project_root() -> Option<std::path::PathBuf> {
     let home = home_dir();
     let direct = [
         format!("{home}/Locus"),
-        format!("{home}/projects/hazy/Locus"),
         format!("{home}/projects/Locus"),
         format!("{home}/src/Locus"),
         format!("{home}/Documents/Locus"),
@@ -393,7 +392,7 @@ fn project_root_near_executable(exe: &std::path::Path) -> Option<std::path::Path
 }
 
 // ---------------------------------------------------------------------------
-// BackendManager — owns the Ollama + Jarvis server child processes
+// BackendManager — owns the Ollama + Locus server child processes
 // ---------------------------------------------------------------------------
 
 struct ChildHandle {
@@ -418,10 +417,10 @@ fn spawn_owned_child(cmd: &mut tokio::process::Command) -> std::io::Result<tokio
     cmd.spawn()
 }
 
-/// Rolling buffer holding the most recent ~16 KB of jarvis stderr.
+/// Rolling buffer holding the most recent ~16 KB of locus stderr.
 ///
 /// Populated by a background drainer task spawned at boot so the pipe
-/// never fills and back-pressures `jarvis serve`; consumed by the boot
+/// never fills and back-pressures `locus serve`; consumed by the boot
 /// path when surfacing failure messages.
 type StderrTail = Arc<Mutex<Vec<u8>>>;
 
@@ -576,7 +575,7 @@ async fn endpoint_reachable(host: &str, timeout: Duration) -> bool {
     false
 }
 
-/// Outcome of waiting for `jarvis serve` to become healthy.
+/// Outcome of waiting for `locus serve` to become healthy.
 ///
 /// Unlike [`wait_for_url`] this differentiates "server is up but degraded"
 /// (HTTP 503 — usually inference engine failed to load) from "server never
@@ -589,16 +588,16 @@ enum JarvisStartResult {
     /// Server replied 503. The body is the actionable message (typically
     /// "engine not ready" or a model-load error).
     ServiceUnavailable(String),
-    /// The `jarvis serve` child exited before `/health` returned 2xx.
+    /// The `locus serve` child exited before `/health` returned 2xx.
     EarlyExit { code: Option<i32>, stderr: String },
     /// Deadline elapsed without ever seeing 2xx or an early exit.
     Timeout,
 }
 
-/// Spawn a detached task that continuously drains `jarvis serve`'s
+/// Spawn a detached task that continuously drains `locus serve`'s
 /// stderr into a rolling tail buffer.
 ///
-/// We MUST keep reading stderr for as long as the child runs — `jarvis
+/// We MUST keep reading stderr for as long as the child runs — `locus
 /// serve` is chatty (engine load progress, request logs), and the OS
 /// pipe buffer is small (4 KB on Windows, 64 KB on Linux). Once full,
 /// the child's next stderr write blocks indefinitely and the server
@@ -639,7 +638,7 @@ async fn read_jarvis_stderr_tail(backend: &SharedBackend) -> String {
     String::from_utf8_lossy(&bytes).trim().to_string()
 }
 
-/// Poll `jarvis serve` health, watching the child process state so we
+/// Poll `locus serve` health, watching the child process state so we
 /// never wait 10 minutes for a process that crashed in the first second.
 async fn wait_for_jarvis_health(
     url: &str,
@@ -1222,7 +1221,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
             ));
             return;
         }
-        // Point `jarvis serve` at the user's endpoint by writing the engine
+        // Point `locus serve` at the user's endpoint by writing the engine
         // host into ~/.locus/config.toml (the env var alone is shadowed by
         // the engine's non-empty default host in the Python layer).
         if let Some((engine, host)) = &plan.engine_host {
@@ -1240,7 +1239,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         }
     }
 
-    // Phase 3: Start jarvis serve
+    // Phase 3: Start locus serve
     {
         let mut s = status.lock().await;
         s.phase = "server".into();
@@ -1304,7 +1303,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
             let mut s = status.lock().await;
             s.error = Some(format!(
                 "{} exists but is not a valid Locus project. \
-                 Remove it and relaunch, or set Locus_ROOT to the correct path.",
+                 Remove it and relaunch, or set LOCUS_ROOT to the correct path.",
                 clone_target,
             ));
             return;
@@ -1321,7 +1320,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
                 "clone",
                 "--depth",
                 "1",
-                "https://github.com/locus/Locus.git",
+                "https://github.com/aryanjsx/Locus.git",
                 &clone_target,
             ])
             .stdout(std::process::Stdio::null())
@@ -1339,7 +1338,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
                     let mut s = status.lock().await;
                     s.error = Some(format!(
                         "Failed to download Locus: {}. \
-                         Clone manually: git clone https://github.com/locus/Locus.git {}",
+                         Clone manually: git clone https://github.com/aryanjsx/Locus.git {}",
                         stderr.trim(),
                         clone_target,
                     ));
@@ -1349,7 +1348,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
                     let mut s = status.lock().await;
                     s.error = Some(format!(
                         "Failed to download Locus: {}. \
-                         Clone manually: git clone https://github.com/locus/Locus.git {}",
+                         Clone manually: git clone https://github.com/aryanjsx/Locus.git {}",
                         e, clone_target,
                     ));
                     return;
@@ -1372,12 +1371,12 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     //
     // The OLD behaviour was: any HTTP response (even 404) → `fuser -k 8000/tcp`
     // / `taskkill /PID /F`. That broke the legitimate case where a user had
-    // already started `jarvis serve` in a terminal and then launched the
+    // already started `locus serve` in a terminal and then launched the
     // desktop app — the app killed their server, then raced to spawn its
     // own, sometimes losing the race and hanging.
     //
     // New behaviour, by response shape:
-    //   * 2xx /health        — healthy jarvis serve. Attach to it; skip the
+    //   * 2xx /health        — healthy locus serve. Attach to it; skip the
     //                          uv-sync + spawn dance entirely. Done.
     //   * 503                — server is up but engine isn't ready. Surface
     //                          an actionable message; don't kill (matches
@@ -1465,7 +1464,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
                 s.error = Some(format!(
                     "An API server is already running on port {} but its \
                      inference engine isn't ready (HTTP 503). If this is your \
-                     `jarvis serve`, wait for it to finish loading and relaunch. \
+                     `locus serve`, wait for it to finish loading and relaunch. \
                      Otherwise, stop that service or change the port.",
                     JARVIS_PORT,
                 ));
@@ -1512,9 +1511,9 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     // Previously we ran `uv sync` with both stdout AND stderr piped to
     // /dev/null and discarded the exit code (`let _ = …`). When `uv sync`
     // failed — Windows path issues, network problems, lockfile conflicts —
-    // the user saw no error, the boot continued, `uv run jarvis serve`
+    // the user saw no error, the boot continued, `uv run locus serve`
     // then ran in an under-provisioned venv, and the user waited the full
-    // 600s health-check window before getting "Jarvis server did not
+    // 600s health-check window before getting "Locus server did not
     // become healthy in time" with no actionable detail (issue #331).
     //
     // Now: capture stderr, check the exit status, surface a useful error
@@ -1582,7 +1581,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
     let mut cmd = tokio::process::Command::new(&uv_bin);
     let mut serve_argv: Vec<String> = vec![
         "run".into(),
-        "jarvis".into(),
+        "locus".into(),
         "serve".into(),
         "--port".into(),
         JARVIS_PORT.to_string(),
@@ -1635,7 +1634,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         Err(e) => {
             let mut s = status.lock().await;
             s.error = Some(format!(
-                "Could not start jarvis server: {}. \
+                "Could not start locus server: {}. \
                  Make sure uv is installed (https://astral.sh/uv) and the Locus repo is cloned at {}",
                 e,
                 root.display(),
@@ -1650,9 +1649,9 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
         JarvisStartResult::ServiceUnavailable(body) => {
             let mut s = status.lock().await;
             s.error = Some(format!(
-                "Jarvis server is running but the inference engine is not available \
+                "Locus server is running but the inference engine is not available \
                  (HTTP 503). This usually means the configured model couldn't be loaded.\n\n\
-                 Check the server logs, or run 'uv run jarvis serve --port {}{}' \
+                 Check the server logs, or run 'uv run locus serve --port {}{}' \
                  from {} to see the engine error.\n\n\
                  Server response:\n{}",
                 JARVIS_PORT,
@@ -1678,7 +1677,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
             let mut s = status.lock().await;
             s.error = Some(if stderr.is_empty() {
                 format!(
-                    "Jarvis server exited (code {}) before becoming ready.\n\n\
+                    "Locus server exited (code {}) before becoming ready.\n\n\
                      No stderr output. Check that:\n\
                      1. uv is installed ({})\n\
                      2. The Locus repo is at {}\n\
@@ -1689,7 +1688,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
                 )
             } else {
                 format!(
-                    "Jarvis server exited (code {}) before becoming ready.\n\nStderr:\n{}",
+                    "Locus server exited (code {}) before becoming ready.\n\nStderr:\n{}",
                     code_str, stderr,
                 )
             });
@@ -1700,7 +1699,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
             let mut s = status.lock().await;
             s.error = Some(if stderr.is_empty() {
                 format!(
-                    "Jarvis server did not become ready within 10 minutes. Check that:\n\
+                    "Locus server did not become ready within 10 minutes. Check that:\n\
                      1. uv is installed ({})\n\
                      2. The Locus repo is at {}\n\
                      3. Run 'uv sync' in that directory",
@@ -1709,7 +1708,7 @@ async fn boot_backend(backend: SharedBackend, status: SharedStatus) {
                 )
             } else {
                 format!(
-                    "Jarvis server did not become ready within 10 minutes.\n\nStderr:\n{}",
+                    "Locus server did not become ready within 10 minutes.\n\nStderr:\n{}",
                     stderr,
                 )
             });
@@ -1972,14 +1971,14 @@ async fn fetch_models(api_url: String) -> Result<serde_json::Value, String> {
 async fn run_jarvis_command(args: Vec<String>) -> Result<String, String> {
     let uv_bin = resolve_bin("uv");
 
-    let mut cmd_args = vec!["run".to_string(), "jarvis".to_string()];
+    let mut cmd_args = vec!["run".to_string(), "locus".to_string()];
     cmd_args.extend(args.iter().cloned());
 
     let mut cmd = tokio::process::Command::new(&uv_bin);
     cmd.args(&cmd_args);
-    // Run from the project root so `uv run jarvis` resolves the Locus
+    // Run from the project root so `uv run locus` resolves the Locus
     // project regardless of the app's launch cwd. In a packaged install the
-    // cwd isn't the checkout, so without this `jarvis` isn't found and the
+    // cwd isn't the checkout, so without this `locus` isn't found and the
     // backend never starts — the UI then shows "Failed to get response"
     // (see #531).
     if let Some(ref root) = find_project_root() {
@@ -1994,7 +1993,7 @@ async fn run_jarvis_command(args: Vec<String>) -> Result<String, String> {
         let output = cmd
             .output()
             .await
-            .map_err(|e| format!("Failed to launch jarvis: {}", e))?;
+            .map_err(|e| format!("Failed to launch locus: {}", e))?;
         return if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
         } else {
@@ -2002,7 +2001,7 @@ async fn run_jarvis_command(args: Vec<String>) -> Result<String, String> {
         };
     }
 
-    // `jarvis serve` is a long-running server that never exits. The old code
+    // `locus serve` is a long-running server that never exits. The old code
     // used `.output()`, which waits for the process to exit and so hung this
     // command forever — the "Start" button never resolved (#531). Spawn it
     // detached instead, drain stderr (a full 4 KB Windows pipe can otherwise
@@ -2011,7 +2010,7 @@ async fn run_jarvis_command(args: Vec<String>) -> Result<String, String> {
         .stderr(std::process::Stdio::piped());
     let mut child = cmd
         .spawn()
-        .map_err(|e| format!("Failed to launch jarvis serve: {}", e))?;
+        .map_err(|e| format!("Failed to launch locus serve: {}", e))?;
 
     let tail: StderrTail = Arc::new(Mutex::new(Vec::new()));
     if let Some(stderr) = child.stderr.take() {
@@ -2031,7 +2030,7 @@ async fn run_jarvis_command(args: Vec<String>) -> Result<String, String> {
         if let Ok(Some(status)) = child.try_wait() {
             let stderr = String::from_utf8_lossy(tail.lock().await.as_slice()).into_owned();
             return Err(format!(
-                "jarvis serve exited (code {:?}) before becoming healthy:\n{}",
+                "locus serve exited (code {:?}) before becoming healthy:\n{}",
                 status.code(),
                 stderr.trim()
             ));
@@ -2041,14 +2040,14 @@ async fn run_jarvis_command(args: Vec<String>) -> Result<String, String> {
                 // Leave the server running (the Child is detached on drop —
                 // kill_on_drop defaults to false); `stop` tears it down.
                 return Ok(format!(
-                    "jarvis serve is ready on http://127.0.0.1:{}",
+                    "locus serve is ready on http://127.0.0.1:{}",
                     JARVIS_PORT
                 ));
             }
         }
         if tokio::time::Instant::now() >= deadline {
             return Err(format!(
-                "jarvis serve did not become healthy on port {} within 120s.",
+                "locus serve did not become healthy on port {} within 120s.",
                 JARVIS_PORT
             ));
         }
@@ -2154,7 +2153,7 @@ const SECURE_KEY_SERVICE: &str = "Locus Cloud Keys";
 // A first-run custom credential is kept in its own secure-storage slot until
 // the managed backend has passed every readiness gate.  In particular, do not
 // overwrite an existing <ENGINE>_API_KEY while setup can still be cancelled.
-const PENDING_INFERENCE_API_KEY: &str = "Locus_PENDING_INFERENCE_API_KEY";
+const PENDING_INFERENCE_API_KEY: &str = "LOCUS_PENDING_INFERENCE_API_KEY";
 const MANAGED_CLOUD_KEY_NAMES: &[&str] = &[
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
@@ -2892,7 +2891,7 @@ fn upsert_engine_host(existing: &str, engine: &str, host: &str) -> Result<String
 }
 
 /// Write the custom-endpoint host into ~/.locus/config.toml so
-/// `jarvis serve` (which reads that file via load_config) points at it.
+/// `locus serve` (which reads that file via load_config) points at it.
 /// The `<ENGINE>_HOST` env var is unreliable — it is shadowed by the engine's
 /// non-empty default host in the Python layer — so config.toml is the override.
 fn set_engine_host_in_config(engine: &str, host: &str) -> Result<(), String> {
@@ -4278,10 +4277,10 @@ mod tests {
 
     #[test]
     fn owned_child_process_helper() {
-        let Some(started) = std::env::var_os("Locus_OWNED_CHILD_STARTED") else {
+        let Some(started) = std::env::var_os("LOCUS_OWNED_CHILD_STARTED") else {
             return;
         };
-        let completed = std::env::var_os("Locus_OWNED_CHILD_COMPLETED").unwrap();
+        let completed = std::env::var_os("LOCUS_OWNED_CHILD_COMPLETED").unwrap();
         std::fs::write(started, "started").unwrap();
         std::thread::sleep(std::time::Duration::from_millis(500));
         std::fs::write(completed, "completed").unwrap();
@@ -4311,8 +4310,8 @@ mod tests {
                 "tests::owned_child_process_helper",
                 "--nocapture",
             ])
-            .env("Locus_OWNED_CHILD_STARTED", started_for_child)
-            .env("Locus_OWNED_CHILD_COMPLETED", completed_for_child)
+            .env("LOCUS_OWNED_CHILD_STARTED", started_for_child)
+            .env("LOCUS_OWNED_CHILD_COMPLETED", completed_for_child)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
             let child = spawn_owned_child(&mut cmd).unwrap();

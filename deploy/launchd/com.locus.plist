@@ -11,7 +11,7 @@
          0.0.0.0 server will refuse to start). -->
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/jarvis</string>
+        <string>/usr/local/bin/locus</string>
         <string>serve</string>
         <string>--host</string>
         <string>127.0.0.1</string>
@@ -21,7 +21,7 @@
     <!--
     <key>EnvironmentVariables</key>
     <dict>
-        <key>Locus_API_KEY</key>
+        <key>LOCUS_API_KEY</key>
         <string>REPLACE_WITH_A_REAL_KEY</string>
     </dict>
     -->

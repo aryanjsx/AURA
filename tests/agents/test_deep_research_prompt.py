@@ -83,4 +83,4 @@ def test_system_prompt_mentions_jarvis() -> None:
     from locus.agents.deep_research import _build_system_prompt
 
     prompt = _build_system_prompt()
-    assert "Jarvis" in prompt
+    assert "Locus" in prompt

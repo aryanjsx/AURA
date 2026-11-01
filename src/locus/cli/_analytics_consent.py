@@ -18,8 +18,8 @@ def ask_analytics_consent(host: str | None = None) -> bool:
         "Data includes feature usage, timings, token counts, error categories,\n"
         "environment metadata, and a random installation ID.\n"
         "Recipient: the Locus team's PostHog analytics endpoint.\n"
-        "Privacy details: https://locus.github.io/Locus/telemetry/\n"
-        "You can disable sharing later: jarvis config set analytics.enabled false\n"
+        "Privacy details: https://aryanjsx.github.io/Locus/telemetry/\n"
+        "You can disable sharing later: locus config set analytics.enabled false\n"
         "(then restart the server and reload the app).\n"
         "Declining does not change Locus functionality.",
         err=True,
@@ -50,7 +50,13 @@ def apply_analytics_choice(content: str, choice: bool | None, *, prompt: bool) -
             # unattended init rather than rewriting unrelated input files.
             return content
         doc = tomlkit.parse(content)
-        host = doc.get("analytics", {}).get("host", AnalyticsConfig().host)
+        defaults = AnalyticsConfig()
+        host = doc.get("analytics", {}).get("host", defaults.host)
+        key = doc.get("analytics", {}).get("key", defaults.key)
+        if not host or not key:
+            # No analytics destination is configured, so there is nothing
+            # to consent to.
+            return content
         choice = ask_analytics_consent(str(host))
     doc = tomlkit.parse(content)
     if "analytics" not in doc:

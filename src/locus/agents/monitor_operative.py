@@ -218,7 +218,7 @@ class MonitorOperativeAgent(ToolUsingAgent):
             sys_parts.append(f"\n## Previous State\n{previous_state}")
 
         system_prompt = "\n\n".join(sys_parts) if sys_parts else None
-        # Honor SOUL.md / MEMORY.md / USER.md persona files like `jarvis ask`,
+        # Honor SOUL.md / MEMORY.md / USER.md persona files like `locus ask`,
         # appended so the monitor's own instructions are preserved (#376).
         system_prompt = self._apply_persona(system_prompt)
 

@@ -32,9 +32,9 @@ uv sync --extra mining-pearl-vllm
 export PEARLD_RPC_PASSWORD=<your-pearld-password>
 export HF_TOKEN=<your-huggingface-token>
 
-uv run jarvis mine init
-uv run jarvis mine start
-uv run jarvis mine status
+uv run locus mine init
+uv run locus mine start
+uv run locus mine status
 ```
 
 `mine init` writes a `[mining]` config section and resolves the Pearl Docker
@@ -45,7 +45,7 @@ builds can take 30-60 minutes.
 On a shared NVIDIA host, restrict the miner to idle GPUs:
 
 ```bash
-uv run jarvis mine init --cuda-visible-devices 0
+uv run locus mine init --cuda-visible-devices 0
 ```
 
 This writes `[mining.extra].cuda_visible_devices`, which `mine start` passes to
@@ -53,18 +53,18 @@ Docker instead of exposing every GPU on the machine.
 
 ## Commands
 
-- `jarvis mine models` lists Pearl model support status.
-- `jarvis mine inspect-model` checks a Pearl model artifact before GPU launch.
-- `jarvis mine doctor` prints hardware, Docker, Pearl node, wallet, provider,
+- `locus mine models` lists Pearl model support status.
+- `locus mine inspect-model` checks a Pearl model artifact before GPU launch.
+- `locus mine doctor` prints hardware, Docker, Pearl node, wallet, provider,
   and session checks.
-- `jarvis mine init` writes the local mining config and resolves the image.
-- `jarvis mine start` launches the Pearl miner container and writes the runtime
+- `locus mine init` writes the local mining config and resolves the image.
+- `locus mine start` launches the Pearl miner container and writes the runtime
   sidecar.
-- `jarvis mine stop` stops the provider and removes the sidecar.
-- `jarvis mine status` reads live gateway metrics.
-- `jarvis mine attach` writes a sidecar for a miner you launched manually.
-- `jarvis mine logs` prints the Docker container log tail.
-- `jarvis mine validate-model` probes the active vLLM miner and gateway before
+- `locus mine stop` stops the provider and removes the sidecar.
+- `locus mine status` reads live gateway metrics.
+- `locus mine attach` writes a sidecar for a miner you launched manually.
+- `locus mine logs` prints the Docker container log tail.
+- `locus mine validate-model` probes the active vLLM miner and gateway before
   promoting a planned Pearl model to validated.
 
 ## Model Support
@@ -72,7 +72,7 @@ Docker instead of exposing every GPU on the machine.
 Run:
 
 ```bash
-jarvis mine models
+locus mine models
 ```
 
 Locus only lists Pearl-compatible models published by the Pearl Research
@@ -95,11 +95,11 @@ pass the Locus H100/H200 validation run.
 When validating a Pearl org model on a mining host, run:
 
 ```bash
-jarvis mine inspect-model \
+locus mine inspect-model \
   --model pearl-ai/Gemma-4-31B-it-pearl \
   --allow-planned
 
-jarvis mine validate-model \
+locus mine validate-model \
   --model pearl-ai/Gemma-4-31B-it-pearl \
   --allow-planned \
   --prompt "Say hello in one sentence." \
@@ -127,7 +127,7 @@ Unsupported in this PR:
 Run:
 
 ```bash
-uv run jarvis mine doctor
+uv run locus mine doctor
 ```
 
 Read the rows top-down. Fix the first failing dependency before retrying

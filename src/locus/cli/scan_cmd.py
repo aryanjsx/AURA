@@ -1,4 +1,4 @@
-"""``jarvis scan`` — audit your environment for privacy and security risks."""
+"""``locus scan`` — audit your environment for privacy and security risks."""
 
 from __future__ import annotations
 
@@ -452,7 +452,7 @@ _RICH_ICONS = {
 
 
 def _resolve_data_boundary_config_path() -> Path:
-    env_config = os.environ.get("Locus_CONFIG")
+    env_config = os.environ.get("LOCUS_CONFIG")
     if env_config:
         return Path(env_config).expanduser().resolve()
     return get_config_path()

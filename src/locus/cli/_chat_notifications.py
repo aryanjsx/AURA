@@ -29,7 +29,7 @@ class NotificationDispatcher:
             elif latest.rust_extension == "failed":
                 msgs.append(
                     "⚠ Rust extension failed to build (memory features unavailable). "
-                    "Run `jarvis doctor` for details."
+                    "Run `locus doctor` for details."
                 )
                 self._reported_rust = True
 
@@ -41,7 +41,7 @@ class NotificationDispatcher:
                 self._reported_models.add(model_id)
             elif state == "failed":
                 msgs.append(
-                    f"⚠ {model_id} download failed. Run `jarvis doctor` for details."
+                    f"⚠ {model_id} download failed. Run `locus doctor` for details."
                 )
                 self._reported_models.add(model_id)
 

@@ -13,7 +13,7 @@ set -euo pipefail
 #   ./scripts/launch-claude.sh -- --voice            # pass-through flags
 # ──────────────────────────────────────────────────────────────────────
 
-DEFAULT_MODEL="${Locus_CLAUDE_MODEL:-claude-opus-4-6}"
+DEFAULT_MODEL="${LOCUS_CLAUDE_MODEL:-claude-opus-4-6}"
 
 MODEL="$DEFAULT_MODEL"
 if [[ $# -gt 0 && "$1" != "--" ]]; then
@@ -30,10 +30,10 @@ if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
     exit 2
 fi
 
-if ! command -v jarvis >/dev/null 2>&1; then
-    echo "error: 'jarvis' CLI not found on PATH" >&2
+if ! command -v locus >/dev/null 2>&1; then
+    echo "error: 'locus' CLI not found on PATH" >&2
     echo "  install with: pip install -e '.[inference-cloud]'" >&2
     exit 3
 fi
 
-exec jarvis chat --engine cloud --model "$MODEL" "$@"
+exec locus chat --engine cloud --model "$MODEL" "$@"

@@ -27,7 +27,7 @@ def test_deep_research_config_defaults_to_chat_selection() -> None:
 def test_loads_deep_research_overrides(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("Locus_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path / "home"))
     config_file = tmp_path / "config.toml"
     config_file.write_text(
         "\n".join(

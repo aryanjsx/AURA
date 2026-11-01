@@ -313,7 +313,7 @@ Use it to inform your response, citing sources where applicable:
 === "CLI"
 
     ```bash
-    jarvis ask --no-context "Tell me about Python"
+    locus ask --no-context "Tell me about Python"
     ```
 
 === "Python SDK"
@@ -328,19 +328,19 @@ Use it to inform your response, citing sources where applicable:
 
 ```bash
 # Index a directory
-jarvis memory index ./docs/
+locus memory index ./docs/
 
 # Index with custom chunking
-jarvis memory index ./notes/ --chunk-size 256 --chunk-overlap 32
+locus memory index ./notes/ --chunk-size 256 --chunk-overlap 32
 
 # Search the memory store
-jarvis memory search "machine learning"
+locus memory search "machine learning"
 
 # Search with more results
-jarvis memory search -k 10 "neural networks"
+locus memory search -k 10 "neural networks"
 
 # Show memory statistics
-jarvis memory stats
+locus memory stats
 ```
 
 ## SDK Usage

@@ -15,7 +15,7 @@ User runs `sudo bash install.sh` or invokes the installer from a root shell.
 Re-run as the regular user (without sudo):
 
 ```bash
-curl -fsSL https://locus.github.io/Locus/install.sh | bash
+curl -fsSL https://aryanjsx.github.io/Locus/install.sh | bash
 ```
 
 ## Test

@@ -1,17 +1,17 @@
 services:
-  jarvis:
+  locus:
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
     ports:
       - "8000:8000"
     environment:
-      - Locus_ENGINE_DEFAULT=ollama
+      - LOCUS_ENGINE_DEFAULT=ollama
       - OLLAMA_HOST=http://ollama:11434
       # The container binds 0.0.0.0, so an API key is REQUIRED. Compose fails
-      # fast if Locus_API_KEY is unset (set it in deploy/docker/.env —
-      # see .env.example, or `export` it). Generate one: `jarvis auth generate-key`.
-      - Locus_API_KEY=${Locus_API_KEY:?Locus_API_KEY must be set (see deploy/docker/.env.example)}
+      # fast if LOCUS_API_KEY is unset (set it in deploy/docker/.env —
+      # see .env.example, or `export` it). Generate one: `locus auth generate-key`.
+      - LOCUS_API_KEY=${LOCUS_API_KEY:?LOCUS_API_KEY must be set (see deploy/docker/.env.example)}
     depends_on:
       ollama:
         condition: service_healthy

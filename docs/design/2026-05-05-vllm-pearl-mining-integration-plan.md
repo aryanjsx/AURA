@@ -2740,7 +2740,7 @@ def _detect_hardware() -> HardwareInfo:
 def mine() -> None:
     """Pearl PoUW mining commands.
 
-    See https://locus.github.io/Locus/user-guide/mining/ for the
+    See https://aryanjsx.github.io/Locus/user-guide/mining/ for the
     full guide.
     """
 

@@ -117,7 +117,7 @@ scratch/
 # ---------------------------------------------------------------------------
 # Distillation runtime artifacts (defense in depth — these should always live
 # in ~/.locus/, never inside the source tree, but we ignore them here in
-# case Locus_HOME is misconfigured during dev)
+# case LOCUS_HOME is misconfigured during dev)
 # ---------------------------------------------------------------------------
 .locus/
 learning.db

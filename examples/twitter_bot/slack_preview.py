@@ -41,15 +41,15 @@ TOPICS = [
 
 FACTS = [
     "In the 70s and 80s computing moved from mainframes to personal computers. Not because PCs were more powerful, but because they became efficient enough for what people actually needed. AI is reaching a similar moment.",
-    "In our Intelligence Per Watt study, we found that local language models can accurately service 88.7 percent of single-turn chat and reasoning queries at interactive latencies, with intelligence efficiency improving 5.3 times from 2023 to 2025.",
+    "The Intelligence Per Watt study from Stanford found that local language models can accurately service 88.7 percent of single-turn chat and reasoning queries at interactive latencies, with intelligence efficiency improving 5.3 times from 2023 to 2025.",
     "In nearly all personal AI projects today, the local component is a thin orchestration layer, while the brain lives in someone else data center. Your most personal data routes through cloud APIs, with their latency, their cost, and their terms of service. We built Locus to fix this.",
     "Locus is structured around five composable primitives: Intelligence, Engine, Agents, Tools and Memory, and Learning. Each primitive can be benchmarked, substituted, and optimized independently.",
     "Locus includes hardware-agnostic telemetry that profiles energy consumption across NVIDIA GPUs, AMD GPUs, and Apple Silicon. Energy and dollar cost are first-class design constraints alongside accuracy.",
     "The learning loop uses personal traces to synthesize training data, refine agent behavior, and improve model selection over time. Four optimization layers: model weights, LM prompts, agentic logic, inference engine.",
-    "Locus is open source under Apache 2.0, built at Stanford at Hazy Research and the Scaling Intelligence Lab at SAIL. Because the tools for studying and building local-first AI should be available to everyone.",
+    "Locus is open source under Apache 2.0, based on OpenJarvis from Hazy Research and the Scaling Intelligence Lab at Stanford SAIL. Because the tools for studying and building local-first AI should be available to everyone.",
     "Locus supports 27 channel integrations including Slack, Discord, Telegram, WhatsApp. Adding a new channel is one file implementing BaseChannel with connect, send, and disconnect.",
-    "Locus supports multiple inference engines: Ollama, vLLM, SGLang, llama.cpp. jarvis init picks the right one for your hardware.",
-    "Install Locus by running git clone https://github.com/locus/Locus.git then cd Locus then uv sync. Use jarvis init to auto-detect hardware and configure the engine.",
+    "Locus supports multiple inference engines: Ollama, vLLM, SGLang, llama.cpp. locus init picks the right one for your hardware.",
+    "Install Locus by running git clone https://github.com/aryanjsx/Locus.git then cd Locus then uv sync. Use locus init to auto-detect hardware and configure the engine.",
     "Locus memory and RAG supports four backends: SQLite FTS5 for keyword search, FAISS for vector similarity, ColBERT for token-level matching, and BM25 for probabilistic retrieval.",
     "Locus ships with nine example projects: deep_research, code_companion, messaging_hub, scheduled_ops, browser_assistant, security_scanner, daily_digest, doc_qa, and multi_model_router.",
 ]
@@ -158,7 +158,7 @@ def main() -> None:
             '- "four rag backends, swap with one config change. been '
             'testing colbert on our docs and the retrieval quality jump is real"\n\n'
             "Only real facts. No invented stats. "
-            "Link: https://github.com/locus/Locus",
+            "Link: https://github.com/aryanjsx/Locus",
             agent="orchestrator",
             tools=["think", "memory_search", "channel_send"],
             temperature=0.7,

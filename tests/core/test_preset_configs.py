@@ -1,6 +1,6 @@
 """Smoke test: every shipped preset config must load cleanly.
 
-Presets are installed via `jarvis init --preset <name>`, which copies
+Presets are installed via `locus init --preset <name>`, which copies
 `configs/locus/examples/<name>.toml` to `~/.locus/config.toml`.
 A preset that fails to parse via `load_config()` would break first-time
 setup, so we validate the whole set on every commit.
@@ -38,6 +38,6 @@ def test_preset_loads(preset_path: Path) -> None:
     cfg = load_config(path=preset_path)
     assert isinstance(cfg, JarvisConfig)
     # A preset must at least name an engine and an agent — those are the two
-    # slots `jarvis init` expects to be populated for a working first run.
+    # slots `locus init` expects to be populated for a working first run.
     assert cfg.engine.default, f"{preset_path.stem}: engine.default is empty"
     assert cfg.agent.default_agent, f"{preset_path.stem}: agent.default_agent is empty"

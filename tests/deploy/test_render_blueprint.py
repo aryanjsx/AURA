@@ -41,7 +41,7 @@ def _docker_json_instruction(name: str) -> list[str]:
 
 def _run_fake_jarvis(tmp_path: Path, argv: list[str]) -> list[str]:
     """Run an argv assembled with Docker's exec-form ENTRYPOINT semantics."""
-    fake_jarvis = tmp_path / "jarvis"
+    fake_jarvis = tmp_path / "locus"
     fake_jarvis.write_text(
         "#!/bin/sh\nprintf '%s\\0' \"$@\"\n",
         encoding="utf-8",
@@ -82,7 +82,7 @@ def test_render_selects_cloud_engine_through_the_serve_cli(tmp_path: Path) -> No
     assert parsed.params["port"] == 10000
     assert parsed.params["engine_key"] == "cloud"
     assert parsed.params["model_name"] == "gpt-4o-mini"
-    assert "Locus_ENGINE" not in _env_vars(service)
+    assert "LOCUS_ENGINE" not in _env_vars(service)
     assert _env_vars(service)["PORT"] == {"key": "PORT", "value": "10000"}
 
 
@@ -101,7 +101,7 @@ def test_docker_and_compose_command_overrides_remain_jarvis_subcommands(
         "qwen3:8b",
     ]
 
-    assert entrypoint == ["jarvis"]
+    assert entrypoint == ["locus"]
     assert default_command == [
         "serve",
         "--host",
@@ -118,14 +118,14 @@ def test_docker_and_compose_command_overrides_remain_jarvis_subcommands(
 
 
 def test_render_does_not_advertise_an_unconsumed_cors_variable() -> None:
-    assert "Locus_CORS_ORIGINS" not in _env_vars(_service())
+    assert "LOCUS_CORS_ORIGINS" not in _env_vars(_service())
 
 
 def test_render_public_bind_generates_an_api_key() -> None:
     env = _env_vars(_service())
 
-    assert env["Locus_API_KEY"] == {
-        "key": "Locus_API_KEY",
+    assert env["LOCUS_API_KEY"] == {
+        "key": "LOCUS_API_KEY",
         "generateValue": True,
     }
 
@@ -151,7 +151,7 @@ def test_render_free_tier_ephemeral_storage_is_explicitly_documented() -> None:
 
     assert service["plan"] == "free"
     assert "disk" not in service
-    assert env["Locus_HOME"]["value"] == "/home/locus/.locus"
+    assert env["LOCUS_HOME"]["value"] == "/home/locus/.locus"
     assert "ephemeral" in docs
     assert "lost" in docs
     assert "persistent disk" in docs

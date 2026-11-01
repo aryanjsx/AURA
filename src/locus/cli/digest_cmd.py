@@ -1,4 +1,4 @@
-"""``jarvis digest`` — display and play the morning digest."""
+"""``locus digest`` — display and play the morning digest."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Tests for the ``jarvis mine`` CLI."""
+"""Tests for the ``locus mine`` CLI."""
 
 from __future__ import annotations
 
@@ -145,7 +145,7 @@ def test_mine_init_writes_mining_config(tmp_path: Path) -> None:
             "--pearld-rpc-password-env",
             "TEST_PEARLD_PASSWORD",
         ],
-        env={"Locus_CONFIG": str(config_path)},
+        env={"LOCUS_CONFIG": str(config_path)},
     )
 
     assert result.exit_code == 0
@@ -198,7 +198,7 @@ def test_mine_init_writes_cuda_visible_devices_for_vllm(
                 "--cuda-visible-devices",
                 "0,1",
             ],
-            env={"Locus_CONFIG": str(config_path)},
+            env={"LOCUS_CONFIG": str(config_path)},
         )
 
     assert result.exit_code == 0
@@ -249,7 +249,7 @@ def test_mine_init_writes_local_model_path_for_vllm(
                 "--vllm-arg=--language-model-only",
                 "--vllm-arg=--skip-mm-profiling",
             ],
-            env={"Locus_CONFIG": str(config_path)},
+            env={"LOCUS_CONFIG": str(config_path)},
         )
 
     assert result.exit_code == 0
@@ -299,7 +299,7 @@ metrics_port = 19109
                     cli,
                     ["mine", "start"],
                     env={
-                        "Locus_CONFIG": str(config_path),
+                        "LOCUS_CONFIG": str(config_path),
                         "TEST_PEARLD_PASSWORD": "secret",
                     },
                 )
@@ -378,12 +378,12 @@ def test_mine_doctor_without_config(tmp_path: Path, monkeypatch) -> None:
         result = CliRunner().invoke(
             cli,
             ["mine", "doctor"],
-            env={"Locus_CONFIG": str(config_path)},
+            env={"LOCUS_CONFIG": str(config_path)},
         )
 
     assert result.exit_code == 0
     assert "Pearl Mining Doctor" in result.output
-    assert "jarvis mine init" in result.output
+    assert "locus mine init" in result.output
 
 
 def test_mine_status_no_session(tmp_path: Path, monkeypatch) -> None:

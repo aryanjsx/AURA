@@ -4,8 +4,8 @@
 setup() {
     # Use mktemp to ensure temp dir exists and is writable
     TEST_TMPDIR=$(mktemp -d)
-    export Locus_HOME="$TEST_TMPDIR/.locus"
-    mkdir -p "$Locus_HOME/.state/models"
+    export LOCUS_HOME="$TEST_TMPDIR/.locus"
+    mkdir -p "$LOCUS_HOME/.state/models"
     export OLLAMA_STUB_LOG="$TEST_TMPDIR/ollama.log"
     : > "$OLLAMA_STUB_LOG"
     export PATH="$BATS_TEST_DIRNAME/stubs:$PATH"
@@ -20,14 +20,14 @@ teardown() {
 @test "writes .downloading marker, then .ready on success" {
     OLLAMA_STUB_EXIT=0 run bash "$SCRIPT" qwen3.5:2b
     [ "$status" -eq 0 ]
-    [ -f "$Locus_HOME/.state/models/qwen3.5:2b.ready" ]
-    [ ! -f "$Locus_HOME/.state/models/qwen3.5:2b.downloading" ]
+    [ -f "$LOCUS_HOME/.state/models/qwen3.5:2b.ready" ]
+    [ ! -f "$LOCUS_HOME/.state/models/qwen3.5:2b.downloading" ]
 }
 
 @test "writes .failed on error after retries exhausted" {
     OLLAMA_STUB_EXIT=1 run bash "$SCRIPT" qwen3.5:2b
     [ "$status" -ne 0 ]
-    [ -f "$Locus_HOME/.state/models/qwen3.5:2b.failed" ]
+    [ -f "$LOCUS_HOME/.state/models/qwen3.5:2b.failed" ]
 }
 
 @test "calls ollama pull with the right model name" {
@@ -43,6 +43,6 @@ teardown() {
 
 @test "ready marker is created via atomic rename (no .tmp leftovers)" {
     OLLAMA_STUB_EXIT=0 run bash "$SCRIPT" qwen3.5:2b
-    leftover=$(find "$Locus_HOME/.state/models" -name "*.tmp" 2>/dev/null | wc -l)
+    leftover=$(find "$LOCUS_HOME/.state/models" -name "*.tmp" 2>/dev/null | wc -l)
     [ "$leftover" -eq 0 ]
 }

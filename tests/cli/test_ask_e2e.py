@@ -1,4 +1,4 @@
-"""End-to-end tests for ``jarvis ask``."""
+"""End-to-end tests for ``locus ask``."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def _patch_ask(monkeypatch, tmp_path, *, engine_result=None, no_engine=False):
     """Set up common mocks for ask tests."""
     # Re-register SimpleAgent after the autouse `_clean_registries` conftest
     # fixture clears it. ``JarvisConfig().agent.default_agent`` defaults to
-    # ``"simple"``, so ``jarvis ask "..."`` (no --agent) routes through it.
+    # ``"simple"``, so ``locus ask "..."`` (no --agent) routes through it.
     from locus.agents.simple import SimpleAgent
     from locus.core.registry import AgentRegistry
 

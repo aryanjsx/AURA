@@ -1,4 +1,4 @@
-"""Tests for the ``jarvis pearl`` CLI wrappers."""
+"""Tests for the ``locus pearl`` CLI wrappers."""
 
 from __future__ import annotations
 

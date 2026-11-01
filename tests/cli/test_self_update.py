@@ -1,4 +1,4 @@
-"""Smoke tests for `jarvis self-update`.
+"""Smoke tests for `locus self-update`.
 
 Focus on the surface that's easy to corrupt (output formatting, exit
 codes, --check short-circuit). We don't actually run pip/uv from a
@@ -22,10 +22,10 @@ def _mock_info(kind: str = "pypi") -> InstallInfo:
     return InstallInfo(
         kind=kind,
         upgrade_command={
-            "pypi": "pip install --upgrade locus",
-            "uv-tool": "uv tool upgrade locus",
-            "editable-git": "jarvis self-update",
-            "unknown": "pip install --upgrade locus",
+            "pypi": "pip install --upgrade locus-assistant",
+            "uv-tool": "uv tool upgrade locus-assistant",
+            "editable-git": "locus self-update",
+            "unknown": "pip install --upgrade locus-assistant",
         }[kind],
         repo_root=Path("/tmp/repo with spaces") if kind == "editable-git" else None,
     )
@@ -39,7 +39,7 @@ def test_check_flag_prints_command_and_exits_clean():
         runner = CliRunner()
         result = runner.invoke(self_update, ["--check"])
     assert result.exit_code == 0
-    assert "pip install --upgrade locus" in result.output
+    assert "pip install --upgrade locus-assistant" in result.output
     assert "Install method: pypi" in result.output
 
 
@@ -74,7 +74,7 @@ def test_yes_skips_confirmation_and_runs():
     # PyPI path uses shlex.split (no shell=True)
     args, kwargs = mock_run.call_args
     assert kwargs.get("shell") is not True
-    assert args[0] == ["pip", "install", "--upgrade", "locus"]
+    assert args[0] == ["pip", "install", "--upgrade", "locus-assistant"]
 
 
 @pytest.mark.parametrize("shallow", ["true", "false"])
@@ -110,7 +110,7 @@ def test_editable_git_repairs_history_and_rebuilds_active_venv(monkeypatch, shal
         "/managed venv/bin/python",
         "--inexact",
         "--reinstall-package",
-        "locus",
+        "locus-assistant",
     ]
     for call in mock_run.call_args_list:
         assert call.kwargs.get("shell") is not True
@@ -145,7 +145,7 @@ def test_editable_global_install_rebuilds_running_interpreter(monkeypatch):
         "--python",
         "/global python/python",
         "--reinstall-package",
-        "locus",
+        "locus-assistant",
         "-e",
         ".",
     ]

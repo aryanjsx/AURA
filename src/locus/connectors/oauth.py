@@ -140,8 +140,8 @@ def get_client_credentials(
     """Load stored client_id and client_secret for *provider*.
 
     Checks credential files in ``~/.locus/connectors/`` and falls
-    back to environment variables ``Locus_{NAME}_CLIENT_ID`` and
-    ``Locus_{NAME}_CLIENT_SECRET``.
+    back to environment variables ``LOCUS_{NAME}_CLIENT_ID`` and
+    ``LOCUS_{NAME}_CLIENT_SECRET``.
     """
     # Check credential files
     for filename in provider.credential_files:
@@ -151,7 +151,7 @@ def get_client_credentials(
             return tokens["client_id"], tokens["client_secret"]
 
     # Check environment variables
-    prefix = f"Locus_{provider.name.upper()}"
+    prefix = f"LOCUS_{provider.name.upper()}"
     env_id = os.environ.get(f"{prefix}_CLIENT_ID", "")
     env_secret = os.environ.get(f"{prefix}_CLIENT_SECRET", "")
     if env_id and env_secret:

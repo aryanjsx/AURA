@@ -7,9 +7,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 // VITE_SUPABASE_ANON_KEY is intentionally NOT required here: a missing key
 // disables the savings leaderboard at runtime (see src/lib/supabase.ts) rather
 // than failing the build, so the package/app stays publishable without it.
-// jarvis gui sets the proxy target without exposing an absolute API URL to the
+// locus gui sets the proxy target without exposing an absolute API URL to the
 // browser, so requests stay on Vite's origin even on a custom frontend port.
-const apiTarget = process.env.Locus_VITE_PROXY_TARGET
+const apiTarget = process.env.LOCUS_VITE_PROXY_TARGET
   || process.env.VITE_API_URL
   || 'http://localhost:8000';
 
@@ -26,7 +26,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       manifest: {
         name: 'Locus',
-        short_name: 'Jarvis',
+        short_name: 'Locus',
         description: 'On-device AI assistant',
         theme_color: '#161618',
         background_color: '#161618',

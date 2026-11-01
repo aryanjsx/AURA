@@ -221,7 +221,7 @@ def test_corrupt_connector_key_is_unconfigured_and_never_sent(
 def test_malformed_tool_credentials_preserve_discovery_and_connector_fallback(
     tmp_path, monkeypatch, credential_toml, connector_configured
 ):
-    monkeypatch.setenv("Locus_HOME", str(tmp_path))
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path))
     monkeypatch.delenv("OPENWEATHERMAP_API_KEY", raising=False)
     (tmp_path / "credentials.toml").write_text(credential_toml, encoding="utf-8")
     if connector_configured:
@@ -347,7 +347,7 @@ def test_default_connector_path_honors_runtime_locus_home(tmp_path, monkeypatch)
         '{"api_key":"relocated-connector-key","location":"Vienna"}',
         encoding="utf-8",
     )
-    monkeypatch.setenv("Locus_HOME", str(root))
+    monkeypatch.setenv("LOCUS_HOME", str(root))
     monkeypatch.setattr(
         "locus.tools.weather.get_tool_credential",
         lambda *_args, **_kwargs: None,

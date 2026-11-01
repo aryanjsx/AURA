@@ -194,32 +194,32 @@ channel.connect()
 
 ## CLI Commands
 
-The `jarvis channel` subcommand group provides quick access to channel operations.
+The `locus channel` subcommand group provides quick access to channel operations.
 
 ### List Channels
 
 ```bash
-jarvis channel list
+locus channel list
 ```
 
 ### Send a Message
 
 ```bash
 # Send to a channel by name
-jarvis channel send telegram "Build completed successfully"
+locus channel send telegram "Build completed successfully"
 ```
 
 ### Show Status
 
 ```bash
-jarvis channel status
+locus channel status
 ```
 
 ---
 
 ## API Server Endpoints
 
-When `jarvis serve` is running, three channel endpoints are available. Channels must be configured and enabled in `[channel]` for these endpoints to return data.
+When `locus serve` is running, three channel endpoints are available. Channels must be configured and enabled in `[channel]` for these endpoints to return data.
 
 ### `GET /v1/channels`
 
@@ -466,15 +466,15 @@ export SENDBLUE_API_SECRET_KEY="your_secret"
 export SENDBLUE_FROM_NUMBER="+16452468235"
 
 # Check channel status
-jarvis channel status --channel-type sendblue
+locus channel status --channel-type sendblue
 
 # Send a message
-jarvis channel send sendblue "+15551234567" "Hello from Jarvis!"
+locus channel send sendblue "+15551234567" "Hello from Jarvis!"
 ```
 
 ### Server Restart Behavior
 
-SendBlue bindings are **automatically restored on server restart**. When `jarvis serve` starts:
+SendBlue bindings are **automatically restored on server restart**. When `locus serve` starts:
 
 1. The server checks the database for existing SendBlue channel bindings
 2. Re-creates the `SendBlueChannel` instance with stored credentials

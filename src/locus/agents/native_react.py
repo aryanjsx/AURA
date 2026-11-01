@@ -242,7 +242,7 @@ class NativeReActAgent(ToolUsingAgent):
             )
         else:
             skill_examples_block = ""
-        # Respect $Locus_HOME override for the base template (M2+ work).
+        # Respect $LOCUS_HOME override for the base template (M2+ work).
         prompt_template = (
             load_system_prompt_override("native_react") or REACT_SYSTEM_PROMPT
         )

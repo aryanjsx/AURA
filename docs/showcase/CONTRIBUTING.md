@@ -39,7 +39,7 @@ calendar, your inbox, your code. Specific verbs and proper nouns.>
 
 → **[Tutorial: <name>](../tutorials/<file>.md)** is the closest match.
 
-→ **[Recipe: <name>](https://github.com/locus/Locus/tree/main/src/locus/recipes/data)** if you want the exact config.
+→ **[Recipe: <name>](https://github.com/aryanjsx/Locus/tree/main/src/locus/recipes/data)** if you want the exact config.
 
 → **[<one more related doc>](../<path>.md)** if the reader is going deeper.
 ```
@@ -97,7 +97,7 @@ If there isn't a relevant tutorial yet, link to the closest [User Guide](../user
 
 ## Where this goes after merge
 
-Hannah and the docs team post merged showcase entries to **`#config-showcase`** in [the Locus Discord](https://discord.gg/locus). You'll get tagged in the post — you don't have to do it yourself.
+Merged showcase entries are listed in the [showcase](index.md). You don't have to do anything else.
 
 ## Questions, drafts, half-finished ideas
 

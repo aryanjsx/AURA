@@ -1,4 +1,4 @@
-"""``jarvis registry`` — registry inspection commands."""
+"""``locus registry`` — registry inspection commands."""
 
 from __future__ import annotations
 
@@ -110,7 +110,7 @@ def show(registry_name: str, verbose: bool) -> None:
         if registry_cls is None:
             console.print(f"[red]Unknown registry: {registry_name}[/red]")
             console.print(
-                "[dim]Run 'jarvis registry list' to see available registries.[/dim]"
+                "[dim]Run 'locus registry list' to see available registries.[/dim]"
             )
             return
 

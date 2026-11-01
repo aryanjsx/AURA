@@ -41,6 +41,8 @@ def test_identity_gates_frontend_and_id_creation(
     cfg = JarvisConfig()
     cfg.analytics.enabled = enabled
     cfg.analytics.anon_id_path = str(tmp_path / "anon_id")
+    cfg.analytics.host = "https://analytics.example.org"
+    cfg.analytics.key = "phc_test"
     monkeypatch.setattr(analytics_routes, "load_config", lambda: cfg)
     app = FastAPI()
     app.include_router(analytics_routes.router)

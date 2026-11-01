@@ -107,7 +107,7 @@ The `think` tool lets the agent reason internally before committing to a categor
     1. Add the Slack MCP server to your configuration:
 
         ```bash title="Terminal"
-        jarvis add slack
+        locus add slack
         ```
 
     2. Set your credentials in `.env` (gitignored):
@@ -144,11 +144,11 @@ The `think` tool lets the agent reason internally before committing to a categor
     Locus supports LINE, Viber, Mastodon, Rocket.Chat, Zulip, XMPP, Twitch, Nostr, and more. List all available channels:
 
     ```bash title="Terminal"
-    jarvis channel list
-    jarvis channel status
+    locus channel list
+    locus channel status
     ```
 
-    Each channel requires its own environment variables. Run `jarvis add <channel>` where available to auto-generate the configuration template.
+    Each channel requires its own environment variables. Run `locus add <channel>` where available to auto-generate the configuration template.
 
 !!! warning "Live channel mode"
     Live channel mode requires channel credentials and the corresponding channel subsystem to be running. Use `--demo` to verify the triage logic before connecting to a real channel.
@@ -202,7 +202,7 @@ You can also add domain rules in the system prompt via `messaging.toml` — for 
 After processing all messages, the end-of-day summary call runs immediately in the script. For production use, schedule it independently via the Locus scheduler:
 
 ```bash title="Terminal"
-jarvis scheduler create "Daily inbox summary" \
+locus scheduler create "Daily inbox summary" \
     --type cron --value "0 17 * * *"
 ```
 

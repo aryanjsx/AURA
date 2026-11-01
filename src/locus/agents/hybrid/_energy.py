@@ -17,7 +17,7 @@ Scope notes
   (``mkt1`` / ``matx2``), so this captures the local-model serving GPUs.
   If the runner is invoked from a host without GPUs (e.g. a login node
   with vLLM on a remote box), the collector logs and yields 0 — set
-  ``Locus_HYBRID_ENERGY=0`` to silence the warning.
+  ``LOCUS_HYBRID_ENERGY=0`` to silence the warning.
 * ``CUDA_VISIBLE_DEVICES`` is *honored* for parity with vLLM: only those
   GPU indices are sampled. Unset = all GPUs on the host.
 * **Cloud energy is not measured** — cloud calls go over HTTPS to
@@ -85,7 +85,7 @@ class EnergyCollector:
         self._thread: Optional[threading.Thread] = None
         self._t0: float = 0.0
         self._t1: float = 0.0
-        self._enabled = os.environ.get("Locus_HYBRID_ENERGY", "1") != "0"
+        self._enabled = os.environ.get("LOCUS_HYBRID_ENERGY", "1") != "0"
         self._pynvml = None
         self._handles: list = []
 
@@ -110,7 +110,7 @@ class EnergyCollector:
         except Exception as e:  # noqa: BLE001 — NVML failures must never crash the run
             _log_once(
                 f"NVML unavailable ({type(e).__name__}: {e}); "
-                "energy_j_total will be 0. Set Locus_HYBRID_ENERGY=0 to silence."
+                "energy_j_total will be 0. Set LOCUS_HYBRID_ENERGY=0 to silence."
             )
             self._pynvml = None
             return self

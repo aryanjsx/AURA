@@ -89,8 +89,8 @@ class TauBenchDataset(DatasetProvider):
         self._max_tokens: int = 4096
         self._user_model: Optional[str] = None
         # pass^k: best of k trials per task. Default 3, override via env var
-        # Locus_TAUBENCH_TRIALS for faster runs (e.g. =1 for 3x speedup).
-        self._num_trials: int = int(os.environ.get("Locus_TAUBENCH_TRIALS", "3"))
+        # LOCUS_TAUBENCH_TRIALS for faster runs (e.g. =1 for 3x speedup).
+        self._num_trials: int = int(os.environ.get("LOCUS_TAUBENCH_TRIALS", "3"))
         self._telemetry: bool = False
         self._gpu_metrics: bool = False
 

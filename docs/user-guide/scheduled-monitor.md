@@ -7,10 +7,10 @@ A persistent operative agent that runs on a cron schedule, maintains state acros
 ### 1. Install and initialize
 
 ```bash
-git clone https://github.com/locus/Locus.git
+git clone https://github.com/aryanjsx/Locus.git
 cd Locus
 uv sync --extra dev
-jarvis init --preset scheduled-monitor --force
+locus init --preset scheduled-monitor --force
 ```
 
 This writes a pre-configured `~/.locus/config.toml` for the operative agent with scheduling support.
@@ -25,7 +25,7 @@ ollama pull qwen3.5:9b
 ### 3. Index your data
 
 ```bash
-jarvis memory index ~/Documents/
+locus memory index ~/Documents/
 ```
 
 The operative agent uses memory to track state across runs, so indexing your data gives it context for the first run.
@@ -33,9 +33,9 @@ The operative agent uses memory to track state across runs, so indexing your dat
 ### 4. Create a scheduled task
 
 ```bash
-jarvis scheduler start
+locus scheduler start
 
-jarvis scheduler create \
+locus scheduler create \
   --prompt "Check for new emails about Project X and update your notes" \
   --schedule "0 9 * * 1-5" \
   --agent operative \
@@ -74,30 +74,30 @@ Common examples:
 
 ```bash
 # Start the scheduler daemon
-jarvis scheduler start
+locus scheduler start
 
 # Create a new scheduled task
-jarvis scheduler create \
+locus scheduler create \
   --prompt "Summarize any new research papers in my library" \
   --schedule "0 8 * * *" \
   --agent operative
 
 # List all scheduled tasks
-jarvis scheduler list
+locus scheduler list
 
 # View task details and run history
-jarvis scheduler status <task-id>
+locus scheduler status <task-id>
 
 # Pause / resume / delete a task
-jarvis scheduler pause <task-id>
-jarvis scheduler resume <task-id>
-jarvis scheduler delete <task-id>
+locus scheduler pause <task-id>
+locus scheduler resume <task-id>
+locus scheduler delete <task-id>
 
 # Run a task immediately (outside its schedule)
-jarvis scheduler run <task-id>
+locus scheduler run <task-id>
 
 # Stop the scheduler daemon
-jarvis scheduler stop
+locus scheduler stop
 ```
 
 ## Configuration Reference
@@ -152,7 +152,7 @@ default_backend = "sqlite"
 ### Daily inbox monitor
 
 ```bash
-jarvis scheduler create \
+locus scheduler create \
   --prompt "Review my recent emails. Flag anything urgent and summarize the rest. Store a daily summary." \
   --schedule "0 9 * * 1-5" \
   --agent operative \
@@ -162,7 +162,7 @@ jarvis scheduler create \
 ### Research tracker
 
 ```bash
-jarvis scheduler create \
+locus scheduler create \
   --prompt "Search for new papers related to 'efficient transformers'. Compare with papers I've already indexed and note what's new." \
   --schedule "0 8 * * 1" \
   --agent operative \
@@ -172,7 +172,7 @@ jarvis scheduler create \
 ### Status reporter
 
 ```bash
-jarvis scheduler create \
+locus scheduler create \
   --prompt "Check the project status documents and generate a weekly progress summary. Note any blockers." \
   --schedule "0 17 * * 5" \
   --agent operative \
@@ -190,12 +190,12 @@ The operative agent differs from other agents in that it maintains state across 
 
 ## Troubleshooting
 
-**"Scheduler not running"** -- Start the scheduler daemon with `jarvis scheduler start`. It must be running for scheduled tasks to execute.
+**"Scheduler not running"** -- Start the scheduler daemon with `locus scheduler start`. It must be running for scheduled tasks to execute.
 
-**Task doesn't run on time** -- Check that Ollama is running (`ollama serve`). The scheduler triggers the agent, but the agent needs an inference engine. Verify the schedule with `jarvis scheduler status <task-id>`.
+**Task doesn't run on time** -- Check that Ollama is running (`ollama serve`). The scheduler triggers the agent, but the agent needs an inference engine. Verify the schedule with `locus scheduler status <task-id>`.
 
 **Agent produces inconsistent results** -- Keep `temperature` at `0.3` or lower for scheduled tasks. Higher temperatures introduce randomness that compounds across runs.
 
-**Memory grows too large** -- Periodically review with `jarvis memory stats`. Clear old entries with `jarvis memory clear --before 2026-01-01` if needed.
+**Memory grows too large** -- Periodically review with `locus memory stats`. Clear old entries with `locus memory clear --before 2026-01-01` if needed.
 
 **Agent runs too long** -- Reduce `max_turns` or simplify the prompt. The operative agent is thorough and may use all available turns.

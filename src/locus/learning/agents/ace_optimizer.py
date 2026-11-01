@@ -155,7 +155,9 @@ class ACEAgentOptimizer:
         if not HAS_ACE:
             return {
                 "status": "error",
-                "reason": ("ace not installed (pip install 'locus[learning-ace]')"),
+                "reason": (
+                    "ace not installed (pip install 'locus-assistant[learning-ace]')"
+                ),
             }
 
         samples = _traces_to_samples(traces)

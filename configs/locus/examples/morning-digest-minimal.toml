@@ -4,7 +4,7 @@
 #
 # Requirements:
 #   - Ollama installed with any model
-#   - Google OAuth credentials (jarvis connect gdrive)
+#   - Google OAuth credentials (locus connect gdrive)
 #   - OpenAI API key for TTS (or skip audio with --text-only)
 
 [engine]
@@ -18,7 +18,7 @@ enabled = ["digest_collect", "text_to_speech"]
 
 [digest]
 enabled = true
-persona = "jarvis"
+persona = "locus"
 honorific = "sir"
 tts_backend = "openai"
 voice_id = "onyx"

@@ -131,7 +131,7 @@ class GmailChannel(BaseChannel):
         except ImportError:
             logger.warning(
                 "Google API libraries not installed; "
-                "install with: pip install locus[channel-gmail]",
+                "install with: pip install locus-assistant[channel-gmail]",
             )
             self._status = ChannelStatus.ERROR
         except Exception:

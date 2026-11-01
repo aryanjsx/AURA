@@ -28,8 +28,8 @@ from locus.engine._stubs import InferenceEngine
 logger = logging.getLogger(__name__)
 
 # Sentinel markers for parsing subprocess output
-_OUTPUT_START = "---Locus_OUTPUT_START---"
-_OUTPUT_END = "---Locus_OUTPUT_END---"
+_OUTPUT_START = "---LOCUS_OUTPUT_START---"
+_OUTPUT_END = "---LOCUS_OUTPUT_END---"
 
 # Path to the bundled runner source (relative to this module).
 # In editable installs this lives next to this file; in wheel installs

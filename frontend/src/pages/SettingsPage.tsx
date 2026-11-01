@@ -550,7 +550,7 @@ export function SettingsPage() {
                 type="password"
                 value={settings.apiKey}
                 onChange={(e) => { updateSettings({ apiKey: e.target.value }); showSaved(); }}
-                placeholder="Locus_API_KEY"
+                placeholder="LOCUS_API_KEY"
                 autoComplete="off"
                 className="text-sm px-3 py-1.5 rounded-lg outline-none w-56"
                 style={{
@@ -873,7 +873,7 @@ export function SettingsPage() {
             {!speechBackendAvailable && speechBackendAvailable !== null && (
               <div className="text-xs mt-2 px-1" style={{ color: 'var(--color-text-tertiary)' }}>
                 Set up a speech backend to use voice input.
-                See the <a href="https://locus.github.io/Locus/user-guide/tools/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>documentation</a> for details.
+                See the <a href="https://aryanjsx.github.io/Locus/user-guide/tools/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-accent)' }}>documentation</a> for details.
               </div>
             )}
           </Section>
@@ -959,11 +959,11 @@ export function SettingsPage() {
                 <span className="font-semibold" style={{ color: 'var(--color-text)' }}>Locus</span> — Programming abstractions for on-device AI.
               </p>
               <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-                Part of Intelligence Per Watt, a research initiative at Stanford SAIL.
+                Based on OpenJarvis from Stanford Hazy Research. Not affiliated with Stanford.
               </p>
               <div className="flex gap-3 mt-3 text-xs">
                 <a
-                  href="https://locus.stanford.edu/"
+                  href="https://github.com/aryanjsx/Locus"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: 'var(--color-accent)' }}
@@ -971,7 +971,7 @@ export function SettingsPage() {
                   Project site
                 </a>
                 <a
-                  href="https://locus.github.io/Locus/"
+                  href="https://aryanjsx.github.io/Locus/"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: 'var(--color-accent)' }}

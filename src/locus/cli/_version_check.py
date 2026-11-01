@@ -15,12 +15,12 @@ logger = logging.getLogger(__name__)
 
 _CACHE_PATH = get_config_dir() / "version-check.json"
 _CACHE_TTL = 86400  # 24 hours
-_PYPI_API = "https://pypi.org/pypi/locus/json"
+_PYPI_API = "https://pypi.org/pypi/locus-assistant/json"
 
 
 def _config_path() -> Path:
-    """Resolve the config path, honoring ``Locus_CONFIG`` like core.config."""
-    override = os.environ.get("Locus_CONFIG")
+    """Resolve the config path, honoring ``LOCUS_CONFIG`` like core.config."""
+    override = os.environ.get("LOCUS_CONFIG")
     if override:
         return Path(override).expanduser()
     return get_config_dir() / "config.toml"
@@ -50,9 +50,9 @@ _CHECK_COMMANDS = {
 }
 
 # Environment opt-outs (any truthy value disables the check):
-# - ``Locus_NO_UPDATE_CHECK=1`` — project-specific
+# - ``LOCUS_NO_UPDATE_CHECK=1`` — project-specific
 # - ``CI=true`` — set by every major CI provider, suppresses by default
-_OPT_OUT_ENV_VARS = ("Locus_NO_UPDATE_CHECK",)
+_OPT_OUT_ENV_VARS = ("LOCUS_NO_UPDATE_CHECK",)
 
 
 def _check_disabled() -> bool:
@@ -62,7 +62,7 @@ def _check_disabled() -> bool:
         if raw and raw.strip().lower() not in ("", "0", "false", "no", "off"):
             return True
     # CI defaults to skipping. Users in CI can override with
-    # ``Locus_NO_UPDATE_CHECK=0`` if they want the nudge anyway.
+    # ``LOCUS_NO_UPDATE_CHECK=0`` if they want the nudge anyway.
     if os.environ.get("CI", "").strip().lower() in ("1", "true", "yes", "on"):
         return True
     return _config_disabled()
@@ -101,7 +101,7 @@ def _config_disabled() -> bool:
 def check_for_updates(command_name: str) -> None:
     """Print a message if a newer version is available. Best-effort, never raises.
 
-    Honors ``Locus_NO_UPDATE_CHECK=1`` and ``CI=true`` — any
+    Honors ``LOCUS_NO_UPDATE_CHECK=1`` and ``CI=true`` — any
     truthy value (``1``, ``true``, ``yes``, ``on``) disables both the
     PyPI poll and the banner. See ``_check_disabled`` for the full list.
     """
@@ -135,7 +135,7 @@ def _do_check() -> None:
 
             cmd = detect_install().upgrade_command
             alternative = (
-                "" if cmd == "jarvis self-update" else "Or run: jarvis self-update\n"
+                "" if cmd == "locus self-update" else "Or run: locus self-update\n"
             )
             sys.stderr.write(
                 f"\033[33mA new version of Locus is available "

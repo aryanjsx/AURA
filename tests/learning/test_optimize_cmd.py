@@ -1,4 +1,4 @@
-"""Smoke tests for ``jarvis optimize`` and ``jarvis feedback`` CLI commands,
+"""Smoke tests for ``locus optimize`` and ``locus feedback`` CLI commands,
 plus unit tests for OptimizeConfig, new event types, and TraceStore.update_feedback.
 """
 

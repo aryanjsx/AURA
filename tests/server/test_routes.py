@@ -1353,7 +1353,7 @@ class TestIdentityPromptInjection:
         """Regression: /v1/chat/completions previously injected only the bare
         ``default_system_prompt`` blurb via a hand-rolled lookup, bypassing
         ``SystemPromptBuilder`` entirely — so SOUL.md/MEMORY.md/USER.md
-        persona files never applied to this path, unlike ``jarvis ask`` and
+        persona files never applied to this path, unlike ``locus ask`` and
         the managed-agent routes. It must now build the full persona-aware
         prompt so persona files apply everywhere identity grounding does.
         """

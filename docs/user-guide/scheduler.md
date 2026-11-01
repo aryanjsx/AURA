@@ -3,7 +3,7 @@
 The task scheduler lets you run agent queries automatically on a schedule -- once at a future time, on a recurring interval, or via a cron expression. Scheduled tasks are persisted in SQLite so they survive process restarts, and execution is handled by a background daemon thread that polls for due tasks every 60 seconds.
 
 !!! note "Optional component"
-    The scheduler is a standalone module (`locus.scheduler`). It is not wired into the default `Jarvis` / `JarvisSystem` startup. You enable it explicitly via `SystemBuilder` or by starting the CLI daemon with `jarvis scheduler start`.
+    The scheduler is a standalone module (`locus.scheduler`). It is not wired into the default `Jarvis` / `JarvisSystem` startup. You enable it explicitly via `SystemBuilder` or by starting the CLI daemon with `locus scheduler start`.
 
 ---
 
@@ -22,12 +22,12 @@ The task scheduler lets you run agent queries automatically on a schedule -- onc
 
 ## CLI Commands
 
-The `jarvis scheduler` subcommand group manages tasks and the daemon from the terminal.
+The `locus scheduler` subcommand group manages tasks and the daemon from the terminal.
 
 ### Start the daemon
 
 ```bash
-jarvis scheduler start
+locus scheduler start
 ```
 
 Starts the background polling daemon. The daemon runs in the foreground until interrupted (++ctrl+c++). In production, run it under systemd or launchd (see [Deployment](../deployment/systemd.md)).
@@ -36,13 +36,13 @@ Starts the background polling daemon. The daemon runs in the foreground until in
 
 ```bash
 # Run once at a specific time
-jarvis scheduler create \
+locus scheduler create \
   --prompt "Generate the weekly summary report" \
   --type once \
   --value "2026-03-01T09:00:00Z"
 
 # Run every hour
-jarvis scheduler create \
+locus scheduler create \
   --prompt "Check for new emails and summarize" \
   --type interval \
   --value "3600" \
@@ -50,7 +50,7 @@ jarvis scheduler create \
   --tools retrieval,think
 
 # Run on a cron schedule
-jarvis scheduler create \
+locus scheduler create \
   --prompt "Summarize overnight logs" \
   --type cron \
   --value "0 8 * * 1-5"
@@ -60,13 +60,13 @@ jarvis scheduler create \
 
 ```bash
 # All tasks
-jarvis scheduler list
+locus scheduler list
 
 # Active tasks only
-jarvis scheduler list --status active
+locus scheduler list --status active
 
 # Paused tasks
-jarvis scheduler list --status paused
+locus scheduler list --status paused
 ```
 
 Example output:
@@ -81,24 +81,24 @@ b7c2e56f1a3d    orchestr  interval   3600           active   2026-02-25T14:05:00
 
 ```bash
 # Pause a running task
-jarvis scheduler pause a3f9b12c4d8e
+locus scheduler pause a3f9b12c4d8e
 
 # Resume -- next_run is recomputed from the current time
-jarvis scheduler resume a3f9b12c4d8e
+locus scheduler resume a3f9b12c4d8e
 ```
 
 ### Cancel a task
 
 ```bash
 # Permanently cancel (status -> "cancelled", next_run cleared)
-jarvis scheduler cancel a3f9b12c4d8e
+locus scheduler cancel a3f9b12c4d8e
 ```
 
 ### View run logs
 
 ```bash
 # Last 10 executions for a task
-jarvis scheduler logs a3f9b12c4d8e
+locus scheduler logs a3f9b12c4d8e
 ```
 
 Example output:
@@ -127,7 +127,7 @@ jarvis = Jarvis()
 
 scheduler = TaskScheduler(
     store=store,
-    system=jarvis,         # (2)!
+    system=locus,         # (2)!
     poll_interval=60,      # (3)!
 )
 
@@ -161,7 +161,7 @@ jarvis.close()
 1. SQLite database storing all task state and run logs.
 2. The scheduler calls `system.ask(task.prompt, agent=task.agent, tools=...)` when a task is due. Pass `system=None` for a dry-run mode that logs what it would execute without calling the agent.
 3. Seconds between polling cycles. Lower values increase responsiveness at the cost of more SQLite reads.
-4. Starts a daemon thread named `"jarvis-scheduler"`. Daemon threads exit automatically when the main process exits.
+4. Starts a daemon thread named `"locus-scheduler"`. Daemon threads exit automatically when the main process exits.
 
 ---
 
@@ -191,7 +191,7 @@ The five scheduler MCP tools (`schedule_task`, `list_scheduled_tasks`, `pause_sc
 
 ```bash
 # Let the orchestrator schedule its own follow-up
-jarvis ask --agent orchestrator \
+locus ask --agent orchestrator \
   --tools schedule_task,list_scheduled_tasks \
   "Research transformer architectures and schedule a daily summary at 8am"
 ```

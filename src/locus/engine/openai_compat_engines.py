@@ -46,7 +46,7 @@ class OpenAICompatEngine(_OpenAICompatibleEngine):
     """Generic engine for an explicitly-provided OpenAI-compatible endpoint.
 
     Deliberately NOT registered in ``EngineRegistry``: it is only ever
-    constructed with an explicit host (e.g. ``jarvis eval --base-url``), so
+    constructed with an explicit host (e.g. ``locus eval --base-url``), so
     registering it would just add a useless localhost discovery probe and
     interact with the per-test registry wipe.
     """
