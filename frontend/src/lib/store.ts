@@ -17,6 +17,7 @@ import type {
 } from '../types';
 import type { ManagedAgent } from './api';
 import { deletePayloads } from './attachments';
+import type { UserProfile } from './profile';
 import { isEmbedOnlyModel } from './model-capabilities';
 import { serializeToolCallArguments } from './tool-call';
 
@@ -42,7 +43,6 @@ const OPTIN_KEY = 'locus-optin';
 const OPTIN_NAME_KEY = 'locus-display-name';
 const OPTIN_EMAIL_KEY = 'locus-email';
 const OPTIN_ANONID_KEY = 'locus-anon-id';
-const OPTIN_SEEN_KEY = 'locus-optin-seen';
 const WEB_SEARCH_KEY = 'locus-web-search';
 
 interface ConversationStore {
@@ -182,8 +182,9 @@ interface AppState {
   optInDisplayName: string;
   optInEmail: string;
   optInAnonId: string;
-  optInModalSeen: boolean;
-  optInModalOpen: boolean;
+  // The user's name (see lib/profile.ts) and the dialog that asks for it
+  profile: UserProfile | null;
+  profileModalOpen: boolean;
 
   // Actions: conversations
   loadConversations: () => void;
@@ -264,8 +265,8 @@ interface AppState {
 
   // Actions: opt-in sharing
   setOptIn: (enabled: boolean, displayName: string, email: string) => void;
-  setOptInModalOpen: (open: boolean) => void;
-  markOptInModalSeen: () => void;
+  setProfile: (profile: UserProfile | null) => void;
+  setProfileModalOpen: (open: boolean) => void;
 
   // Logs
   logEntries: LogEntry[];
@@ -308,8 +309,8 @@ export const useAppStore = create<AppState>((set, get) => {
     optInDisplayName: localStorage.getItem(OPTIN_NAME_KEY) || '',
     optInEmail: localStorage.getItem(OPTIN_EMAIL_KEY) || '',
     optInAnonId: localStorage.getItem(OPTIN_ANONID_KEY) || crypto.randomUUID(),
-    optInModalSeen: localStorage.getItem(OPTIN_SEEN_KEY) === 'true',
-    optInModalOpen: false,
+    profile: null,
+    profileModalOpen: false,
 
     // ── Conversations ───────────────────────────────────────────────
 
@@ -628,11 +629,8 @@ export const useAppStore = create<AppState>((set, get) => {
       localStorage.setItem(OPTIN_ANONID_KEY, anonId);
       set({ optInEnabled: enabled, optInDisplayName: displayName, optInEmail: email });
     },
-    setOptInModalOpen: (open: boolean) => set({ optInModalOpen: open }),
-    markOptInModalSeen: () => {
-      localStorage.setItem(OPTIN_SEEN_KEY, 'true');
-      set({ optInModalSeen: true });
-    },
+    setProfile: (profile: UserProfile | null) => set({ profile }),
+    setProfileModalOpen: (open: boolean) => set({ profileModalOpen: open }),
   };
 });
 

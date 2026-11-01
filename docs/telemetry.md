@@ -49,22 +49,16 @@ changed. Configurations without an analytics setting now default to off.
 Local performance telemetry and Savings Leaderboard participation remain
 separate settings.
 
-In the browser and desktop apps, the existing **Share Your Savings** dialog
-offers explicit buttons without a checkbox. Displaying or closing the dialog
-does not enable analytics. Confirm with **Enable analytics only** or
-**Enable analytics & enter giveaway**, or use **Continue without sharing**
-to turn analytics off. A saved UI choice takes effect immediately in both
-the frontend and the running backend.
+The browser and desktop apps don't ask about analytics on first launch.
+The first-launch dialog only asks for your name, so Locus knows what to call
+you; it's saved on your computer in `~/.locus/USER.md` and never sent
+anywhere.
 
-Joining the leaderboard requires a display name and contact email submitted
-with savings to the configured Supabase leaderboard. Analytics preferences
-send only the on/off choice to the local server; names and emails are not
-attached to PostHog usage events by this form. The existing Mac mini
-promotion concerns leaderboard participation, not analytics consent.
-Use **Enter giveaway only** to join with analytics off; submitting the
-name/email form with Enter also uses that option. Stopping leaderboard
-updates and disabling usage analytics are separate actions. Stopping updates
-does not delete previously submitted entries from Supabase.
+Joining the Savings Leaderboard, from the Savings dashboard, requires a
+display name and contact email submitted with savings to the configured
+Supabase leaderboard. It's separate from usage analytics, and names and
+emails are never attached to analytics events. Stopping leaderboard updates
+doesn't delete previously submitted entries from Supabase.
 
 ## What we collect
 
