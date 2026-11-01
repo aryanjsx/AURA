@@ -48,6 +48,8 @@ Download the installer for your platform from the [**latest release**](https://g
 | **macOS (Apple Silicon and Intel)** | `Locus_<version>_universal.dmg` |
 | **Linux** | `Locus_<version>_amd64.AppImage`, `.deb`, or `.rpm` |
 
+On first launch, choose **Ollama** to run models on your PC (or point Locus at your own OpenAI-compatible server). Locus then sets itself up: it installs its private Python runtime, starts the bundled Ollama, and downloads a model sized for your RAM. You don't need to install git, Python, Rust, or Ollama yourself. First launch needs an internet connection and takes a few minutes; later launches start in seconds.
+
 The desktop app checks for new releases and offers to install them.
 
 > [!NOTE]
