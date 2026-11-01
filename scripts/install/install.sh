@@ -285,7 +285,7 @@ choose_analytics() {
 Help improve Locus by sharing optional install and usage statistics.
 Data includes installation and feature usage, timings, token counts, error
 categories, environment metadata, and a random installation ID.
-Recipient: the Locus team's PostHog analytics endpoint.
+Recipient: the PostHog analytics endpoint shown below.
 Privacy details: https://aryanjsx.github.io/Locus/telemetry/
 You can disable sharing later: locus config set analytics.enabled false
 (then restart the server and reload the app).
@@ -320,6 +320,7 @@ persist_analytics_choice() {
     if analytics_enabled; then
         enabled=true
     fi
+    LOCUS_ANALYTICS_HOST="$ANALYTICS_HOST" LOCUS_ANALYTICS_KEY="$ANALYTICS_KEY" \
     "$VENV_DIR/bin/python" - "$enabled" "$ANALYTICS_CHOICE" <<'PYEOF'
 import os
 import sys
@@ -338,6 +339,10 @@ if "analytics" not in doc:
 doc["analytics"]["enabled"] = sys.argv[1] == "true"
 if sys.argv[2]:
     doc["analytics"]["choice_recorded"] = True
+if sys.argv[1] == "true":
+    # No destination ships by default, so keep the one the user consented to.
+    doc["analytics"]["host"] = os.environ["LOCUS_ANALYTICS_HOST"]
+    doc["analytics"]["key"] = os.environ["LOCUS_ANALYTICS_KEY"]
 
 temporary = None
 try:

@@ -17,7 +17,7 @@ def ask_analytics_consent(host: str | None = None) -> bool:
         "\nHelp improve Locus by sharing optional usage statistics.\n"
         "Data includes feature usage, timings, token counts, error categories,\n"
         "environment metadata, and a random installation ID.\n"
-        "Recipient: the Locus team's PostHog analytics endpoint.\n"
+        "Recipient: the PostHog analytics endpoint shown below.\n"
         "Privacy details: https://aryanjsx.github.io/Locus/telemetry/\n"
         "You can disable sharing later: locus config set analytics.enabled false\n"
         "(then restart the server and reload the app).\n"

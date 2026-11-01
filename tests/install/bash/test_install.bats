@@ -23,6 +23,9 @@ setup() {
     export UV_STUB_LOG="$TEST_TMPDIR/uv.log"
     export CURL_STUB_LOG="$TEST_TMPDIR/curl.log"
     export JARVIS_STUB_LOG="$TEST_TMPDIR/locus.log"
+    # No analytics destination ships by default; give consent tests one.
+    export LOCUS_ANALYTICS_HOST="https://analytics.example.org"
+    export LOCUS_ANALYTICS_KEY="phc_test"
     : > "$GIT_STUB_LOG"
     : > "$OLLAMA_STUB_LOG"
     : > "$UV_STUB_LOG"
@@ -116,6 +119,17 @@ PY
     grep -q '/i/v0/e/' "$CURL_STUB_LOG"
     [ -s "$LOCUS_HOME/anon_id" ]
     assert_analytics_preference "$LOCUS_HOME/config.toml" true true
+    grep -q 'host = "https://analytics.example.org"' "$LOCUS_HOME/config.toml"
+}
+
+@test "no analytics destination means no prompt and no beacons" {
+    unset LOCUS_ANALYTICS_HOST LOCUS_ANALYTICS_KEY
+    run python3 "$BATS_TEST_DIRNAME/run_installer_pty.py" "$SCRIPT" '["\n"]'
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Press Enter or Y to consent"* ]]
+    ! grep -q '/i/v0/e/' "$CURL_STUB_LOG"
+    [ ! -f "$LOCUS_HOME/anon_id" ]
+    assert_analytics_preference "$LOCUS_HOME/config.toml" false false
 }
 
 @test "Enter at dedicated terminal prompt consents before the first beacon" {

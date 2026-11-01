@@ -64,6 +64,9 @@
     "fsevents": false
   },
   "overrides": {
-    "katex": "$katex"
+    "katex": "$katex",
+    "ejs": "^5.0.2",
+    "glob": "^14.0.3",
+    "minimatch": "^11.0.3"
   }
 }
