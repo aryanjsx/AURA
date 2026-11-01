@@ -1,0 +1,254 @@
+{% extends "main.html" %}
+
+{#- The landing page. It keeps Material's <head> (title, meta, search index)
+    but replaces the header, tabs, body and footer with its own markup, and
+    loads no web fonts: system fonts only, so the page talks to nobody but
+    GitHub (for the download links). -#}
+
+{% block htmltitle %}
+  <title>Locus: a private AI assistant that runs on your computer</title>
+{% endblock %}
+
+{% block fonts %}{% endblock %}
+
+{% block extrahead %}
+  {{ super() }}
+  <meta property="og:title" content="Locus: a private AI assistant that runs on your computer">
+  <meta property="og:description" content="Free and open source. Runs language models on your own machine. Windows, macOS and Linux.">
+  <meta property="og:url" content="{{ config.site_url }}">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="{{ 'stylesheets/home.css' | url }}">
+{% endblock %}
+
+{% block header %}
+  <a class="lx-skip" href="#lx-main">Skip to content</a>
+  <header class="lx-header">
+    <div class="lx-wrap lx-header__inner">
+      <a class="lx-brand" href="{{ '.' | url }}" aria-label="Locus home">
+        <svg class="lx-brand__mark" viewBox="0 0 32 32" aria-hidden="true">
+          <circle cx="16" cy="16" r="10" fill="none" stroke="currentColor" stroke-width="2.4"/>
+          <circle cx="16" cy="16" r="4" class="lx-brand__dot"/>
+        </svg>
+        Locus
+      </a>
+      <nav aria-label="Main">
+        <ul class="lx-nav">
+          <li><a href="#what">What it does</a></li>
+          <li><a href="#privacy">Privacy</a></li>
+          <li><a href="{{ 'getting-started/installation/' | url }}">Docs</a></li>
+          <li><a href="{{ config.repo_url }}">GitHub</a></li>
+          <li><a class="lx-nav__download" href="#download">Download</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+{% endblock %}
+
+{% block tabs %}{% endblock %}
+{% block site_nav %}{% endblock %}
+{% block footer %}{% endblock %}
+
+{% block container %}
+<main id="lx-main" class="lx">
+
+  <section class="lx-hero lx-wrap">
+    <div class="lx-hero__text">
+      <p class="lx-eyebrow">Free and open source · Windows, macOS, Linux</p>
+      <h1>An AI assistant that runs on your computer, not someone else's.</h1>
+      <p class="lx-lede">
+        Locus runs language models on your own machine. Ask it questions,
+        have it read your notes and documents, or set it to send you a
+        briefing every morning. Nothing leaves your computer unless you
+        connect a service yourself.
+      </p>
+
+      <div class="lx-get" data-download>
+        <a class="lx-button lx-button--primary" data-download-primary
+           href="https://github.com/aryanjsx/Locus/releases/latest">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span data-download-label>Download Locus</span>
+        </a>
+        <a class="lx-button lx-button--quiet" href="#download">Other platforms</a>
+      </div>
+      <p class="lx-get__meta" data-download-meta>Free · no account needed</p>
+    </div>
+
+    <figure class="lx-window" aria-label="Illustration of the Locus app">
+      <div class="lx-window__bar">
+        <span class="lx-window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="lx-window__title">Locus</span>
+        <span class="lx-window__status"><span class="lx-dot" aria-hidden="true"></span>On this computer · qwen3.5:4b</span>
+      </div>
+      <div class="lx-window__body">
+        <p class="lx-msg lx-msg--you">What did I write down about the lease renewal?</p>
+        <div class="lx-msg lx-msg--locus">
+          <p>Two notes mention it. In <b>Apartment.md</b> (March 3) you wrote that
+            the landlord offered 12 months at the same rent if you sign by April 15.
+            In <b>To do.md</b> you added “ask about parking spot” next to it.</p>
+          <p class="lx-msg__source">Read from your Obsidian vault · nothing sent online</p>
+        </div>
+        <p class="lx-msg lx-msg--you">Remind me on April 10.</p>
+        <div class="lx-msg lx-msg--locus">
+          <p>Done. I'll message you on Telegram at 9:00 on April 10.</p>
+        </div>
+      </div>
+      <figcaption>Illustration. Answers depend on the model and the sources you connect.</figcaption>
+    </figure>
+  </section>
+
+  <section id="what" class="lx-section lx-wrap">
+    <h2>What you can use it for</h2>
+    <p class="lx-section__lede">Locus is one app with a few jobs. Each works with a model on
+      your machine; cloud models are there only if you add your own API key.</p>
+    <div class="lx-columns">
+      <div>
+        <h3>Ask and write</h3>
+        <ul class="lx-examples">
+          <li>explain this error message</li>
+          <li>rewrite this email so it's shorter</li>
+          <li>what's the difference between TCP and UDP</li>
+        </ul>
+        <p class="lx-columns__note">Type or talk to it. It can read answers aloud.</p>
+      </div>
+      <div>
+        <h3>Your files and notes</h3>
+        <ul class="lx-examples">
+          <li>find the PDF about my car insurance</li>
+          <li>summarize the meeting notes from last week</li>
+          <li>what did I decide about the kitchen paint</li>
+        </ul>
+        <p class="lx-columns__note">Indexes folders, PDFs, Obsidian, Notion, Google Drive and more, on your machine.</p>
+      </div>
+      <div>
+        <h3>Things on a schedule</h3>
+        <ul class="lx-examples">
+          <li>a morning briefing from email, calendar and news</li>
+          <li>a research report with sources, while you're away</li>
+          <li>a check on a web page every hour</li>
+        </ul>
+        <p class="lx-columns__note">Get the results in the app, or on Telegram, Slack, Discord or email.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="lx-section lx-section--band">
+    <div class="lx-wrap">
+      <h2>Install it like any other app</h2>
+      <p class="lx-section__lede">You don't need Python, Ollama or any developer tools. Locus
+        sets itself up the first time it opens.</p>
+      <ol class="lx-steps">
+        <li>
+          <span class="lx-steps__n">1</span>
+          <h3>Download and open it</h3>
+          <p>One installer for your system. The download button above picks the right one.</p>
+        </li>
+        <li>
+          <span class="lx-steps__n">2</span>
+          <h3>Choose where models run</h3>
+          <p>Pick <b>Ollama</b> to run them on this computer, or point Locus at a server you
+            already use, like LM Studio.</p>
+        </li>
+        <li>
+          <span class="lx-steps__n">3</span>
+          <h3>Wait a few minutes, once</h3>
+          <p>Locus installs what it needs and downloads a model that fits your memory. After
+            that it starts in seconds.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="privacy" class="lx-section lx-wrap lx-split">
+    <div>
+      <h2>Private because it's local</h2>
+      <p class="lx-section__lede">Most assistants are a chat box connected to a company's
+        servers. Locus keeps the model, your documents and your history on your own disk.</p>
+    </div>
+    <dl class="lx-facts">
+      <div><dt>Runs on your machine</dt><dd>Models run through Ollama or another local engine. Cloud models are opt-in.</dd></div>
+      <div><dt>No analytics</dt><dd>Locus ships with no analytics destination, so nothing about your use is sent anywhere.</dd></div>
+      <div><dt>You choose what it can see</dt><dd>Email, calendar and chat apps are off until you connect them, one by one.</dd></div>
+      <div><dt>It asks before risky actions</dt><dd>Running shell commands and similar tools needs your approval first.</dd></div>
+    </dl>
+  </section>
+
+  <section id="download" class="lx-section lx-section--band">
+    <div class="lx-wrap">
+      <h2>Download</h2>
+      <p class="lx-section__lede" data-release-line>The latest version for every platform.</p>
+
+      <div class="lx-table-wrap">
+        <table class="lx-downloads">
+          <thead>
+            <tr><th scope="col">System</th><th scope="col">File</th><th scope="col">Size</th><th scope="col"><span class="lx-sr">Link</span></th></tr>
+          </thead>
+          <tbody>
+            <tr data-asset="win-x64"><th scope="row">Windows 10 and 11 <span>64-bit (Intel or AMD)</span></th><td data-name>Installer (.exe)</td><td data-size>–</td><td><a data-link href="https://github.com/aryanjsx/Locus/releases/latest">Download</a></td></tr>
+            <tr data-asset="win-msi"><th scope="row">Windows 10 and 11 <span>64-bit, for IT deployment</span></th><td data-name>Installer (.msi)</td><td data-size>–</td><td><a data-link href="https://github.com/aryanjsx/Locus/releases/latest">Download</a></td></tr>
+            <tr data-asset="win-arm64"><th scope="row">Windows 11 on ARM <span>Snapdragon laptops</span></th><td data-name>Installer (.exe)</td><td data-size>–</td><td><a data-link href="https://github.com/aryanjsx/Locus/releases/latest">Download</a></td></tr>
+            <tr data-asset="mac"><th scope="row">macOS 10.15 or later <span>Apple silicon and Intel</span></th><td data-name>Disk image (.dmg)</td><td data-size>–</td><td><a data-link href="https://github.com/aryanjsx/Locus/releases/latest">Download</a></td></tr>
+            <tr data-asset="linux-appimage"><th scope="row">Linux <span>any distribution, x86-64</span></th><td data-name>AppImage</td><td data-size>–</td><td><a data-link href="https://github.com/aryanjsx/Locus/releases/latest">Download</a></td></tr>
+            <tr data-asset="linux-deb"><th scope="row">Ubuntu, Debian <span>x86-64</span></th><td data-name>Package (.deb)</td><td data-size>–</td><td><a data-link href="https://github.com/aryanjsx/Locus/releases/latest">Download</a></td></tr>
+            <tr data-asset="linux-rpm"><th scope="row">Fedora, RHEL <span>x86-64</span></th><td data-name>Package (.rpm)</td><td data-size>–</td><td><a data-link href="https://github.com/aryanjsx/Locus/releases/latest">Download</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="lx-notes">
+        <div>
+          <h3>Before you install</h3>
+          <p>The installers aren't code-signed yet, so your system will warn you the first
+            time. On <b>Windows</b>, choose <b>More info → Run anyway</b>. On a <b>Mac</b>,
+            right-click Locus and choose <b>Open</b>.</p>
+          <p>8 GB of memory is enough for a small model; 16 GB runs noticeably better ones.
+            A graphics card helps but isn't required.</p>
+        </div>
+        <div>
+          <h3>Prefer the command line?</h3>
+          <p>macOS, Linux and WSL2:</p>
+          <pre><code>curl -fsSL https://aryanjsx.github.io/Locus/install.sh | bash</code></pre>
+          <p>Windows PowerShell:</p>
+          <pre><code>irm https://aryanjsx.github.io/Locus/install.ps1 | iex</code></pre>
+          <p>Or <code>pip install locus-assistant</code>. See the
+            <a href="{{ 'getting-started/installation/' | url }}">installation guide</a>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lx-section lx-wrap">
+    <h2>Documentation</h2>
+    <ul class="lx-docs">
+      <li><a href="{{ 'getting-started/installation/' | url }}"><b>Installation</b><span>Desktop app, command line, and Python package.</span></a></li>
+      <li><a href="{{ 'getting-started/quickstart/' | url }}"><b>Quick start</b><span>Presets for chat, research, coding and daily briefings.</span></a></li>
+      <li><a href="{{ 'showcase/' | url }}"><b>Showcase</b><span>Real setups people use, and how to build them.</span></a></li>
+      <li><a href="{{ 'user-guide/channels-and-connectors/' | url }}"><b>Connectors</b><span>Email, calendars, notes and messaging apps.</span></a></li>
+      <li><a href="{{ 'architecture/overview/' | url }}"><b>How it works</b><span>Engines, agents, tools, memory and learning.</span></a></li>
+      <li><a href="{{ 'user-guide/python-sdk/' | url }}"><b>Build on it</b><span>The Python SDK and command-line tools.</span></a></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer class="lx-footer">
+  <div class="lx-wrap lx-footer__inner">
+    <p>Locus is free software under the
+      <a href="{{ config.repo_url }}/blob/main/LICENSE">Apache 2.0 license</a>.
+      It's based on <a href="https://github.com/open-jarvis/OpenJarvis">OpenJarvis</a> from
+      Stanford's Hazy Research and isn't affiliated with Stanford.</p>
+    <ul class="lx-footer__links">
+      <li><a href="{{ config.repo_url }}">Source code</a></li>
+      <li><a href="{{ config.repo_url }}/discussions">Discussions</a></li>
+      <li><a href="{{ config.repo_url }}/issues">Report a problem</a></li>
+      <li><a href="{{ 'telemetry/' | url }}">Telemetry</a></li>
+    </ul>
+  </div>
+</footer>
+{% endblock %}
+
+{#- Material's bundle drives search, tabs and the sidebar, none of which this
+    page has (it fails looking for the header). The colour scheme is set by an
+    inline script in Material's base template, so it still applies. -#}
+{% block scripts %}
+  <script src="{{ 'javascripts/home.js' | url }}"></script>
+{% endblock %}

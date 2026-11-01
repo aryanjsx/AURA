@@ -11,6 +11,7 @@ copyright: Copyright &copy; 2026 Locus Contributors
 theme:
   name: material
   custom_dir: docs/overrides
+  favicon: assets/favicon.svg
   language: en
   font:
     text: Georgia
@@ -133,8 +134,6 @@ extra_javascript:
   - javascripts/docsearch-init.js
 
 extra:
-  version:
-    default: v1.0.0
   algolia:
     app_id: ""       # Fill after DocSearch approval
     api_key: ""      # Search-only key

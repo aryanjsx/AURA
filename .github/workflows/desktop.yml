@@ -659,6 +659,11 @@ jobs:
           # toolchains (such as Ollama's), which fails the AppImage. Release
           # libraries are already stripped.
           NO_STRIP: ${{ matrix.platform == 'ubuntu-22.04' && 'true' || '' }}
+          # The bundled Ollama libraries find each other through the library
+          # path Ollama sets at runtime, not an rpath, so linuxdeploy can't
+          # resolve them (e.g. libggml-base.so.0) without this. Only the
+          # Linux AppImage step reads it.
+          LD_LIBRARY_PATH: ${{ matrix.platform == 'ubuntu-22.04' && format('{0}/frontend/src-tauri/binaries/ollama-runtime-x86_64-unknown-linux-gnu/build/lib/ollama', github.workspace) || '' }}
         with:
           projectPath: frontend
           tauriScript: npx tauri
