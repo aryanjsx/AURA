@@ -16,6 +16,18 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
+def _isolate_agent_permissions(tmp_path, monkeypatch):
+    """Keep Agent mode's "always allow" rules out of the real ``~/.locus``."""
+    from locus.server import approvals
+
+    monkeypatch.setattr(
+        approvals,
+        "_rules",
+        approvals.PermissionRules(tmp_path / "agent_permissions.json"),
+    )
+
+
+@pytest.fixture(autouse=True)
 def _isolate_traces_db(tmp_path, monkeypatch):
     """Point ``config.traces.db_path`` at a temp file for every server test.
 

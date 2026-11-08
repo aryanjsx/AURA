@@ -19,8 +19,21 @@ describe('describeToolCall', () => {
     ).toBe('Add to a.txt');
   });
 
+  it('describes desktop steps in words', () => {
+    const d = (tool: string, args: object) => describeToolCall(tool, JSON.stringify(args));
+    expect(d('open_path', { path: 'C:/x/report.pdf' })).toBe('Open C:/x/report.pdf');
+    expect(d('app_control', { action: 'open', name: 'notepad' })).toBe('Open the app notepad');
+    expect(d('app_control', { action: 'close', name: 'chrome' })).toBe('Close chrome');
+    expect(d('system_control', { action: 'set_volume', level: 30 })).toBe('Set the volume to 30%');
+    expect(d('system_control', { action: 'lock_screen' })).toBe('Lock the screen');
+    expect(d('system_control', { action: 'wifi_off' })).toBe('Turn Wi-Fi off');
+    expect(d('clipboard', { action: 'read' })).toBe('Read the text on your clipboard');
+    expect(d('screenshot', {})).toBe('Take a screenshot of your screen');
+  });
+
   it('falls back to the tool name', () => {
-    expect(describeToolCall('git_commit', '{"message":"m"}')).toBe('Use git_commit');
+    expect(describeToolCall('git_commit', '{"message":"m"}')).toBe('Commit "m"');
+    expect(describeToolCall('new_tool', '{}')).toBe('Use new_tool');
     expect(describeToolCall('shell_exec', 'not json')).toBe('Use shell_exec');
   });
 });

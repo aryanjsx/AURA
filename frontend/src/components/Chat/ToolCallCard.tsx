@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Loader2, CheckCircle2, XCircle, ShieldQuestion, Ban } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, CheckCircle2, XCircle, ShieldQuestion, Ban, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ToolCallInfo } from '../../types';
 import { serializeToolCallArguments } from '../../lib/tool-call';
-import { answerApproval, type ApprovalDecision } from '../../lib/api';
+import { answerApproval, undoChange, type ApprovalDecision } from '../../lib/api';
 
 interface Props {
   toolCall: ToolCallInfo;
@@ -35,7 +35,40 @@ export function describeToolCall(tool: string, argumentsText: string): string {
   if (tool === 'file_write' && text('path')) {
     return text('mode') === 'append' ? `Add to ${text('path')}` : `Write ${text('path')}`;
   }
+  const action = text('action');
+  const level = typeof args.level === 'number' ? `${args.level}%` : '';
+  if (tool === 'open_path' && text('path')) return `Open ${text('path')}`;
+  if (tool === 'app_control' && text('name')) {
+    if (action === 'open') return `Open the app ${text('name')}`;
+    if (action === 'close') return `Close ${text('name')}`;
+  }
+  if (tool === 'system_control') {
+    const settings: Record<string, string> = {
+      set_volume: `Set the volume to ${level}`,
+      mute: 'Mute the speakers',
+      unmute: 'Unmute the speakers',
+      set_brightness: `Set the screen brightness to ${level}`,
+      dark_mode: 'Switch to dark mode',
+      light_mode: 'Switch to light mode',
+      lock_screen: 'Lock the screen',
+      wifi_on: 'Turn Wi-Fi on',
+      wifi_off: 'Turn Wi-Fi off',
+      bluetooth_on: 'Turn Bluetooth on',
+      bluetooth_off: 'Turn Bluetooth off',
+    };
+    if (settings[action]) return settings[action];
+  }
+  if (tool === 'clipboard') {
+    if (action === 'read') return 'Read the text on your clipboard';
+    if (action === 'write') return 'Copy text to your clipboard';
+  }
+  if (tool === 'screenshot') return 'Take a screenshot of your screen';
+  if (tool === 'git_commit' && text('message')) return `Commit "${text('message')}"`;
   return `Use ${tool}`;
+}
+
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
 function ApprovalPrompt({ toolCall, argumentsText }: { toolCall: ToolCallInfo; argumentsText: string }) {
@@ -77,12 +110,30 @@ function ApprovalPrompt({ toolCall, argumentsText }: { toolCall: ToolCallInfo; a
       }}
     >
       <div style={{ color: 'var(--color-text)', fontSize: 12 }}>
-        {toolCall.risk === 'run' ? 'Locus wants to run a command:' : 'Locus wants to make a change:'}{' '}
-        <span style={{ fontWeight: 500 }}>{describeToolCall(toolCall.tool, argumentsText)}</span>
+        Allow Locus to{' '}
+        <span style={{ fontWeight: 500 }}>{lowerFirst(describeToolCall(toolCall.tool, argumentsText))}</span>?
       </div>
+      {toolCall.preview && (
+        <pre
+          className="p-1.5 rounded overflow-auto"
+          style={{
+            background: 'var(--color-code-bg, rgba(0,0,0,0.2))',
+            color: 'var(--color-text-secondary)',
+            fontSize: 11,
+            lineHeight: 1.4,
+            maxHeight: 220,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+          }}
+        >
+          {toolCall.preview}
+        </pre>
+      )}
       <div className="flex flex-wrap gap-1.5">
         {button('Allow', 'approve', true)}
         {button(`Allow ${toolCall.tool} for this task`, 'approve_tool')}
+        {toolCall.canAlways && button('Always allow', 'always')}
         {button('Deny', 'deny')}
       </div>
     </div>
@@ -106,6 +157,55 @@ function previewArgs(raw: string): string {
     /* fall through */
   }
   return raw.length > 60 ? `${raw.slice(0, 60)}…` : raw;
+}
+
+function UndoButton({ toolCall }: { toolCall: ToolCallInfo }) {
+  const [state, setState] = useState<'ready' | 'working' | 'done'>(toolCall.undone ? 'done' : 'ready');
+  if (state === 'done') {
+    return <span style={{ color: 'var(--color-text-tertiary)', fontSize: 10, flexShrink: 0 }}>Undone</span>;
+  }
+  const undo = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!toolCall.undoId) return;
+    setState('working');
+    try {
+      const { ok, message } = await undoChange(toolCall.undoId);
+      if (ok) {
+        toolCall.undone = true;
+        setState('done');
+        toast.success(message);
+      } else {
+        setState('ready');
+        toast.error(message);
+      }
+    } catch (err: any) {
+      setState('ready');
+      toast.error(err?.message || 'Could not undo the change.');
+    }
+  };
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={undo}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') undo(e as any);
+      }}
+      aria-disabled={state === 'working'}
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer"
+      style={{
+        color: 'var(--color-text-secondary)',
+        border: '1px solid var(--color-border)',
+        fontSize: 10,
+        flexShrink: 0,
+        opacity: state === 'working' ? 0.5 : 1,
+      }}
+      title="Put the file back the way it was"
+    >
+      <Undo2 size={10} />
+      Undo
+    </span>
+  );
 }
 
 export function ToolCallCard({ toolCall }: Props) {
@@ -156,6 +256,7 @@ export function ToolCallCard({ toolCall }: Props) {
           </span>
         )}
         <div className="flex-1" />
+        {toolCall.status === 'success' && toolCall.undoId && <UndoButton toolCall={toolCall} />}
         {toolCall.status === 'denied' && (
           <span style={{ color: 'var(--color-text-tertiary)', fontSize: 10, flexShrink: 0 }}>
             Denied

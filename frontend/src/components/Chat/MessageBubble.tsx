@@ -8,6 +8,9 @@ import 'katex/dist/katex.min.css';
 import { Copy, Check } from 'lucide-react';
 import { AudioPlayer } from './AudioPlayer';
 import { ToolCallCard } from './ToolCallCard';
+import { TaskPlan, latestPlan } from './TaskPlan';
+import { CONTINUE_PROMPT } from '../../lib/agent-stop';
+import { useAppStore } from '../../lib/store';
 import { ResearchTimeline } from './ResearchTimeline';
 import { AttachmentChip } from './AttachmentChip';
 import { WebSources } from './WebSources';
@@ -98,10 +101,34 @@ function CopyMessageButton({ content }: { content: string }) {
   );
 }
 
+function ContinueButton() {
+  const onClick = () => {
+    const state = useAppStore.getState();
+    if (state.activeId) state.markLastAssistantStopped(state.activeId, false);
+    state.setAgentMode(true);
+    state.queuePrompt(CONTINUE_PROMPT);
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mb-3 px-3 py-1 rounded-md text-xs cursor-pointer"
+      style={{ border: '1px solid var(--color-accent)', color: 'var(--color-accent)', background: 'transparent' }}
+    >
+      Continue
+    </button>
+  );
+}
+
 export function MessageBubble({ message, isLive = false }: Props) {
   const isUser = message.role === 'user';
 
   const cleanContent = useMemo(() => stripThinkTags(message.content), [message.content]);
+  const plan = useMemo(() => latestPlan(message.toolCalls), [message.toolCalls]);
+  const visibleToolCalls = useMemo(
+    () => (message.toolCalls ?? []).filter((tc) => tc.tool !== 'task_plan'),
+    [message.toolCalls],
+  );
 
   // Build a ref→source lookup once per render. Memoized so the rehype plugin
   // identity stays stable until the source list actually changes.
@@ -158,14 +185,20 @@ export function MessageBubble({ message, isLive = false }: Props) {
         />
       )}
 
-      {/* Tool calls */}
-      {message.toolCalls && message.toolCalls.length > 0 && (
+      {/* Agent mode plan: the latest task_plan call, shown as a checklist */}
+      {plan && <TaskPlan steps={plan} isLive={isLive} />}
+
+      {/* Tool calls (plan updates are shown by the checklist instead) */}
+      {visibleToolCalls.length > 0 && (
         <div className="mb-3 flex flex-col gap-2">
-          {message.toolCalls.map((tc) => (
+          {visibleToolCalls.map((tc) => (
             <ToolCallCard key={tc.id} toolCall={tc} />
           ))}
         </div>
       )}
+
+      {/* A stopped Agent mode task can pick up where it left off */}
+      {message.agentStopped && !isLive && <ContinueButton />}
 
       {/* Audio player (e.g. morning digest) */}
       {message.audio?.url && <AudioPlayer src={message.audio.url} />}

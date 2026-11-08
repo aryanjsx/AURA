@@ -62,7 +62,10 @@ export function ChatArea() {
     streamingConversationRef.current = isCurrentChatStreaming ? activeId : null;
 
     if (!justFinished) return;
-    if (!voiceOutputEnabled || !voiceAutoplay) return;
+    // A hands-free turn always hears its reply; otherwise follow the settings.
+    const handsFreeTurn = useAppStore.getState().speakNextReply;
+    if (handsFreeTurn) useAppStore.getState().setSpeakNextReply(false);
+    if (!handsFreeTurn && (!voiceOutputEnabled || !voiceAutoplay)) return;
 
     if (!last || last.role !== 'assistant' || activeId === null) return;
 
@@ -75,7 +78,7 @@ export function ChatArea() {
       const currentTts = useTtsStore.getState();
       const currentLast = app.messages[app.messages.length - 1];
       if (app.activeId !== completedConversationId || app.streamState.isStreaming) return;
-      if (!app.settings.voiceOutputEnabled || !app.settings.voiceAutoplay) return;
+      if (!handsFreeTurn && (!app.settings.voiceOutputEnabled || !app.settings.voiceAutoplay)) return;
       if (currentLast?.id !== completedMessageId || currentTts.available !== true) return;
       if (currentTts.autoSpokenId === completedMessageId) return;
 

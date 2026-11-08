@@ -267,16 +267,26 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
         from locus.server.task_agent import get_task_agent
 
         agent = await asyncio.to_thread(get_task_agent, request.app.state)
+    elif request_body.mode == "developer":
+        from locus.server.task_agent import get_developer_agent
+
+        try:
+            agent = await asyncio.to_thread(
+                get_developer_agent, request.app.state, request_body.project_dir
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     model = request_body.model
-    # Agents take only the latest message's text, which would drop web results,
-    # attached documents and images, so those requests go straight to the engine.
+    # Agent mode passes web results, attached documents and images to its agent
+    # (see _handle_agent). Other requests with them keep going straight to the
+    # engine, as they did before agents could take them.
     has_extras = request_body.web_search or any(
         m.images or m.attachments for m in request_body.messages
     )
     use_server_agent = (
         agent is not None
         and not request_body.tools
-        and not has_extras
+        and (request_body.mode in ("agent", "developer") or not has_extras)
         and (not request_body.stream or bool(getattr(agent, "_tools", None)))
     )
 
@@ -526,6 +536,35 @@ async def answer_approval(approval_id: str, body: ApprovalAnswer):
     return {"id": approval_id, "decision": body.decision}
 
 
+@router.get("/v1/chat/permissions")
+async def list_agent_permissions():
+    """Agent mode's "always allow" rules."""
+    from locus.server.approvals import get_rules
+
+    return {"rules": get_rules().list()}
+
+
+@router.delete("/v1/chat/permissions/{key}")
+async def remove_agent_permission(key: str):
+    """Remove an "always allow" rule, so that step asks again."""
+    from locus.server.approvals import get_rules
+
+    if not get_rules().remove(key):
+        raise HTTPException(status_code=404, detail="No rule with that key")
+    return {"key": key, "removed": True}
+
+
+@router.post("/v1/chat/undo/{undo_id}")
+async def undo_file_change(undo_id: str):
+    """Undo a file change from Agent mode (``undo_id`` in ``tool_call_end``)."""
+    from locus.tools.undo_journal import get_journal
+
+    done, message = await asyncio.to_thread(get_journal().undo, undo_id)
+    if not done:
+        raise HTTPException(status_code=409, detail=message)
+    return {"undo_id": undo_id, "message": message}
+
+
 @router.post("/v1/chat/runs/{run_id}/stop")
 async def stop_agent_run(run_id: str):
     """Stop the agent run announced by an ``agent_run`` event."""
@@ -773,15 +812,16 @@ def _handle_agent(
     """
     from locus.agents._stubs import AgentContext
 
-    # Build context from prior messages
+    # Prior messages are the context and the last one is the input, with
+    # attached documents folded into each message's text (the same budget as
+    # direct chat) and the last message's images kept for vision models.
     ctx = AgentContext()
-    if len(req.messages) > 1:
-        prior = _to_messages(req.messages[:-1])
-        for m in prior:
-            ctx.conversation.add(m)
-
-    # Last message is the input
-    input_text = req.messages[-1].content if req.messages else ""
+    messages = _to_messages(req.messages) if req.messages else []
+    for m in messages[:-1]:
+        ctx.conversation.add(m)
+    input_text = messages[-1].content if messages else ""
+    if messages and messages[-1].images:
+        ctx.metadata["input_images"] = list(messages[-1].images)
 
     # Override agent model for this request if the caller specified one.
     # Locked for the full override-run-restore cycle (#759): only the

@@ -45,6 +45,7 @@ const OPTIN_EMAIL_KEY = 'locus-email';
 const OPTIN_ANONID_KEY = 'locus-anon-id';
 const WEB_SEARCH_KEY = 'locus-web-search';
 const AGENT_MODE_KEY = 'locus-agent-mode';
+const PROJECT_DIR_KEY = 'locus-project-dir';
 
 interface ConversationStore {
   version: 1;
@@ -112,6 +113,8 @@ interface Settings {
   speechEnabled: boolean;
   voiceOutputEnabled: boolean;
   voiceAutoplay: boolean;
+  /** Ctrl/Cmd+Shift+L listens, sends when you stop talking, and speaks the reply. */
+  handsFree: boolean;
 }
 
 function loadSettings(): Settings {
@@ -127,6 +130,7 @@ function loadSettings(): Settings {
     speechEnabled: false,
     voiceOutputEnabled: false,
     voiceAutoplay: false,
+    handsFree: false,
   };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -219,6 +223,18 @@ interface AppState {
   // Agent mode: answers use a tool-using agent (remembered across launches)
   agentMode: boolean;
   setAgentMode: (on: boolean) => void;
+  markLastAssistantStopped: (conversationId: string, stopped: boolean) => void;
+  // Developer mode: Agent mode works inside this project folder
+  projectDir: string | null;
+  setProjectDir: (dir: string | null) => void;
+
+  // A message for the chat input to send (Continue on a stopped task)
+  queuedPrompt: string | null;
+  queuePrompt: (text: string | null) => void;
+
+  // Speak the next finished reply aloud (set by a hands-free turn)
+  speakNextReply: boolean;
+  setSpeakNextReply: (on: boolean) => void;
   setLastAssistantWebSearch: (
     conversationId: string,
     webSearch: WebSearchInfo,
@@ -514,6 +530,31 @@ export const useAppStore = create<AppState>((set, get) => {
       localStorage.setItem(AGENT_MODE_KEY, String(on));
       set({ agentMode: on });
     },
+    projectDir: localStorage.getItem(PROJECT_DIR_KEY) || null,
+    setProjectDir: (dir) => {
+      if (dir) localStorage.setItem(PROJECT_DIR_KEY, dir);
+      else localStorage.removeItem(PROJECT_DIR_KEY);
+      set({ projectDir: dir });
+    },
+
+    markLastAssistantStopped: (conversationId, stopped) => {
+      const store = loadConversations();
+      const conv = store.conversations[conversationId];
+      const lastMsg = conv?.messages[conv.messages.length - 1];
+      if (!conv || !lastMsg || lastMsg.role !== 'assistant') return;
+      lastMsg.agentStopped = stopped || undefined;
+      saveConversations(store);
+      if (get().activeId === conversationId) {
+        set({ messages: [...conv.messages] });
+      }
+    },
+
+    queuedPrompt: null,
+    queuePrompt: (text) => set({ queuedPrompt: text }),
+
+    speakNextReply: false,
+    setSpeakNextReply: (on) => set({ speakNextReply: on }),
+
     setLastAssistantWebSearch: (conversationId, webSearch, sources) => {
       const store = loadConversations();
       const conv = store.conversations[conversationId];

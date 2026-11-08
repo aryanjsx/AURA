@@ -1229,7 +1229,7 @@ export const stageInferenceSource = (
 
 // ── Agent mode approvals ──────────────────────────────────────
 
-export type ApprovalDecision = 'approve' | 'approve_tool' | 'deny';
+export type ApprovalDecision = 'approve' | 'approve_tool' | 'always' | 'deny';
 
 /** Answer an Agent mode approval. Returns false if it's no longer waiting. */
 export async function answerApproval(id: string, decision: ApprovalDecision): Promise<boolean> {
@@ -1246,4 +1246,30 @@ export async function answerApproval(id: string, decision: ApprovalDecision): Pr
 /** Stop a running Agent mode task. */
 export async function stopAgentRun(runId: string): Promise<void> {
   await apiFetch(`/v1/chat/runs/${encodeURIComponent(runId)}/stop`, { method: 'POST' });
+}
+
+/** Undo an Agent mode file change. Resolves to the server's message. */
+export async function undoChange(undoId: string): Promise<{ ok: boolean; message: string }> {
+  const res = await apiFetch(`/v1/chat/undo/${encodeURIComponent(undoId)}`, { method: 'POST' });
+  const body = await res.json().catch(() => ({}));
+  return { ok: res.ok, message: body.message ?? body.detail ?? `Undo failed: ${res.status}` };
+}
+
+export interface AgentPermission {
+  key: string;
+  tool: string;
+  action?: string | null;
+  created: number;
+}
+
+/** Agent mode's "always allow" rules. */
+export async function fetchAgentPermissions(): Promise<AgentPermission[]> {
+  const res = await apiFetch('/v1/chat/permissions');
+  if (!res.ok) throw new Error(`Could not load permissions: ${res.status}`);
+  return (await res.json()).rules ?? [];
+}
+
+export async function removeAgentPermission(key: string): Promise<void> {
+  const res = await apiFetch(`/v1/chat/permissions/${encodeURIComponent(key)}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404) throw new Error(`Could not remove the rule: ${res.status}`);
 }

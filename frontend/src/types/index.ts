@@ -47,6 +47,13 @@ export interface ToolCallInfo {
   approvalId?: string;
   /** `change` writes something, `run` runs a command or code. */
   risk?: 'change' | 'run';
+  /** Set when the change can be undone with `undoChange`. */
+  undoId?: string;
+  undone?: boolean;
+  /** The step can get a lasting "always allow" rule. */
+  canAlways?: boolean;
+  /** What the step would change (a diff, say), for the approval prompt. */
+  preview?: string;
 }
 
 export interface TokenUsage {
@@ -157,6 +164,8 @@ export interface ChatMessage {
   usage?: TokenUsage;
   telemetry?: MessageTelemetry;
   audio?: { url: string };
+  /** An Agent mode task the user stopped; the reply offers Continue. */
+  agentStopped?: boolean;
 }
 
 export interface Conversation {

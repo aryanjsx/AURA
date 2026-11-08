@@ -36,6 +36,7 @@ import {
   type MemoryStats,
 } from '../lib/api';
 import { isAutoUpdateDisabled, setAutoUpdateDisabled } from '../components/Desktop/UpdateChecker';
+import { AgentPermissionsList } from '../components/Chat/AgentPermissionsList';
 
 const CLOUD_KEY_STATUS_CHANGED = 'locus-cloud-key-status-changed';
 
@@ -659,6 +660,14 @@ export function SettingsPage() {
             </SettingRow>
           </Section>
 
+          {/* Agent mode */}
+          <Section title="Agent mode">
+            <div className="text-xs mb-2" style={{ color: 'var(--color-text-tertiary)' }}>
+              Steps Locus may take without asking
+            </div>
+            <AgentPermissionsList />
+          </Section>
+
           {/* Memory */}
           <Section title="Memory">
             <MemoryStatusRow status={memoryStatus} onRetry={() => { void refreshMemoryStatus(); }} />
@@ -833,6 +842,25 @@ export function SettingsPage() {
                   className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform bg-white"
                   style={{
                     transform: settings.voiceAutoplay && settings.voiceOutputEnabled ? 'translateX(20px)' : 'translateX(0)',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }}
+                />
+              </button>
+            </SettingRow>
+            <SettingRow
+              label="Hands-free voice"
+              description="Press Ctrl+Shift+L (Cmd+Shift+L on a Mac) and speak. Locus sends it when you stop talking and reads the reply aloud. Press it again to interrupt. In the desktop app it works from any app."
+            >
+              <button
+                onClick={() => { updateSettings({ handsFree: !settings.handsFree }); showSaved(); }}
+                className="relative w-11 h-6 rounded-full transition-colors cursor-pointer"
+                style={{ background: settings.handsFree ? 'var(--color-accent)' : 'var(--color-bg-tertiary)' }}
+                aria-pressed={settings.handsFree}
+              >
+                <span
+                  className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform bg-white"
+                  style={{
+                    transform: settings.handsFree ? 'translateX(20px)' : 'translateX(0)',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                   }}
                 />

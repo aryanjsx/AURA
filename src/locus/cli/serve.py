@@ -773,6 +773,17 @@ def serve(
         cors_origins=cors_origins,
     )
 
+    # Reminders set in Agent mode are saved; schedule them again (and show
+    # any that came due while Locus was closed).
+    try:
+        from locus.tools.desktop.notify import restore_reminders
+
+        restored = restore_reminders()
+        if restored:
+            console.print(f"  Restored {restored} reminder(s).")
+    except Exception as exc:
+        logger.warning("Reminders couldn't be restored: %s", exc)
+
     console.print(
         f"[green]Starting Locus API server[/green]\n"
         f"  Engine: [cyan]{engine_name}[/cyan]\n"

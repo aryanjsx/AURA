@@ -317,3 +317,76 @@ def test_non_streaming_agent_mode_denies_changes(monkeypatch):
 
     assert resp.status_code == 200
     assert agent.results == [True, False]
+
+
+# ── Lasting rules ────────────────────────────────────────────────
+
+
+def test_rule_keys_cover_one_action():
+    from locus.server.approvals import rule_key
+
+    assert rule_key("file_write", {"path": "a"}) == "file_write"
+    assert (
+        rule_key("system_control", {"action": "set_volume"})
+        == "system_control:set_volume"
+    )
+
+
+def test_always_saves_a_rule_that_later_runs_use():
+    emit = Recorder(answer="always")
+    assert ApprovalSession(emit).check("system_control", {"action": "set_volume"})
+
+    later = Recorder(answer="deny")
+    session = ApprovalSession(later)
+    # The same action no longer asks, in a new run.
+    assert session.check("system_control", {"action": "set_volume", "level": 10})
+    assert later.events == []
+    # Other actions of the tool still ask.
+    assert session.check("system_control", {"action": "lock_screen"}) is False
+    assert later.names().count("approval_required") == 1
+    required = emit.events[0][1]
+    assert required["can_always"] is True
+    assert required["rule"] == "system_control:set_volume"
+
+
+def test_run_level_calls_never_get_lasting_rules():
+    emit = Recorder(answer="always")
+    assert ApprovalSession(emit).check("shell_exec", {"command": "ls"})
+    assert emit.events[0][1]["can_always"] is False
+
+    later = Recorder(answer="deny")
+    assert ApprovalSession(later).check("shell_exec", {"command": "ls"}) is False
+    assert approvals.get_rules().list() == []
+
+
+def test_rules_can_be_listed_and_removed(monkeypatch):
+    client = TestClient(_app(monkeypatch, AskingAgent([])))
+    approvals.get_rules().add("file_write", {"path": "a"})
+
+    rules = client.get("/v1/chat/permissions").json()["rules"]
+    assert [r["key"] for r in rules] == ["file_write"]
+    assert client.delete("/v1/chat/permissions/file_write").status_code == 200
+    assert client.get("/v1/chat/permissions").json()["rules"] == []
+    assert client.delete("/v1/chat/permissions/file_write").status_code == 404
+
+
+def test_rules_survive_a_restart(tmp_path):
+    from locus.server.approvals import PermissionRules
+
+    path = tmp_path / "rules.json"
+    PermissionRules(path).add("clipboard", {"action": "write"})
+    assert PermissionRules(path).allows("clipboard", {"action": "write"})
+    assert not PermissionRules(path).allows("clipboard", {"action": "read"})
+
+
+def test_previews_come_from_the_tool():
+    class Previewing:
+        def preview_for(self, arguments):
+            return "x" * (approvals.MAX_PREVIEW_CHARS + 10)
+
+    emit = Recorder(answer="deny")
+    ApprovalSession(emit, tools={"file_write": Previewing()}).check("file_write", {})
+
+    preview = emit.events[0][1]["preview"]
+    assert preview.startswith("x" * approvals.MAX_PREVIEW_CHARS)
+    assert preview.endswith("(preview cut off)")

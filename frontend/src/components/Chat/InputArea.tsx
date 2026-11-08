@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Send, Square, Paperclip, Search, Globe, Bot } from 'lucide-react';
+import { Send, Square, Paperclip, Search, Globe, Bot, FolderCode, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore, generateId } from '../../lib/store';
 import { streamChat, streamResearch } from '../../lib/sse';
-import { fetchSavings, getBase, stopAgentRun } from '../../lib/api';
+import { fetchSavings, getBase, isTauri, stopAgentRun } from '../../lib/api';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { serializeToolCallArguments } from '../../lib/tool-call';
 import { isSmallForAgent } from '../../lib/model-capabilities';
+import { stoppedSummary } from '../../lib/agent-stop';
 import {
   engineFromCompletionChunk,
   resolveChatEngine,
@@ -14,6 +15,7 @@ import {
 import { MicButton } from './MicButton';
 import { AttachmentChip } from './AttachmentChip';
 import { useSpeech } from '../../hooks/useSpeech';
+import { useHandsFree } from '../../hooks/useHandsFree';
 import {
   apiAttachmentFields,
   deletePayloads,
@@ -105,6 +107,8 @@ export function InputArea() {
   const abortRef = useRef<AbortController | null>(null);
   // Agent mode run being streamed, so Stop can end it on the server too.
   const agentRunRef = useRef<string | null>(null);
+  // Set when the user stops an Agent mode run (not a model switch).
+  const stoppedByUserRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const activeId = useAppStore((s) => s.activeId);
@@ -127,6 +131,8 @@ export function InputArea() {
   const setLastAssistantWebSearch = useAppStore((s) => s.setLastAssistantWebSearch);
   const agentMode = useAppStore((s) => s.agentMode);
   const setAgentMode = useAppStore((s) => s.setAgentMode);
+  const projectDir = useAppStore((s) => s.projectDir);
+  const setProjectDir = useAppStore((s) => s.setProjectDir);
   const corpusSync = useResearchCorpusSync(deepResearch);
 
   const [pending, setPending] = useState<PendingAttachment[]>([]);
@@ -195,6 +201,26 @@ export function InputArea() {
     if (!deepResearch && webSearch) setWebSearch(false);
     if (!deepResearch && agentMode) setAgentMode(false);
   };
+  // Developer mode: Agent mode inside one project folder.
+  const pickProject = async () => {
+    let dir: string | null = null;
+    if (isTauri()) {
+      try {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const picked = await open({ directory: true, title: 'Choose a project folder' });
+        dir = typeof picked === 'string' ? picked : null;
+      } catch {
+        dir = null;
+      }
+    } else {
+      dir = window.prompt('Full path of the project folder', projectDir ?? '')?.trim() || null;
+    }
+    if (!dir) return;
+    setProjectDir(dir);
+    if (!agentMode) setAgentMode(true);
+    if (deepResearch) setDeepResearch(false);
+  };
+
   // Agent mode and Deep Research both decide how to answer, so only one is on.
   const toggleAgentMode = () => {
     setAgentMode(!agentMode);
@@ -208,7 +234,21 @@ export function InputArea() {
     available: speechAvailable,
     startRecording,
     stopRecording,
+    cancelRecording,
   } = useSpeech();
+
+  // Hands-free: the transcript goes out through the prompt queue, which
+  // sends it as soon as no reply is streaming.
+  const handsFree = useAppStore((s) => s.settings.handsFree);
+  useHandsFree({
+    enabled: handsFree,
+    available: speechAvailable,
+    state: speechState,
+    startRecording,
+    stopRecording,
+    cancelRecording,
+    send: (text) => useAppStore.getState().queuePrompt(text),
+  });
 
   // Abort in-flight stream when the user switches models mid-generation.
   // This prevents errors from trying to continue a stream with a stale model.
@@ -265,6 +305,7 @@ export function InputArea() {
     if (agentRunRef.current) {
       void stopAgentRun(agentRunRef.current).catch(() => {});
       agentRunRef.current = null;
+      stoppedByUserRef.current = true;
     }
     abortRef.current?.abort();
     if (timerRef.current) {
@@ -274,8 +315,10 @@ export function InputArea() {
     resetStream();
   }, [resetStream]);
 
-  const sendMessage = useCallback(async () => {
-    const content = input.trim();
+  // `prompt` sends that text instead of the input box (Continue does this).
+  const sendMessage = useCallback(async (prompt?: unknown) => {
+    const fromPrompt = typeof prompt === 'string';
+    const content = (fromPrompt ? prompt : input).trim();
     const attachments = readyAttachments.map((p) => p.meta!);
     if ((!content && attachments.length === 0) || streamState.isStreaming) return;
     if (attachmentsReading) {
@@ -292,7 +335,7 @@ export function InputArea() {
     }
     const searchWeb = webSearch && !deepResearch;
 
-    setInput('');
+    if (!fromPrompt) setInput('');
     setPending([]);
 
     let convId = activeId;
@@ -319,17 +362,8 @@ export function InputArea() {
         ...(m.role === 'user' ? await apiAttachmentFields(m.attachments) : {}),
       })),
     );
-    // The agent can't use web results or attached files yet, so a
-    // conversation that has either gets a chat answer.
-    const hasExtras =
-      searchWeb ||
-      apiMessages.some(
-        (m) => ('images' in m && m.images?.length) || ('attachments' in m && m.attachments?.length),
-      );
-    const useAgent = agentMode && !deepResearch && !hasExtras;
-    if (agentMode && !deepResearch && hasExtras) {
-      toast.info("Agent mode can't use web search or attached files yet, so this message gets a chat answer.");
-    }
+    // The agent gets attached files, images and web results too.
+    const useAgent = agentMode && !deepResearch;
 
     const assistantMsg: ChatMessage = {
       id: generateId(),
@@ -350,6 +384,7 @@ export function InputArea() {
     const controller = new AbortController();
     abortRef.current = controller;
     agentRunRef.current = null;
+    stoppedByUserRef.current = false;
 
     let accumulatedContent = '';
     let usage: TokenUsage | undefined;
@@ -514,7 +549,11 @@ export function InputArea() {
           temperature,
           max_tokens: maxTokens,
           ...(searchWeb ? { web_search: true } : {}),
-          ...(useAgent ? { mode: 'agent' as const } : {}),
+          ...(useAgent
+            ? projectDir
+              ? { mode: 'developer' as const, project_dir: projectDir }
+              : { mode: 'agent' as const }
+            : {}),
         },
         controller.signal,
       )) {
@@ -559,6 +598,8 @@ export function InputArea() {
               status: 'awaiting_approval',
               approvalId: data.id,
               risk: data.risk,
+              canAlways: Boolean(data.can_always),
+              preview: data.preview || undefined,
             });
             setStreamState({
               phase: 'Waiting for your approval...',
@@ -604,7 +645,7 @@ export function InputArea() {
               });
             }
             setStreamState({
-              phase: `Calling ${data.tool}...`,
+              phase: data.tool === 'task_plan' ? 'Planning...' : `Calling ${data.tool}...`,
               activeToolCalls: [...toolCalls],
             });
             updateLastAssistant(convId, accumulatedContent, [...toolCalls]);
@@ -623,6 +664,7 @@ export function InputArea() {
               tc.status = data.success ? 'success' : 'error';
               tc.latency = data.latency;
               tc.result = data.result;
+              if (data.metadata?.undo_id) tc.undoId = data.metadata.undo_id;
             }
             setStreamState({
               phase: 'Generating...',
@@ -679,6 +721,13 @@ export function InputArea() {
       for (const tc of toolCalls) {
         if (tc.status === 'awaiting_approval' || tc.status === 'approved') tc.status = 'denied';
       }
+      const stoppedAgent = useAgent && stoppedByUserRef.current;
+      if (stoppedAgent) {
+        accumulatedContent = stoppedSummary(
+          toolCalls,
+          accumulatedContent === '(Generation stopped)' ? '' : accumulatedContent,
+        );
+      }
       if (!accumulatedContent) {
         accumulatedContent = 'No response was generated. Please try again.';
       }
@@ -727,6 +776,7 @@ export function InputArea() {
         researchTraces.length > 0 ? researchTraces : undefined,
         researchSourcesByRef.size > 0 ? flushSources() : undefined,
       );
+      if (stoppedAgent) useAppStore.getState().markLastAssistantStopped(convId, true);
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -766,7 +816,15 @@ export function InputArea() {
     webSearch,
     setLastAssistantWebSearch,
     agentMode,
+    projectDir,
   ]);
+
+  const queuedPrompt = useAppStore((s) => s.queuedPrompt);
+  useEffect(() => {
+    if (!queuedPrompt || streamState.isStreaming) return;
+    useAppStore.getState().queuePrompt(null);
+    void sendMessage(queuedPrompt);
+  }, [queuedPrompt, streamState.isStreaming, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -835,6 +893,43 @@ export function InputArea() {
             <Bot size={12} />
             Agent
           </button>
+          <div
+            className="inline-flex items-center rounded-full text-xs"
+            style={{
+              background: projectDir && agentMode ? 'var(--color-accent-subtle)' : 'transparent',
+              border: `1px solid ${projectDir && agentMode ? 'var(--color-accent)' : 'var(--color-border)'}`,
+              color: projectDir && agentMode ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
+              opacity: streamState.isStreaming ? 0.5 : 1,
+            }}
+          >
+            <button
+              type="button"
+              onClick={pickProject}
+              disabled={streamState.isStreaming}
+              className="inline-flex items-center gap-1.5 pl-2.5 py-1 cursor-pointer disabled:cursor-default"
+              style={{ paddingRight: projectDir ? 4 : 10 }}
+              title={
+                projectDir
+                  ? `Developer mode in ${projectDir}. Click to choose another folder.`
+                  : 'Developer mode: let Agent mode work on code in one project folder.'
+              }
+            >
+              <FolderCode size={12} />
+              {projectDir ? projectDir.split(/[\\/]/).filter(Boolean).pop() : 'Project'}
+            </button>
+            {projectDir && (
+              <button
+                type="button"
+                onClick={() => setProjectDir(null)}
+                disabled={streamState.isStreaming}
+                className="pr-2 py-1 cursor-pointer disabled:cursor-default"
+                aria-label="Stop using the project folder"
+                title="Stop using the project folder"
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
         </div>
         {agentMode && selectedModel && isSmallForAgent(selectedModel) && (
           <div
