@@ -1,9 +1,14 @@
-"""List, focus, minimize, maximize and restore windows (Windows only for now)."""
+"""List, focus, minimize, maximize and restore windows.
+
+Windows uses the window API through ctypes, macOS uses System Events (Locus
+needs Accessibility permission), and Linux uses wmctrl, which works on X11
+but not Wayland.
+"""
 
 from __future__ import annotations
 
 import json
-from typing import Any, List, Tuple
+from typing import Any, Callable, List, Tuple, Union
 
 from locus.core.registry import ToolRegistry
 from locus.core.types import ToolResult
@@ -11,6 +16,18 @@ from locus.tools._stubs import BaseTool, ToolSpec
 from locus.tools.desktop import _os
 
 ACTIONS = ("list", "focus", "minimize", "maximize", "restore")
+
+_PAST = {
+    "focus": "Focused",
+    "minimize": "Minimized",
+    "maximize": "Maximized",
+    "restore": "Restored",
+}
+
+#: (handle, title): the handle is whatever the OS needs to act on the window.
+Window = Tuple[Any, str]
+
+# ── Windows ──────────────────────────────────────────────────────
 
 _SW = {"minimize": 6, "maximize": 3, "restore": 9}
 _GW_OWNER = 4
@@ -70,6 +87,116 @@ def _apply(hwnd: int, action: str) -> bool:
     return True
 
 
+def _windows_act(hwnd: int, title: str, action: str) -> Union[None, str]:
+    if not _apply(hwnd, action):
+        return f"Windows didn't let Locus focus {title}."
+    return None
+
+
+# ── macOS ────────────────────────────────────────────────────────
+
+_MAC_LIST = """set out to ""
+tell application "System Events"
+  repeat with p in (processes whose visible is true)
+    try
+      repeat with w in windows of p
+        set out to out & (name of p) & tab & (name of w) & linefeed
+      end repeat
+    end try
+  end repeat
+end tell
+return out"""
+
+_MAC_ACT = """on run argv
+  set appName to item 1 of argv
+  set winName to item 2 of argv
+  set act to item 3 of argv
+  tell application "System Events"
+    tell process appName
+      set w to (first window whose name is winName)
+      if act is "minimize" then
+        set value of attribute "AXMinimized" of w to true
+      else if act is "maximize" then
+        set value of attribute "AXFullScreen" of w to true
+      else
+        set value of attribute "AXMinimized" of w to false
+        set frontmost to true
+        perform action "AXRaise" of w
+      end if
+    end tell
+  end tell
+end run"""
+
+
+def _mac_windows() -> Union[List[Window], ToolResult]:
+    done = _os.run(["osascript", "-e", _MAC_LIST])
+    if not done.ok:
+        return _os.fail(
+            "window_control",
+            "Couldn't list windows. Allow Locus under System Settings > Privacy"
+            f" & Security > Accessibility. ({done.error()})",
+        )
+    windows: List[Window] = []
+    for line in done.stdout.splitlines():
+        app, _, title = line.partition("\t")
+        if title.strip():
+            windows.append(((app, title), title))
+    return windows
+
+
+def _mac_act(handle: Tuple[str, str], title: str, action: str) -> Union[None, str]:
+    app, name = handle
+    done = _os.run(["osascript", "-e", _MAC_ACT, app, name, action])
+    return None if done.ok else f"Couldn't change {title}: {done.error()}"
+
+
+# ── Linux (X11) ──────────────────────────────────────────────────
+
+_WMCTRL_STATES = {
+    "minimize": "add,hidden",
+    "maximize": "add,maximized_vert,maximized_horz",
+    "restore": "remove,hidden,maximized_vert,maximized_horz",
+}
+
+
+def _linux_windows() -> Union[List[Window], ToolResult]:
+    if not _os.has_command("wmctrl"):
+        return _os.fail(
+            "window_control", "Install wmctrl to control windows (X11 only)."
+        )
+    done = _os.run(["wmctrl", "-l"])
+    if not done.ok:
+        return _os.fail("window_control", f"Couldn't list windows: {done.error()}")
+    windows: List[Window] = []
+    for line in done.stdout.splitlines():
+        parts = line.split(None, 3)  # id, desktop, host, title
+        if len(parts) == 4 and parts[3].strip():
+            windows.append((parts[0], parts[3]))
+    return windows
+
+
+def _linux_act(window_id: str, title: str, action: str) -> Union[None, str]:
+    if action in _WMCTRL_STATES:
+        done = _os.run(["wmctrl", "-i", "-r", window_id, "-b", _WMCTRL_STATES[action]])
+        if not done.ok:
+            return f"Couldn't change {title}: {done.error()}"
+    if action in ("focus", "restore"):
+        done = _os.run(["wmctrl", "-i", "-a", window_id])
+        if not done.ok:
+            return f"Couldn't focus {title}: {done.error()}"
+    return None
+
+
+# ── Tool ─────────────────────────────────────────────────────────
+
+# Looked up when called, so each OS's functions can be swapped out in tests.
+_PLATFORMS: dict[str, Tuple[Callable[[], Any], Callable[[Any, str, str], Any]]] = {
+    "windows": (lambda: list_windows(), lambda *a: _windows_act(*a)),
+    "macos": (lambda: _mac_windows(), lambda *a: _mac_act(*a)),
+    "linux": (lambda: _linux_windows(), lambda *a: _linux_act(*a)),
+}
+
+
 @ToolRegistry.register("window_control")
 class WindowControlTool(BaseTool):
     """Arrange open windows. Nothing here closes a window or loses work."""
@@ -107,9 +234,14 @@ class WindowControlTool(BaseTool):
         action = params.get("action")
         if action not in ACTIONS:
             return _os.bad_action("window_control", action, ACTIONS)
-        if _os.system() != "windows":
+        platform = _PLATFORMS.get(_os.system())
+        if platform is None:
             return _os.unsupported("window_control", "Controlling windows")
-        windows = list_windows()
+        list_fn, act_fn = platform
+
+        windows = list_fn()
+        if isinstance(windows, ToolResult):
+            return windows
         if action == "list":
             titles = [title for _, title in windows]
             return _os.ok(
@@ -123,18 +255,11 @@ class WindowControlTool(BaseTool):
             return _os.fail(
                 "window_control", f"No open window has {wanted!r} in its title."
             )
-        hwnd, title = match
-        if not _apply(hwnd, action):
-            return _os.fail(
-                "window_control", f"Windows didn't let Locus focus {title}."
-            )
-        past = {
-            "focus": "Focused",
-            "minimize": "Minimized",
-            "maximize": "Maximized",
-            "restore": "Restored",
-        }[action]
-        return _os.ok("window_control", f"{past} {title}.")
+        handle, title = match
+        error = act_fn(handle, title, action)
+        if error:
+            return _os.fail("window_control", error)
+        return _os.ok("window_control", f"{_PAST[action]} {title}.")
 
 
 __all__ = ["WindowControlTool", "list_windows"]
