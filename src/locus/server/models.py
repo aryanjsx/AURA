@@ -49,6 +49,11 @@ class ChatCompletionRequest(BaseModel):
     mode: Optional[Literal["chat", "agent"]] = None
 
 
+class ApprovalAnswer(BaseModel):
+    # "approve_tool" also approves later calls to the same tool in this run.
+    decision: Literal["approve", "approve_tool", "deny"]
+
+
 # ---------------------------------------------------------------------------
 # Response models
 # ---------------------------------------------------------------------------

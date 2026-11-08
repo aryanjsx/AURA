@@ -15,8 +15,10 @@ from fastapi.responses import StreamingResponse
 
 from locus.core.paths import get_config_dir
 from locus.core.types import Message, Role, ToolCall
+from locus.server.approvals import AgentCancelled, ApprovalSession, current_session
 from locus.server.model_capabilities import is_embed_only_model
 from locus.server.models import (
+    ApprovalAnswer,
     ChatCompletionChunk,
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -514,6 +516,26 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
     return response
 
 
+@router.post("/v1/chat/approvals/{approval_id}")
+async def answer_approval(approval_id: str, body: ApprovalAnswer):
+    """Answer an ``approval_required`` event from an Agent mode stream."""
+    from locus.server.approvals import resolve
+
+    if not resolve(approval_id, body.decision):
+        raise HTTPException(status_code=404, detail="No approval is waiting")
+    return {"id": approval_id, "decision": body.decision}
+
+
+@router.post("/v1/chat/runs/{run_id}/stop")
+async def stop_agent_run(run_id: str):
+    """Stop the agent run announced by an ``agent_run`` event."""
+    from locus.server.approvals import stop_run
+
+    if not stop_run(run_id):
+        raise HTTPException(status_code=404, detail="That run isn't running")
+    return {"run_id": run_id, "stopped": True}
+
+
 def _response_content(response) -> str:
     """Extract assistant text from an OpenAI-compatible response object."""
     content = ""
@@ -814,6 +836,12 @@ def _handle_agent(
     )
 
 
+def _sse_event(name: str, data: dict) -> str:
+    import json
+
+    return f"event: {name}\ndata: {json.dumps(data, default=str)}\n\n"
+
+
 def _forward_agent_events(bus, agent, loop, queue: asyncio.Queue):
     """Queue *agent*'s turn and tool events from *bus* as SSE strings.
 
@@ -849,8 +877,7 @@ def _forward_agent_events(bus, agent, loop, queue: asyncio.Queue):
                 # The UI expects arguments as JSON text, as the bus carries
                 # them parsed for trace consumers.
                 data = {**data, "arguments": json.dumps(data.get("arguments"))}
-            sse = f"event: {name}\ndata: {json.dumps(data, default=str)}\n\n"
-            loop.call_soon_threadsafe(queue.put_nowait, sse)
+            loop.call_soon_threadsafe(queue.put_nowait, _sse_event(name, data))
 
         return callback
 
@@ -906,24 +933,60 @@ async def _handle_agent_stream(
         loop = asyncio.get_running_loop()
         live_events: asyncio.Queue = asyncio.Queue()
         unsubscribe = _forward_agent_events(bus, agent, loop, live_events)
-        task = asyncio.ensure_future(
-            asyncio.to_thread(
-                _handle_agent,
-                agent,
-                model,
-                req,
-                complexity_info,
-                trace_store=trace_store,
-                bus=bus,
-            )
-        )
-        task.add_done_callback(
-            lambda _f: loop.call_soon_threadsafe(live_events.put_nowait, None)
-        )
+
+        # Tool calls that change something wait here for the user's answer.
+        def emit(name: str, data: dict) -> None:
+            loop.call_soon_threadsafe(live_events.put_nowait, _sse_event(name, data))
+
+        tools = {
+            spec.name: tool
+            for tool in getattr(agent, "_tools", None) or []
+            if (spec := getattr(tool, "spec", None)) is not None
+        }
+        session = ApprovalSession(emit, tools=tools)
+
+        def run_agent():
+            with session:
+                token = current_session.set(session)
+                try:
+                    return _handle_agent(
+                        agent,
+                        model,
+                        req,
+                        complexity_info,
+                        trace_store=trace_store,
+                        bus=bus,
+                    )
+                finally:
+                    current_session.reset(token)
+
+        yield _sse_event("agent_run", {"run_id": session.run_id})
+        task = asyncio.ensure_future(asyncio.to_thread(run_agent))
+
+        def on_done(future):
+            if not future.cancelled():
+                future.exception()  # retrieved here; re-raised by result()
+            loop.call_soon_threadsafe(live_events.put_nowait, None)
+
+        task.add_done_callback(on_done)
         try:
             while (event := await live_events.get()) is not None:
                 yield event
             response = task.result()
+        except AgentCancelled:
+            stopped_chunk = ChatCompletionChunk(
+                id=chunk_id,
+                model=model,
+                choices=[
+                    StreamChoice(
+                        delta=DeltaMessage(content="Stopped."),
+                        finish_reason="stop",
+                    )
+                ],
+            )
+            yield f"data: {stopped_chunk.model_dump_json()}\n\n"
+            yield "data: [DONE]\n\n"
+            return
         except Exception as exc:
             logging.getLogger("locus.server").error(
                 "Agent stream error: %s",
@@ -947,6 +1010,9 @@ async def _handle_agent_stream(
             return
         finally:
             unsubscribe()
+            # The client stopped or went away: end the run at its next tool call.
+            if not task.done():
+                session.cancel()
 
         content = _response_content(response)
         if content:

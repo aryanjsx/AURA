@@ -1,9 +1,9 @@
 # Assistant — an agent that uses tools to do tasks, not only chat
 # Copy to ~/.locus/config.toml
 #
-# The same tool set the desktop app's Agent mode uses. Every tool here only
-# reads, or writes to Locus's own memory: writing files, running commands and
-# network access are left out until they can ask you in the chat first.
+# An agent with tools that only read, or write to Locus's own memory. For
+# writing files and running commands, turn on Agent mode in the desktop app or
+# browser GUI: it asks you in the chat before each of those calls.
 #
 # Usage:
 #   locus ask "How many PDFs are in my Downloads folder?"
@@ -18,7 +18,7 @@ default_model = "qwen3.5:9b"        # Small models often miss tool calls
 
 [agent]
 default_agent = "orchestrator"      # Multi-turn with tool selection
-max_turns = 10
+max_turns = 25
 
 [server]
 agent = "orchestrator"
@@ -26,7 +26,10 @@ host = "127.0.0.1"
 port = 8000
 
 [tools]
-enabled = ["think", "calculator", "file_read", "pdf_extract", "memory_manage"]
+enabled = [
+    "think", "calculator", "file_read", "pdf_extract", "memory_manage",
+    "git_status", "git_diff", "git_log",
+]
 
 [security]
 allowed_dirs = ["~"]                # File tools stay in your home folder

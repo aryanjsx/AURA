@@ -39,9 +39,14 @@ export interface ToolCallInfo {
   id: string;
   tool: string;
   arguments: string;
-  status: 'running' | 'success' | 'error';
+  /** `awaiting_approval` and `approved`/`denied` come from Agent mode approvals. */
+  status: 'running' | 'success' | 'error' | 'awaiting_approval' | 'approved' | 'denied';
   result?: string;
   latency?: number;
+  /** Id to answer with `answerApproval`, while the agent waits for the user. */
+  approvalId?: string;
+  /** `change` writes something, `run` runs a command or code. */
+  risk?: 'change' | 'run';
 }
 
 export interface TokenUsage {
