@@ -37,30 +37,9 @@ import {
 } from '../lib/api';
 import { isAutoUpdateDisabled, setAutoUpdateDisabled } from '../components/Desktop/UpdateChecker';
 import { AgentPermissionsList } from '../components/Chat/AgentPermissionsList';
+import { InstalledModels } from '../components/InstalledModels';
 
 const CLOUD_KEY_STATUS_CHANGED = 'locus-cloud-key-status-changed';
-
-function OllamaModelList() {
-  const [models, setModels] = useState<Array<{ name: string; size: number }>>([]);
-  useEffect(() => {
-    fetch('http://localhost:11434/api/tags')
-      .then(r => r.json())
-      .then(data => setModels((data.models || []).map((m: any) => ({ name: m.name, size: m.size }))))
-      .catch(() => setModels([]));
-  }, []);
-  if (models.length === 0) return <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>No models loaded</span>;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {models.map(m => (
-        <span key={m.name} className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px]"
-          style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text)' }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-success)', display: 'inline-block' }} />
-          {m.name} ({(m.size / 1e9).toFixed(1)} GB)
-        </span>
-      ))}
-    </div>
-  );
-}
 
 function ApiKeyInput({
   keyName,
@@ -617,11 +596,15 @@ export function SettingsPage() {
 
           {/* Models */}
           <Section title="Models">
-            <SettingRow label="Local models (Ollama)" description="Models available for local inference">
-              <OllamaModelList />
-            </SettingRow>
+            <div className="py-3" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+              <div className="text-sm" style={{ color: 'var(--color-text)' }}>Local models (Ollama)</div>
+              <div className="text-xs mt-0.5 mb-2" style={{ color: 'var(--color-text-tertiary)' }}>
+                Models downloaded to this computer. Uninstall one to free its disk space; you can download it again later.
+              </div>
+              <InstalledModels />
+            </div>
             <div className="text-xs mt-2 px-1" style={{ color: 'var(--color-text-tertiary)' }}>
-              Run <code className="px-1 py-0.5 rounded text-[11px]" style={{ background: 'var(--color-bg-tertiary)' }}>ollama pull &lt;model-name&gt;</code> in your terminal to add more models
+              Add models from the model picker (⌘K), or run <code className="px-1 py-0.5 rounded text-[11px]" style={{ background: 'var(--color-bg-tertiary)' }}>ollama pull &lt;model-name&gt;</code> in a terminal
             </div>
             <SettingRow label="Cloud providers" description="Green dot means API key is configured">
               <div className="flex flex-wrap gap-3">
@@ -861,6 +844,30 @@ export function SettingsPage() {
                   className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform bg-white"
                   style={{
                     transform: settings.handsFree ? 'translateX(20px)' : 'translateX(0)',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }}
+                />
+              </button>
+            </SettingRow>
+            <SettingRow
+              label="Say “Hey Locus”"
+              description="Start hands-free voice by saying “Hey Locus” (or “Hey Locus, mute the sound”). The microphone stays on while this is on; only short bursts of speech are transcribed, on this computer, with the local Whisper backend."
+            >
+              <button
+                onClick={() => { updateSettings({ wakeWord: !settings.wakeWord }); showSaved(); }}
+                disabled={!settings.handsFree}
+                className="relative w-11 h-6 rounded-full transition-colors cursor-pointer"
+                style={{
+                  background: settings.wakeWord && settings.handsFree ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
+                  opacity: settings.handsFree ? 1 : 0.4,
+                  cursor: settings.handsFree ? 'pointer' : 'default',
+                }}
+                aria-pressed={settings.wakeWord && settings.handsFree}
+              >
+                <span
+                  className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform bg-white"
+                  style={{
+                    transform: settings.wakeWord && settings.handsFree ? 'translateX(20px)' : 'translateX(0)',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                   }}
                 />

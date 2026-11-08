@@ -8,7 +8,7 @@ import threading
 import uuid
 import weakref
 from dataclasses import replace
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -292,6 +292,12 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
 
     await _drop_images_without_vision(request_body, engine, model)
 
+    # Agent and developer mode tools can return images (screenshots); show
+    # them only to models that can see images.
+    agent_vision: Optional[bool] = None
+    if use_server_agent and request_body.mode in ("agent", "developer"):
+        agent_vision = await _model_accepts_images(engine, model)
+
     # Search the web for the latest user message (before memory context, which
     # rewrites messages with attachments folded in).
     web_result = None
@@ -459,6 +465,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
                 trace_store=getattr(request.app.state, "trace_store", None),
                 bus=getattr(request.app.state, "bus", None),
                 memory_service=getattr(request.app.state, "memory_service", None),
+                vision=agent_vision,
             )
         else:
             response = await _handle_stream(
@@ -502,6 +509,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
             complexity_info,
             trace_store=getattr(request.app.state, "trace_store", None),
             bus=getattr(request.app.state, "bus", None),
+            vision=agent_vision,
         )
     else:
         bus = getattr(request.app.state, "bus", None)
@@ -534,6 +542,22 @@ async def answer_approval(approval_id: str, body: ApprovalAnswer):
     if not resolve(approval_id, body.decision):
         raise HTTPException(status_code=404, detail="No approval is waiting")
     return {"id": approval_id, "decision": body.decision}
+
+
+@router.get("/v1/agent-model")
+async def agent_model(request: Request):
+    """The model Agent mode works best with on this computer."""
+    import psutil
+
+    from locus.server.model_capabilities import agent_model_recommendation
+
+    engine = request.app.state.engine
+    try:
+        installed = list(await asyncio.to_thread(engine.list_models))
+    except Exception:
+        installed = []
+    ram_gb = psutil.virtual_memory().total / 1024**3
+    return agent_model_recommendation(installed, ram_gb)
 
 
 @router.get("/v1/chat/permissions")
@@ -800,6 +824,7 @@ def _handle_agent(
     *,
     trace_store=None,
     bus=None,
+    vision: Optional[bool] = None,
 ) -> ChatCompletionResponse:
     """Run through agent.
 
@@ -822,6 +847,9 @@ def _handle_agent(
     input_text = messages[-1].content if messages else ""
     if messages and messages[-1].images:
         ctx.metadata["input_images"] = list(messages[-1].images)
+    if vision is not None:
+        # Whether tool images (screenshots) may be shown to the model.
+        ctx.metadata["vision"] = vision
 
     # Override agent model for this request if the caller specified one.
     # Locked for the full override-run-restore cycle (#759): only the
@@ -941,6 +969,7 @@ async def _handle_agent_stream(
     trace_store=None,
     bus=None,
     memory_service=None,
+    vision: Optional[bool] = None,
 ):
     """Run the configured agent and return its result as an SSE response.
 
@@ -996,6 +1025,7 @@ async def _handle_agent_stream(
                         complexity_info,
                         trace_store=trace_store,
                         bus=bus,
+                        vision=vision,
                     )
                 finally:
                     current_session.reset(token)
@@ -1500,17 +1530,67 @@ async def pull_model(request: Request):
     return {"status": "ok", "model": model_name}
 
 
-@router.delete("/v1/models/{model_name:path}")
-async def delete_model(model_name: str, request: Request):
-    """Delete a model from Ollama."""
+def _ollama_host(request: Request) -> str:
+    """Ollama's address, or 501 when the server isn't using Ollama."""
     engine = request.app.state.engine
     engine_name = getattr(request.app.state, "engine_name", "")
     if engine_name != "ollama" and getattr(engine, "engine_id", "") != "ollama":
         raise HTTPException(status_code=501, detail="Only supported with Ollama engine")
+    return getattr(engine, "_host", "http://localhost:11434")
 
+
+async def _installed_ollama_models(host: str) -> list[dict]:
     import httpx as _httpx
 
-    host = getattr(engine, "_host", "http://localhost:11434")
+    try:
+        async with _httpx.AsyncClient(base_url=host, timeout=15.0) as client:
+            resp = await client.get("/api/tags")
+        resp.raise_for_status()
+    except (_httpx.ConnectError, _httpx.TimeoutException) as exc:
+        raise HTTPException(status_code=502, detail=f"Ollama unreachable: {exc}")
+    except _httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=exc.response.status_code,
+            detail=f"Ollama error: {exc.response.text[:300]}",
+        )
+    return [
+        {
+            "name": m.get("name") or m.get("model", ""),
+            "size_bytes": int(m.get("size") or 0),
+            "modified_at": m.get("modified_at"),
+            "parameter_size": (m.get("details") or {}).get("parameter_size"),
+        }
+        for m in resp.json().get("models") or []
+        if m.get("name") or m.get("model")
+    ]
+
+
+@router.get("/v1/models/installed")
+async def installed_models(request: Request):
+    """Models downloaded to Ollama on this computer, with their sizes."""
+    host = _ollama_host(request)
+    models = await _installed_ollama_models(host)
+    default = getattr(request.app.state, "model", "")
+    for m in models:
+        m["is_default"] = m["name"] == default
+    return {
+        "models": sorted(models, key=lambda m: m["name"]),
+        "total_bytes": sum(m["size_bytes"] for m in models),
+    }
+
+
+@router.delete("/v1/models/{model_name:path}")
+async def delete_model(model_name: str, request: Request):
+    """Uninstall a model from Ollama, freeing its disk space."""
+    import httpx as _httpx
+
+    host = _ollama_host(request)
+    # Look the model up first, so the answer says how much space it freed.
+    # Best effort: a failed lookup mustn't stop the uninstall.
+    try:
+        installed = {m["name"]: m for m in await _installed_ollama_models(host)}
+    except Exception:
+        installed = {}
     try:
         async with _httpx.AsyncClient(base_url=host, timeout=30.0) as client:
             resp = await client.request(
@@ -1522,12 +1602,23 @@ async def delete_model(model_name: str, request: Request):
     except (_httpx.ConnectError, _httpx.TimeoutException) as exc:
         raise HTTPException(status_code=502, detail=f"Ollama unreachable: {exc}")
     except _httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            raise HTTPException(
+                status_code=404, detail=f"{model_name} isn't installed."
+            )
         raise HTTPException(
             status_code=exc.response.status_code,
             detail=f"Ollama error: {exc.response.text[:300]}",
         )
 
-    return {"status": "deleted", "model": model_name}
+    _vision_cache.pop(model_name, None)
+    return {
+        "status": "deleted",
+        "model": model_name,
+        "freed_bytes": installed.get(model_name, {}).get("size_bytes", 0),
+        # The model Locus started with; chats need another model picked.
+        "was_default": model_name == getattr(request.app.state, "model", ""),
+    }
 
 
 @router.post("/v1/cloud/reload")

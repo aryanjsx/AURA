@@ -33,3 +33,27 @@ export function isSmallForAgent(modelId: string): boolean {
   const size = modelSizeBillions(modelId);
   return size !== null && size < 4;
 }
+
+/** Below this size, Agent mode suggests a bigger model. */
+const AGENT_GOOD_SIZE_B = 7;
+
+/** Whether to suggest `recommended` instead of `selected` for Agent mode. */
+export function shouldSuggestAgentModel(selected: string, recommended: string): boolean {
+  if (!recommended || recommended === selected) return false;
+  const size = modelSizeBillions(selected);
+  // Unknown sizes are usually cloud or custom models; leave those alone.
+  return size !== null && size < AGENT_GOOD_SIZE_B;
+}
+
+/**
+ * After uninstalling `removed`: the model chat should switch to, '' if none
+ * is left, or null when chat wasn't using it.
+ */
+export function nextModelAfterUninstall(
+  selected: string,
+  removed: string,
+  remaining: string[],
+): string | null {
+  if (selected !== removed) return null;
+  return remaining.find((m) => m !== removed && !isEmbedOnlyModel(m)) ?? '';
+}

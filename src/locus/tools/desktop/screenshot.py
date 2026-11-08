@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import base64
+import io
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from locus.core.registry import ToolRegistry
 from locus.core.types import ToolResult
@@ -20,6 +22,27 @@ _WIN_SCREENSHOT = (
     "$img.Save($env:LOCUS_ARG_PATH, [System.Drawing.Imaging.ImageFormat]::Png); "
     "$g.Dispose(); $img.Dispose()"
 )
+
+
+#: Screenshots sent to a model are scaled down to fit this many pixels a side.
+LOOK_MAX_PIXELS = 1280
+
+
+def image_for_model(path: Path) -> Optional[str]:
+    """The screenshot as a base64 JPEG small enough to send to a model."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return None
+    try:
+        with Image.open(path) as image:
+            image = image.convert("RGB")
+            image.thumbnail((LOOK_MAX_PIXELS, LOOK_MAX_PIXELS))
+            buffer = io.BytesIO()
+            image.save(buffer, format="JPEG", quality=70)
+    except OSError:
+        return None
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
 def screenshots_dir() -> Path:
@@ -40,9 +63,19 @@ class ScreenshotTool(BaseTool):
             name="screenshot",
             description=(
                 "Take a screenshot of the whole screen and save it as a PNG."
-                " Returns the file's path."
+                " Returns the file's path. With look=true you also see the"
+                " screenshot, to read what's on screen (needs a model that can"
+                " see images)."
             ),
-            parameters={"type": "object", "properties": {}},
+            parameters={
+                "type": "object",
+                "properties": {
+                    "look": {
+                        "type": "boolean",
+                        "description": "Also show you the screenshot.",
+                    },
+                },
+            },
             category="desktop",
         )
 
@@ -74,7 +107,24 @@ class ScreenshotTool(BaseTool):
             return _os.unsupported("screenshot", "Screenshots")
         if not done.ok or not path.exists():
             return _os.fail("screenshot", f"Couldn't take a screenshot: {done.error()}")
-        return _os.ok("screenshot", f"Saved a screenshot to {path}.", path=str(path))
+        if not params.get("look"):
+            return _os.ok(
+                "screenshot", f"Saved a screenshot to {path}.", path=str(path)
+            )
+        image = image_for_model(path)
+        if image is None:
+            return _os.ok(
+                "screenshot",
+                f"Saved a screenshot to {path}, but couldn't prepare it for you"
+                " to see (Pillow is needed).",
+                path=str(path),
+            )
+        return _os.ok(
+            "screenshot",
+            f"Saved a screenshot to {path}. It's attached so you can see it.",
+            path=str(path),
+            images=[image],
+        )
 
 
 __all__ = ["ScreenshotTool", "screenshots_dir"]

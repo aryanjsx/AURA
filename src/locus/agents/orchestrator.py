@@ -141,6 +141,32 @@ class OrchestratorAgent(ToolUsingAgent):
             return None
         return self._governance_denial(tc.name, "policy denied the call")
 
+    @staticmethod
+    def _attach_tool_images(
+        messages: list[Message], results: list[ToolResult], vision: bool
+    ) -> None:
+        """Show the model images its tools returned (``metadata["images"]``).
+
+        Tool messages can't carry images in most chat APIs, so they follow as
+        one user message after this round's tool results.
+        """
+        if not vision:
+            return
+        images = [
+            image
+            for result in results
+            for image in (result.metadata or {}).get("images") or []
+            if isinstance(image, str) and image
+        ]
+        if images:
+            messages.append(
+                Message(
+                    role=Role.USER,
+                    content="Here is the image from the last tool call.",
+                    images=images,
+                )
+            )
+
     # ------------------------------------------------------------------
     # Structured mode (THOUGHT/TOOL/INPUT/FINAL_ANSWER)
     # ------------------------------------------------------------------
@@ -364,6 +390,9 @@ class OrchestratorAgent(ToolUsingAgent):
         turns = 0
         total_prompt_tokens = 0
         total_completion_tokens = 0
+        # Callers set metadata["vision"] = False for models that can't see
+        # images, so tool images (screenshots) aren't sent to them.
+        vision = (context.metadata.get("vision") if context else None) is not False
 
         for _turn in range(self._max_turns):
             turns += 1
@@ -422,6 +451,7 @@ class OrchestratorAgent(ToolUsingAgent):
             )
 
             # Execute each tool (with loop guard check) and append results
+            round_start = len(all_tool_results)
             if self._parallel_tools and len(tool_calls) > 1:
                 # Governance callbacks often wrap stateful policy engines and
                 # are not assumed to be thread-safe. Evaluate them in request
@@ -524,6 +554,8 @@ class OrchestratorAgent(ToolUsingAgent):
                             name=tc.name,
                         )
                     )
+
+            self._attach_tool_images(messages, all_tool_results[round_start:], vision)
 
         # Max turns exceeded
         final_content = self._strip_think_tags(content) if content else ""

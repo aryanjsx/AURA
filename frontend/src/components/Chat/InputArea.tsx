@@ -3,19 +3,22 @@ import { Send, Square, Paperclip, Search, Globe, Bot, FolderCode, X } from 'luci
 import { toast } from 'sonner';
 import { useAppStore, generateId } from '../../lib/store';
 import { streamChat, streamResearch } from '../../lib/sse';
-import { fetchSavings, getBase, isTauri, stopAgentRun } from '../../lib/api';
+import { answerApproval, fetchSavings, getBase, isTauri, stopAgentRun } from '../../lib/api';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { serializeToolCallArguments } from '../../lib/tool-call';
-import { isSmallForAgent } from '../../lib/model-capabilities';
 import { stoppedSummary } from '../../lib/agent-stop';
+import { approvalQuestion, canAnswerByVoice, parseYesNo } from '../../lib/voice-approval';
+import { speakAndWait, useTtsStore } from '../../lib/tts';
 import {
   engineFromCompletionChunk,
   resolveChatEngine,
 } from '../../lib/chat-telemetry';
 import { MicButton } from './MicButton';
+import { AgentModelHint } from './AgentModelHint';
 import { AttachmentChip } from './AttachmentChip';
 import { useSpeech } from '../../hooks/useSpeech';
 import { useHandsFree } from '../../hooks/useHandsFree';
+import { useWakeWord } from '../../hooks/useWakeWord';
 import {
   apiAttachmentFields,
   deletePayloads,
@@ -237,10 +240,41 @@ export function InputArea() {
     cancelRecording,
   } = useSpeech();
 
+  // Hands-free turns answer approvals aloud: Locus reads the step out and
+  // listens for yes or no. Commands and code still need a click.
+  const askApprovalAloud = useCallback(
+    async (tc: ToolCallInfo) => {
+      if (!tc.approvalId || !speechAvailable) return;
+      const spoke = await speakAndWait(`approval-${tc.approvalId}`, approvalQuestion(tc));
+      if (!spoke || !canAnswerByVoice(tc)) return;
+      const heard = await new Promise<string>((resolve) => {
+        void startRecording({
+          onEndOfSpeech: (reason) => {
+            if (reason === 'no_speech') {
+              cancelRecording();
+              resolve('');
+            } else {
+              stopRecording().then(resolve, () => resolve(''));
+            }
+          },
+        });
+      });
+      const answer = parseYesNo(heard);
+      if (!answer) {
+        void speakAndWait(`approval-${tc.approvalId}-retry`, "Sorry, I didn't catch that. Please answer on screen.");
+        return;
+      }
+      await answerApproval(tc.approvalId, answer === 'yes' ? 'approve' : 'deny').catch(() => false);
+    },
+    [speechAvailable, startRecording, stopRecording, cancelRecording],
+  );
+
   // Hands-free: the transcript goes out through the prompt queue, which
   // sends it as soon as no reply is streaming.
   const handsFree = useAppStore((s) => s.settings.handsFree);
-  useHandsFree({
+  const wakeWord = useAppStore((s) => s.settings.wakeWord);
+  const ttsState = useTtsStore((s) => s.state);
+  const { listen: listenHandsFree } = useHandsFree({
     enabled: handsFree,
     available: speechAvailable,
     state: speechState,
@@ -248,6 +282,20 @@ export function InputArea() {
     stopRecording,
     cancelRecording,
     send: (text) => useAppStore.getState().queuePrompt(text),
+  });
+  // "Hey Locus": a command said with it goes straight out; the name alone
+  // starts listening.
+  useWakeWord({
+    enabled: handsFree && wakeWord,
+    busy: speechState !== 'idle' || streamState.isStreaming || ttsState !== 'idle',
+    onWake: (command) => {
+      if (command) {
+        useAppStore.getState().setSpeakNextReply(true);
+        useAppStore.getState().queuePrompt(command);
+      } else {
+        void listenHandsFree();
+      }
+    },
   });
 
   // Abort in-flight stream when the user switches models mid-generation.
@@ -591,7 +639,7 @@ export function InputArea() {
         } else if (eventName === 'approval_required') {
           try {
             const data = JSON.parse(sseEvent.data);
-            toolCalls.push({
+            const pending: ToolCallInfo = {
               id: generateId(),
               tool: data.tool,
               arguments: serializeToolCallArguments(data.arguments),
@@ -600,7 +648,10 @@ export function InputArea() {
               risk: data.risk,
               canAlways: Boolean(data.can_always),
               preview: data.preview || undefined,
-            });
+            };
+            toolCalls.push(pending);
+            // A hands-free turn asks aloud too (the buttons still work).
+            if (useAppStore.getState().speakNextReply) void askApprovalAloud(pending);
             setStreamState({
               phase: 'Waiting for your approval...',
               activeToolCalls: [...toolCalls],
@@ -817,6 +868,7 @@ export function InputArea() {
     setLastAssistantWebSearch,
     agentMode,
     projectDir,
+    askApprovalAloud,
   ]);
 
   const queuedPrompt = useAppStore((s) => s.queuedPrompt);
@@ -931,14 +983,7 @@ export function InputArea() {
             )}
           </div>
         </div>
-        {agentMode && selectedModel && isSmallForAgent(selectedModel) && (
-          <div
-            className="text-[11px] leading-snug"
-            style={{ color: 'var(--color-text-tertiary)' }}
-          >
-            Small models like {selectedModel} often miss tool calls. A 4B or larger model works better in Agent mode.
-          </div>
-        )}
+        {agentMode && selectedModel && <AgentModelHint selectedModel={selectedModel} />}
         {deepResearch && corpusSync.syncing && corpusSync.itemsSynced > 0 && (
           <div
             className="text-[11px] leading-snug"

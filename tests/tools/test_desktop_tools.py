@@ -25,6 +25,19 @@ from locus.tools.desktop import (
 
 
 @pytest.fixture(autouse=True)
+def _no_wayland(monkeypatch):
+    """Linux tests mean X11 unless they set a Wayland session themselves."""
+    for name in (
+        "WAYLAND_DISPLAY",
+        "XDG_SESSION_TYPE",
+        "SWAYSOCK",
+        "HYPRLAND_INSTANCE_SIGNATURE",
+        "XDG_CURRENT_DESKTOP",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _isolate_reminders(tmp_path, monkeypatch):
     """Keep reminders out of the real ``~/.locus`` and drop leftover timers."""
     monkeypatch.setattr(notify, "_store", notify.ReminderStore(tmp_path / "rem.json"))
@@ -557,3 +570,292 @@ def test_radio_failures_are_reported(monkeypatch):
 def test_radio_risk(action, risk):
     tool = SystemControlTool()
     assert tool_risk("system_control", tool, {"action": action}) == risk
+
+
+# ── Moving, resizing and snapping windows ────────────────────────
+
+WORK = (0, 40, 1600, 900)  # a screen with a 40 px bar on top
+
+
+@pytest.mark.parametrize(
+    "position, rect",
+    [
+        ("left", (0, 40, 800, 900)),
+        ("right", (800, 40, 800, 900)),
+        ("top", (0, 40, 1600, 450)),
+        ("bottom", (0, 490, 1600, 450)),
+        ("top_left", (0, 40, 800, 450)),
+        ("bottom_right", (800, 490, 800, 450)),
+        ("center", (267, 190, 1066, 600)),
+    ],
+)
+def test_snap_rects(position, rect):
+    current = (10, 50, 500, 400)
+    assert (
+        window_control.placement_rect("snap", {"position": position}, current, WORK)
+        == rect
+    )
+
+
+def test_snapping_an_odd_sized_screen_covers_it():
+    work = (0, 0, 1365, 767)
+    left = window_control.placement_rect("snap", {"position": "left"}, work, work)
+    right = window_control.placement_rect("snap", {"position": "right"}, work, work)
+    assert left[2] + right[2] == 1365
+    assert right[0] == left[2]
+
+
+def test_moves_and_resizes_stay_on_screen():
+    current = (100, 100, 600, 400)
+    place = window_control.placement_rect
+    assert place("move", {"x": 50, "y": 20}, current, WORK) == (50, 60, 600, 400)
+    # Too far right or down: pulled back so the whole window shows.
+    assert place("move", {"x": 5000, "y": 5000}, current, WORK) == (1000, 540, 600, 400)
+    assert place("resize", {"width": 800, "height": 500}, current, WORK) == (
+        100,
+        100,
+        800,
+        500,
+    )
+    # Bigger than the screen, or tiny: limited to the screen and MIN_SIZE.
+    assert place("resize", {"width": 9999, "height": 10}, current, WORK) == (
+        0,
+        100,
+        1600,
+        window_control.MIN_SIZE,
+    )
+
+
+@pytest.mark.parametrize(
+    "params, message",
+    [
+        ({"action": "snap", "title": "x", "position": "middle"}, "Give a position"),
+        ({"action": "move", "title": "x", "x": 10}, "Give x and y"),
+        ({"action": "move", "title": "x", "x": -5, "y": 0}, "can't be negative"),
+        ({"action": "resize", "title": "x", "width": "big", "height": 4}, "Give width"),
+    ],
+)
+def test_placement_arguments_are_checked(monkeypatch, params, message):
+    FakeOS(monkeypatch, "windows")
+    result = WindowControlTool().execute(**params)
+    assert not result.success
+    assert message in result.content
+
+
+def test_snapping_on_windows(monkeypatch):
+    FakeOS(monkeypatch, "windows")
+    placed = []
+    monkeypatch.setattr(
+        window_control, "list_windows", lambda: [(7, "notes.txt - Notepad")]
+    )
+    monkeypatch.setattr(
+        window_control,
+        "_windows_place",
+        lambda hwnd, action, placement: (
+            placed.append((hwnd, action, placement)) or True
+        ),
+    )
+
+    result = WindowControlTool().execute(
+        action="snap", title="notepad", position="top_right"
+    )
+
+    assert result.content == "Snapped notes.txt - Notepad to the top right."
+    assert placed == [(7, "snap", {"position": "top_right"})]
+
+
+def test_snapping_on_linux_uses_the_work_area(monkeypatch):
+    fake = FakeOS(monkeypatch, "linux")
+    outputs = {
+        "-l": "0x05 0 host Editor\n",
+        "-d": "0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1\n",
+    }
+
+    def run(args, *, env=None, input=None, timeout=0):
+        fake.calls.append({"args": args})
+        return _os.Completed(0, outputs.get(args[1], ""), "")
+
+    monkeypatch.setattr(_os, "run", run)
+
+    assert (
+        WindowControlTool()
+        .execute(action="snap", title="editor", position="left")
+        .success
+    )
+    assert fake.calls[-1]["args"] == [
+        "wmctrl",
+        "-i",
+        "-r",
+        "0x05",
+        "-e",
+        "0,0,27,960,1053",
+    ]
+    WindowControlTool().execute(action="resize", title="editor", width=900, height=700)
+    assert fake.calls[-1]["args"][-1] == "0,-1,-1,900,700"
+
+
+def test_moving_on_macos(monkeypatch):
+    fake = FakeOS(monkeypatch, "macos")
+
+    def run(args, *, env=None, input=None, timeout=0):
+        fake.calls.append({"args": args})
+        script = args[2] if len(args) > 2 else ""
+        if "bounds of window of desktop" in script:
+            return _os.Completed(0, "0, 0, 1440, 900", "")
+        if "repeat with p in" in script:
+            return _os.Completed(0, "Notes\tShopping list\n", "")
+        return _os.Completed(0, "", "")
+
+    monkeypatch.setattr(_os, "run", run)
+
+    assert (
+        WindowControlTool().execute(action="move", title="shopping", x=10, y=10).success
+    )
+    assert fake.calls[-1]["args"][-6:] == [
+        "Notes",
+        "Shopping list",
+        "10",
+        "35",
+        "-1",
+        "-1",
+    ]
+
+
+# ── Wayland ──────────────────────────────────────────────────────
+
+
+def _scripted_run(monkeypatch, fake, outputs):
+    """Answer commands by their first two words; record every call."""
+
+    def run(args, *, env=None, input=None, timeout=0):
+        fake.calls.append({"args": args})
+        return _os.Completed(0, outputs.get(" ".join(args[:2]), ""), "")
+
+    monkeypatch.setattr(_os, "run", run)
+
+
+def test_sway_windows_are_listed_and_snapped(monkeypatch):
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-1")
+    monkeypatch.setenv("SWAYSOCK", "/run/sway.sock")
+    fake = FakeOS(monkeypatch, "linux")
+    tree = {
+        "type": "root",
+        "nodes": [
+            {
+                "type": "workspace",
+                "nodes": [
+                    {
+                        "type": "con",
+                        "id": 12,
+                        "name": "notes - Kate",
+                        "rect": {"x": 0, "y": 0, "width": 900, "height": 700},
+                        "nodes": [],
+                    }
+                ],
+                "floating_nodes": [],
+            }
+        ],
+    }
+    _scripted_run(monkeypatch, fake, {"swaymsg -t": json.dumps(tree)})
+    monkeypatch.setattr(
+        "locus.tools.desktop.wayland._sway_output_rect", lambda: (0, 0, 1920, 1080)
+    )
+
+    listed = WindowControlTool().execute(action="list")
+    snapped = WindowControlTool().execute(action="snap", title="kate", position="left")
+
+    assert listed.metadata["titles"] == ["notes - Kate"]
+    assert snapped.success
+    command = fake.calls[-1]["args"][1]
+    assert "[con_id=12] floating enable" in command
+    assert "resize set 960 px 1080 px" in command
+    assert "move absolute position 0 px 0 px" in command
+
+
+def test_hyprland_uses_hyprctl(monkeypatch):
+    monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
+    monkeypatch.setenv("HYPRLAND_INSTANCE_SIGNATURE", "abc")
+    fake = FakeOS(monkeypatch, "linux")
+    clients = [
+        {"address": "0xa1", "title": "Firefox", "at": [0, 0], "size": [800, 600]}
+    ]
+    _scripted_run(monkeypatch, fake, {"hyprctl clients": json.dumps(clients)})
+
+    assert WindowControlTool().execute(action="minimize", title="fire").success
+    assert fake.calls[-1]["args"] == [
+        "hyprctl",
+        "--batch",
+        "dispatch movetoworkspacesilent special:minimized,address:0xa1",
+    ]
+
+
+def test_kde_uses_kdotool(monkeypatch):
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "KDE")
+    fake = FakeOS(monkeypatch, "linux")
+    _scripted_run(
+        monkeypatch,
+        fake,
+        {"kdotool search": "{aa}\n", "kdotool getwindowname": "Dolphin"},
+    )
+
+    assert WindowControlTool().execute(action="focus", title="dolphin").success
+    assert fake.calls[-1]["args"] == ["kdotool", "windowactivate", "{aa}"]
+
+
+def test_gnome_on_wayland_is_explained(monkeypatch):
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "GNOME")
+    FakeOS(monkeypatch, "linux")
+    result = WindowControlTool().execute(action="list")
+    assert not result.success
+    assert "GNOME" in result.content
+
+
+def test_wayland_tool_must_be_installed(monkeypatch):
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "KDE")
+    FakeOS(monkeypatch, "linux")
+    monkeypatch.setattr(_os, "has_command", lambda name: False)
+    assert "install kdotool" in WindowControlTool().execute(action="list").content
+
+
+# ── Screenshots the model can see ────────────────────────────────
+
+
+def test_screenshot_look_attaches_a_small_jpeg(monkeypatch, tmp_path):
+    import base64
+    import io
+
+    from PIL import Image
+
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path))
+    fake = FakeOS(monkeypatch, "windows")
+    fake.on_call = lambda call: Image.new("RGB", (3000, 1500), "white").save(
+        call["args"]["path"]
+    )
+
+    plain = ScreenshotTool().execute()
+    looked = ScreenshotTool().execute(look=True)
+
+    assert "images" not in plain.metadata
+    assert "attached" in looked.content
+    data = base64.b64decode(looked.metadata["images"][0])
+    with Image.open(io.BytesIO(data)) as image:
+        assert image.format == "JPEG"
+        assert max(image.size) == 1280
+
+
+def test_screenshot_look_without_pillow(monkeypatch, tmp_path):
+    from locus.tools.desktop import screenshot
+
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path))
+    fake = FakeOS(monkeypatch, "windows")
+    fake.on_call = lambda call: Path(call["args"]["path"]).write_bytes(b"png")
+    monkeypatch.setattr(screenshot, "image_for_model", lambda path: None)
+
+    result = ScreenshotTool().execute(look=True)
+
+    assert result.success
+    assert "couldn't prepare it" in result.content
+    assert "images" not in result.metadata

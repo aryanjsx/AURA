@@ -612,6 +612,66 @@ jobs:
           writeFileSync('frontend/src-tauri/tauri.release.conf.json', JSON.stringify(config));
           NODE
 
+      # Windows code signing, so SmartScreen doesn't warn on first launch.
+      # Either a code-signing certificate (.pfx, base64 in WINDOWS_CERTIFICATE)
+      # or Azure Trusted Signing (AZURE_* secrets and variables); with neither,
+      # the installers stay unsigned as before. Updater artifacts are signed
+      # with the Tauri key either way.
+      - name: Configure Windows signing
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WIN_CERT: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WIN_CERT_PASS: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          AZ_TENANT: ${{ secrets.AZURE_TENANT_ID }}
+          AZ_CLIENT: ${{ secrets.AZURE_CLIENT_ID }}
+          AZ_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZ_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          AZ_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          AZ_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+        run: |
+          $configPath = 'frontend/src-tauri/tauri.release.conf.json'
+          $config = Get-Content $configPath -Raw | ConvertFrom-Json
+          $windows = $null
+          if ($env:WIN_CERT) {
+            $pfx = Join-Path $env:RUNNER_TEMP 'locus-signing.pfx'
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WIN_CERT))
+            $password = ConvertTo-SecureString $env:WIN_CERT_PASS -AsPlainText -Force
+            $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+            Remove-Item $pfx -Force
+            $windows = @{
+              certificateThumbprint = $cert.Thumbprint
+              digestAlgorithm = 'sha256'
+              timestampUrl = 'http://timestamp.digicert.com'
+            }
+            Write-Host "Windows signing configured with certificate $($cert.Subject)"
+          } elseif ($env:AZ_SECRET) {
+            $missing = @('AZ_TENANT', 'AZ_CLIENT', 'AZ_ENDPOINT', 'AZ_ACCOUNT', 'AZ_PROFILE') |
+              Where-Object { -not [Environment]::GetEnvironmentVariable($_) }
+            if ($missing) {
+              Write-Host "::error::AZURE_CLIENT_SECRET is set but these are missing: $($missing -join ', ')"
+              exit 1
+            }
+            cargo install trusted-signing-cli --locked
+            "AZURE_TENANT_ID=$env:AZ_TENANT" >> $env:GITHUB_ENV
+            "AZURE_CLIENT_ID=$env:AZ_CLIENT" >> $env:GITHUB_ENV
+            "AZURE_CLIENT_SECRET=$env:AZ_SECRET" >> $env:GITHUB_ENV
+            $windows = @{
+              signCommand = "trusted-signing-cli -e $env:AZ_ENDPOINT -a $env:AZ_ACCOUNT -c $env:AZ_PROFILE -d Locus %1"
+            }
+            Write-Host 'Windows signing configured with Azure Trusted Signing'
+          } else {
+            if ('${{ github.ref }}' -like 'refs/tags/*') {
+              Write-Host '::warning::No Windows signing secrets; releasing unsigned Windows installers (SmartScreen will warn)'
+            }
+            Write-Host 'No Windows signing configured, skipping code signing'
+          }
+          if ($windows) {
+            $config.bundle | Add-Member -NotePropertyName windows -NotePropertyValue $windows -Force
+            # WriteAllText writes UTF-8 without a byte-order mark, which Tauri needs.
+            [IO.File]::WriteAllText((Resolve-Path $configPath), ($config | ConvertTo-Json -Depth 10))
+          }
+
       - name: Configure Apple signing
         if: runner.os == 'macOS'
         env:

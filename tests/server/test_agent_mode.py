@@ -340,3 +340,82 @@ def test_agents_send_input_images_with_the_last_message():
     assert with_images[-1].content == "what is this?"
     assert with_images[-1].images == ["aW1n"]
     assert without[-1].images is None
+
+
+def test_tool_images_are_shown_only_to_vision_models():
+    from locus.agents.orchestrator import OrchestratorAgent
+    from locus.core.types import Message, Role, ToolResult
+
+    shot = ToolResult(
+        tool_name="screenshot", content="ok", metadata={"images": ["aW1n"]}
+    )
+    plain = ToolResult(tool_name="file_read", content="text")
+
+    messages: list = []
+    OrchestratorAgent._attach_tool_images(messages, [plain, shot], vision=True)
+    assert len(messages) == 1
+    assert messages[0].role == Role.USER
+    assert messages[0].images == ["aW1n"]
+
+    blind: list[Message] = []
+    OrchestratorAgent._attach_tool_images(blind, [shot], vision=False)
+    OrchestratorAgent._attach_tool_images(blind, [plain], vision=True)
+    assert blind == []
+
+
+@pytest.mark.parametrize("sees", [True, False])
+def test_agent_mode_tells_the_agent_whether_the_model_sees_images(monkeypatch, sees):
+    agent = FakeAgent()
+    monkeypatch.setattr(task_agent, "_build_task_agent", lambda state: agent)
+
+    async def accepts(engine, model):
+        return sees
+
+    monkeypatch.setattr("locus.server.routes._model_accepts_images", accepts)
+    app = create_app(_engine([]), "test-model", config=_config())
+
+    _post(TestClient(app), mode="agent")
+
+    assert agent.contexts[0].metadata["vision"] is sees
+
+
+@pytest.mark.parametrize(
+    "installed, ram, model, is_installed",
+    [
+        ([], 31, "qwen3.5:9b", False),
+        (["qwen3.5:9b"], 16, "qwen3.5:9b", True),
+        (["qwen3.5:4b", "llama3.1:8b", "nomic-embed-text"], 16, "llama3.1:8b", True),
+        (["qwen3.5:27b"], 16, "qwen3.5:9b", False),  # 27b doesn't fit in 16 GB
+        (["qwen3.5:27b", "qwen3.5:9b"], 32, "qwen3.5:27b", True),
+        ([], 8, "qwen3.5:4b", False),
+        ([], 6, "", False),
+    ],
+)
+def test_agent_model_recommendation(installed, ram, model, is_installed):
+    from locus.server.model_capabilities import agent_model_recommendation
+
+    rec = agent_model_recommendation(installed, ram)
+
+    assert rec["model"] == model
+    assert rec["installed"] is is_installed
+    assert rec["reason"]
+
+
+def test_agent_model_endpoint(monkeypatch):
+    import psutil
+
+    engine = _engine([])
+    engine.list_models.return_value = ["qwen3.5:4b"]
+    monkeypatch.setattr(
+        psutil, "virtual_memory", lambda: SimpleNamespace(total=16 * 1024**3)
+    )
+    client = TestClient(create_app(engine, "test-model", config=_config()))
+
+    body = client.get("/v1/agent-model").json()
+
+    assert body == {
+        "model": "qwen3.5:9b",
+        "installed": False,
+        "ram_gb": 16,
+        "reason": "qwen3.5:9b handles tools reliably on 16 GB of memory.",
+    }
