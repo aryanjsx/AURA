@@ -164,6 +164,8 @@ export interface ChatMessage {
   usage?: TokenUsage;
   telemetry?: MessageTelemetry;
   audio?: { url: string };
+  /** An Agent mode task the user stopped; the reply offers Continue. */
+  agentStopped?: boolean;
 }
 
 export interface Conversation {

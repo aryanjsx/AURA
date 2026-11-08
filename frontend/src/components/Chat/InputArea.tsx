@@ -7,6 +7,7 @@ import { fetchSavings, getBase, stopAgentRun } from '../../lib/api';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { serializeToolCallArguments } from '../../lib/tool-call';
 import { isSmallForAgent } from '../../lib/model-capabilities';
+import { stoppedSummary } from '../../lib/agent-stop';
 import {
   engineFromCompletionChunk,
   resolveChatEngine,
@@ -105,6 +106,8 @@ export function InputArea() {
   const abortRef = useRef<AbortController | null>(null);
   // Agent mode run being streamed, so Stop can end it on the server too.
   const agentRunRef = useRef<string | null>(null);
+  // Set when the user stops an Agent mode run (not a model switch).
+  const stoppedByUserRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const activeId = useAppStore((s) => s.activeId);
@@ -265,6 +268,7 @@ export function InputArea() {
     if (agentRunRef.current) {
       void stopAgentRun(agentRunRef.current).catch(() => {});
       agentRunRef.current = null;
+      stoppedByUserRef.current = true;
     }
     abortRef.current?.abort();
     if (timerRef.current) {
@@ -274,8 +278,10 @@ export function InputArea() {
     resetStream();
   }, [resetStream]);
 
-  const sendMessage = useCallback(async () => {
-    const content = input.trim();
+  // `prompt` sends that text instead of the input box (Continue does this).
+  const sendMessage = useCallback(async (prompt?: unknown) => {
+    const fromPrompt = typeof prompt === 'string';
+    const content = (fromPrompt ? prompt : input).trim();
     const attachments = readyAttachments.map((p) => p.meta!);
     if ((!content && attachments.length === 0) || streamState.isStreaming) return;
     if (attachmentsReading) {
@@ -292,7 +298,7 @@ export function InputArea() {
     }
     const searchWeb = webSearch && !deepResearch;
 
-    setInput('');
+    if (!fromPrompt) setInput('');
     setPending([]);
 
     let convId = activeId;
@@ -341,6 +347,7 @@ export function InputArea() {
     const controller = new AbortController();
     abortRef.current = controller;
     agentRunRef.current = null;
+    stoppedByUserRef.current = false;
 
     let accumulatedContent = '';
     let usage: TokenUsage | undefined;
@@ -673,6 +680,13 @@ export function InputArea() {
       for (const tc of toolCalls) {
         if (tc.status === 'awaiting_approval' || tc.status === 'approved') tc.status = 'denied';
       }
+      const stoppedAgent = useAgent && stoppedByUserRef.current;
+      if (stoppedAgent) {
+        accumulatedContent = stoppedSummary(
+          toolCalls,
+          accumulatedContent === '(Generation stopped)' ? '' : accumulatedContent,
+        );
+      }
       if (!accumulatedContent) {
         accumulatedContent = 'No response was generated. Please try again.';
       }
@@ -721,6 +735,7 @@ export function InputArea() {
         researchTraces.length > 0 ? researchTraces : undefined,
         researchSourcesByRef.size > 0 ? flushSources() : undefined,
       );
+      if (stoppedAgent) useAppStore.getState().markLastAssistantStopped(convId, true);
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -761,6 +776,13 @@ export function InputArea() {
     setLastAssistantWebSearch,
     agentMode,
   ]);
+
+  const queuedPrompt = useAppStore((s) => s.queuedPrompt);
+  useEffect(() => {
+    if (!queuedPrompt || streamState.isStreaming) return;
+    useAppStore.getState().queuePrompt(null);
+    void sendMessage(queuedPrompt);
+  }, [queuedPrompt, streamState.isStreaming, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

@@ -9,6 +9,8 @@ import { Copy, Check } from 'lucide-react';
 import { AudioPlayer } from './AudioPlayer';
 import { ToolCallCard } from './ToolCallCard';
 import { TaskPlan, latestPlan } from './TaskPlan';
+import { CONTINUE_PROMPT } from '../../lib/agent-stop';
+import { useAppStore } from '../../lib/store';
 import { ResearchTimeline } from './ResearchTimeline';
 import { AttachmentChip } from './AttachmentChip';
 import { WebSources } from './WebSources';
@@ -99,6 +101,25 @@ function CopyMessageButton({ content }: { content: string }) {
   );
 }
 
+function ContinueButton() {
+  const onClick = () => {
+    const state = useAppStore.getState();
+    if (state.activeId) state.markLastAssistantStopped(state.activeId, false);
+    state.setAgentMode(true);
+    state.queuePrompt(CONTINUE_PROMPT);
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mb-3 px-3 py-1 rounded-md text-xs cursor-pointer"
+      style={{ border: '1px solid var(--color-accent)', color: 'var(--color-accent)', background: 'transparent' }}
+    >
+      Continue
+    </button>
+  );
+}
+
 export function MessageBubble({ message, isLive = false }: Props) {
   const isUser = message.role === 'user';
 
@@ -175,6 +196,9 @@ export function MessageBubble({ message, isLive = false }: Props) {
           ))}
         </div>
       )}
+
+      {/* A stopped Agent mode task can pick up where it left off */}
+      {message.agentStopped && !isLive && <ContinueButton />}
 
       {/* Audio player (e.g. morning digest) */}
       {message.audio?.url && <AudioPlayer src={message.audio.url} />}
