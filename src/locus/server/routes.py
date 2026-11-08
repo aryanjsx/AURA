@@ -259,6 +259,12 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
     """Handle chat completion requests (streaming and non-streaming)."""
     engine = request.app.state.engine
     agent = getattr(request.app.state, "agent", None)
+    if request_body.mode == "chat":
+        agent = None
+    elif request_body.mode == "agent":
+        from locus.server.task_agent import get_task_agent
+
+        agent = await asyncio.to_thread(get_task_agent, request.app.state)
     model = request_body.model
     # Agents take only the latest message's text, which would drop web results,
     # attached documents and images, so those requests go straight to the engine.
@@ -808,6 +814,57 @@ def _handle_agent(
     )
 
 
+def _forward_agent_events(bus, agent, loop, queue: asyncio.Queue):
+    """Queue *agent*'s turn and tool events from *bus* as SSE strings.
+
+    Events from other agents sharing the bus (scheduled or managed agents)
+    are skipped. Returns a function that removes the subscriptions.
+    """
+    if bus is None:
+        return lambda: None
+
+    import json
+
+    from locus.core.events import EventType
+    from locus.server.task_agent import agent_event_ids
+
+    ids = agent_event_ids(agent)
+    names = {
+        EventType.AGENT_TURN_START: "agent_turn_start",
+        EventType.TOOL_CALL_START: "tool_call_start",
+        EventType.TOOL_CALL_END: "tool_call_end",
+    }
+    callbacks = {}
+
+    def make_callback(name):
+        def callback(event):
+            data = event.data or {}
+            if data.get("agent") not in ids:
+                return
+            if name == "agent_turn_start":
+                data = {"agent": data.get("agent")}
+            elif name == "tool_call_start" and not isinstance(
+                data.get("arguments"), str
+            ):
+                # The UI expects arguments as JSON text, as the bus carries
+                # them parsed for trace consumers.
+                data = {**data, "arguments": json.dumps(data.get("arguments"))}
+            sse = f"event: {name}\ndata: {json.dumps(data, default=str)}\n\n"
+            loop.call_soon_threadsafe(queue.put_nowait, sse)
+
+        return callback
+
+    for event_type, name in names.items():
+        callbacks[event_type] = make_callback(name)
+        bus.subscribe(event_type, callbacks[event_type])
+
+    def unsubscribe():
+        for event_type, callback in callbacks.items():
+            bus.unsubscribe(event_type, callback)
+
+    return unsubscribe
+
+
 async def _handle_agent_stream(
     agent,
     model: str,
@@ -844,8 +901,13 @@ async def _handle_agent_stream(
         )
         yield f"data: {first_chunk.model_dump_json()}\n\n"
 
-        try:
-            response = await asyncio.to_thread(
+        # Forward this agent's turn and tool events while it runs, so the UI
+        # can show each tool call as it happens rather than only the answer.
+        loop = asyncio.get_running_loop()
+        live_events: asyncio.Queue = asyncio.Queue()
+        unsubscribe = _forward_agent_events(bus, agent, loop, live_events)
+        task = asyncio.ensure_future(
+            asyncio.to_thread(
                 _handle_agent,
                 agent,
                 model,
@@ -854,6 +916,14 @@ async def _handle_agent_stream(
                 trace_store=trace_store,
                 bus=bus,
             )
+        )
+        task.add_done_callback(
+            lambda _f: loop.call_soon_threadsafe(live_events.put_nowait, None)
+        )
+        try:
+            while (event := await live_events.get()) is not None:
+                yield event
+            response = task.result()
         except Exception as exc:
             logging.getLogger("locus.server").error(
                 "Agent stream error: %s",
@@ -875,6 +945,8 @@ async def _handle_agent_stream(
             yield f"data: {error_chunk.model_dump_json()}\n\n"
             yield "data: [DONE]\n\n"
             return
+        finally:
+            unsubscribe()
 
         content = _response_content(response)
         if content:

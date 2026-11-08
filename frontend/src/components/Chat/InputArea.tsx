@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Send, Square, Paperclip, Search, Globe } from 'lucide-react';
+import { Send, Square, Paperclip, Search, Globe, Bot } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore, generateId } from '../../lib/store';
 import { streamChat, streamResearch } from '../../lib/sse';
 import { fetchSavings, getBase } from '../../lib/api';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { serializeToolCallArguments } from '../../lib/tool-call';
+import { isSmallForAgent } from '../../lib/model-capabilities';
 import {
   engineFromCompletionChunk,
   resolveChatEngine,
@@ -122,6 +123,8 @@ export function InputArea() {
   const webSearch = useAppStore((s) => s.webSearch);
   const setWebSearch = useAppStore((s) => s.setWebSearch);
   const setLastAssistantWebSearch = useAppStore((s) => s.setLastAssistantWebSearch);
+  const agentMode = useAppStore((s) => s.agentMode);
+  const setAgentMode = useAppStore((s) => s.setAgentMode);
   const corpusSync = useResearchCorpusSync(deepResearch);
 
   const [pending, setPending] = useState<PendingAttachment[]>([]);
@@ -188,6 +191,12 @@ export function InputArea() {
   const toggleDeepResearch = () => {
     setDeepResearch(!deepResearch);
     if (!deepResearch && webSearch) setWebSearch(false);
+    if (!deepResearch && agentMode) setAgentMode(false);
+  };
+  // Agent mode and Deep Research both decide how to answer, so only one is on.
+  const toggleAgentMode = () => {
+    setAgentMode(!agentMode);
+    if (!agentMode && deepResearch) setDeepResearch(false);
   };
   const isCurrentChatStreaming = streamState.isStreaming && streamState.conversationId === activeId;
 
@@ -304,6 +313,17 @@ export function InputArea() {
         ...(m.role === 'user' ? await apiAttachmentFields(m.attachments) : {}),
       })),
     );
+    // The agent can't use web results or attached files yet, so a
+    // conversation that has either gets a chat answer.
+    const hasExtras =
+      searchWeb ||
+      apiMessages.some(
+        (m) => ('images' in m && m.images?.length) || ('attachments' in m && m.attachments?.length),
+      );
+    const useAgent = agentMode && !deepResearch && !hasExtras;
+    if (agentMode && !deepResearch && hasExtras) {
+      toast.info("Agent mode can't use web search or attached files yet, so this message gets a chat answer.");
+    }
 
     const assistantMsg: ChatMessage = {
       id: generateId(),
@@ -487,6 +507,7 @@ export function InputArea() {
           temperature,
           max_tokens: maxTokens,
           ...(searchWeb ? { web_search: true } : {}),
+          ...(useAgent ? { mode: 'agent' as const } : {}),
         },
         controller.signal,
       )) {
@@ -692,6 +713,7 @@ export function InputArea() {
     attachmentsReading,
     webSearch,
     setLastAssistantWebSearch,
+    agentMode,
   ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -741,7 +763,35 @@ export function InputArea() {
             <Search size={12} />
             Deep Research
           </button>
+          <button
+            type="button"
+            onClick={toggleAgentMode}
+            disabled={streamState.isStreaming}
+            aria-pressed={agentMode}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs transition-colors cursor-pointer disabled:cursor-default disabled:opacity-50"
+            style={{
+              background: agentMode ? 'var(--color-accent-subtle)' : 'transparent',
+              border: `1px solid ${agentMode ? 'var(--color-accent)' : 'var(--color-border)'}`,
+              color: agentMode ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
+            }}
+            title={
+              agentMode
+                ? 'Agent: on. Locus can use tools, like reading your files, to do what you ask.'
+                : 'Agent: off. Turn on to let Locus use tools to do tasks.'
+            }
+          >
+            <Bot size={12} />
+            Agent
+          </button>
         </div>
+        {agentMode && selectedModel && isSmallForAgent(selectedModel) && (
+          <div
+            className="text-[11px] leading-snug"
+            style={{ color: 'var(--color-text-tertiary)' }}
+          >
+            Small models like {selectedModel} often miss tool calls. A 4B or larger model works better in Agent mode.
+          </div>
+        )}
         {deepResearch && corpusSync.syncing && corpusSync.itemsSynced > 0 && (
           <div
             className="text-[11px] leading-snug"

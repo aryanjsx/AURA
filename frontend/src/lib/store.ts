@@ -44,6 +44,7 @@ const OPTIN_NAME_KEY = 'locus-display-name';
 const OPTIN_EMAIL_KEY = 'locus-email';
 const OPTIN_ANONID_KEY = 'locus-anon-id';
 const WEB_SEARCH_KEY = 'locus-web-search';
+const AGENT_MODE_KEY = 'locus-agent-mode';
 
 interface ConversationStore {
   version: 1;
@@ -214,6 +215,10 @@ interface AppState {
   // Web search toggle (remembered across launches) and what an answer searched
   webSearch: boolean;
   setWebSearch: (on: boolean) => void;
+
+  // Agent mode: answers use a tool-using agent (remembered across launches)
+  agentMode: boolean;
+  setAgentMode: (on: boolean) => void;
   setLastAssistantWebSearch: (
     conversationId: string,
     webSearch: WebSearchInfo,
@@ -501,6 +506,13 @@ export const useAppStore = create<AppState>((set, get) => {
     setWebSearch: (on: boolean) => {
       localStorage.setItem(WEB_SEARCH_KEY, String(on));
       set({ webSearch: on });
+    },
+
+    // ── Agent mode ────────────────────────────────────────────────
+    agentMode: localStorage.getItem(AGENT_MODE_KEY) === 'true',
+    setAgentMode: (on: boolean) => {
+      localStorage.setItem(AGENT_MODE_KEY, String(on));
+      set({ agentMode: on });
     },
     setLastAssistantWebSearch: (conversationId, webSearch, sources) => {
       const store = loadConversations();
