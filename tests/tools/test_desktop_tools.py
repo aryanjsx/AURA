@@ -557,3 +557,152 @@ def test_radio_failures_are_reported(monkeypatch):
 def test_radio_risk(action, risk):
     tool = SystemControlTool()
     assert tool_risk("system_control", tool, {"action": action}) == risk
+
+
+# ── Moving, resizing and snapping windows ────────────────────────
+
+WORK = (0, 40, 1600, 900)  # a screen with a 40 px bar on top
+
+
+@pytest.mark.parametrize(
+    "position, rect",
+    [
+        ("left", (0, 40, 800, 900)),
+        ("right", (800, 40, 800, 900)),
+        ("top", (0, 40, 1600, 450)),
+        ("bottom", (0, 490, 1600, 450)),
+        ("top_left", (0, 40, 800, 450)),
+        ("bottom_right", (800, 490, 800, 450)),
+        ("center", (267, 190, 1066, 600)),
+    ],
+)
+def test_snap_rects(position, rect):
+    current = (10, 50, 500, 400)
+    assert (
+        window_control.placement_rect("snap", {"position": position}, current, WORK)
+        == rect
+    )
+
+
+def test_snapping_an_odd_sized_screen_covers_it():
+    work = (0, 0, 1365, 767)
+    left = window_control.placement_rect("snap", {"position": "left"}, work, work)
+    right = window_control.placement_rect("snap", {"position": "right"}, work, work)
+    assert left[2] + right[2] == 1365
+    assert right[0] == left[2]
+
+
+def test_moves_and_resizes_stay_on_screen():
+    current = (100, 100, 600, 400)
+    place = window_control.placement_rect
+    assert place("move", {"x": 50, "y": 20}, current, WORK) == (50, 60, 600, 400)
+    # Too far right or down: pulled back so the whole window shows.
+    assert place("move", {"x": 5000, "y": 5000}, current, WORK) == (1000, 540, 600, 400)
+    assert place("resize", {"width": 800, "height": 500}, current, WORK) == (
+        100,
+        100,
+        800,
+        500,
+    )
+    # Bigger than the screen, or tiny: limited to the screen and MIN_SIZE.
+    assert place("resize", {"width": 9999, "height": 10}, current, WORK) == (
+        0,
+        100,
+        1600,
+        window_control.MIN_SIZE,
+    )
+
+
+@pytest.mark.parametrize(
+    "params, message",
+    [
+        ({"action": "snap", "title": "x", "position": "middle"}, "Give a position"),
+        ({"action": "move", "title": "x", "x": 10}, "Give x and y"),
+        ({"action": "move", "title": "x", "x": -5, "y": 0}, "can't be negative"),
+        ({"action": "resize", "title": "x", "width": "big", "height": 4}, "Give width"),
+    ],
+)
+def test_placement_arguments_are_checked(monkeypatch, params, message):
+    FakeOS(monkeypatch, "windows")
+    result = WindowControlTool().execute(**params)
+    assert not result.success
+    assert message in result.content
+
+
+def test_snapping_on_windows(monkeypatch):
+    FakeOS(monkeypatch, "windows")
+    placed = []
+    monkeypatch.setattr(
+        window_control, "list_windows", lambda: [(7, "notes.txt - Notepad")]
+    )
+    monkeypatch.setattr(
+        window_control,
+        "_windows_place",
+        lambda hwnd, action, placement: (
+            placed.append((hwnd, action, placement)) or True
+        ),
+    )
+
+    result = WindowControlTool().execute(
+        action="snap", title="notepad", position="top_right"
+    )
+
+    assert result.content == "Snapped notes.txt - Notepad to the top right."
+    assert placed == [(7, "snap", {"position": "top_right"})]
+
+
+def test_snapping_on_linux_uses_the_work_area(monkeypatch):
+    fake = FakeOS(monkeypatch, "linux")
+    outputs = {
+        "-l": "0x05 0 host Editor\n",
+        "-d": "0  * DG: 1920x1080  VP: 0,0  WA: 0,27 1920x1053  Workspace 1\n",
+    }
+
+    def run(args, *, env=None, input=None, timeout=0):
+        fake.calls.append({"args": args})
+        return _os.Completed(0, outputs.get(args[1], ""), "")
+
+    monkeypatch.setattr(_os, "run", run)
+
+    assert (
+        WindowControlTool()
+        .execute(action="snap", title="editor", position="left")
+        .success
+    )
+    assert fake.calls[-1]["args"] == [
+        "wmctrl",
+        "-i",
+        "-r",
+        "0x05",
+        "-e",
+        "0,0,27,960,1053",
+    ]
+    WindowControlTool().execute(action="resize", title="editor", width=900, height=700)
+    assert fake.calls[-1]["args"][-1] == "0,-1,-1,900,700"
+
+
+def test_moving_on_macos(monkeypatch):
+    fake = FakeOS(monkeypatch, "macos")
+
+    def run(args, *, env=None, input=None, timeout=0):
+        fake.calls.append({"args": args})
+        script = args[2] if len(args) > 2 else ""
+        if "bounds of window of desktop" in script:
+            return _os.Completed(0, "0, 0, 1440, 900", "")
+        if "repeat with p in" in script:
+            return _os.Completed(0, "Notes\tShopping list\n", "")
+        return _os.Completed(0, "", "")
+
+    monkeypatch.setattr(_os, "run", run)
+
+    assert (
+        WindowControlTool().execute(action="move", title="shopping", x=10, y=10).success
+    )
+    assert fake.calls[-1]["args"][-6:] == [
+        "Notes",
+        "Shopping list",
+        "10",
+        "35",
+        "-1",
+        "-1",
+    ]

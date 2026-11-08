@@ -1,4 +1,4 @@
-"""List, focus, minimize, maximize and restore windows.
+"""List, focus, minimize, maximize, restore, move, resize and snap windows.
 
 Windows uses the window API through ctypes, macOS uses System Events (Locus
 needs Accessibility permission), and Linux uses wmctrl, which works on X11
@@ -15,14 +15,103 @@ from locus.core.types import ToolResult
 from locus.tools._stubs import BaseTool, ToolSpec
 from locus.tools.desktop import _os
 
-ACTIONS = ("list", "focus", "minimize", "maximize", "restore")
+ACTIONS = (
+    "list",
+    "focus",
+    "minimize",
+    "maximize",
+    "restore",
+    "move",
+    "resize",
+    "snap",
+)
+PLACE_ACTIONS = ("move", "resize", "snap")
+SNAP_POSITIONS = (
+    "left",
+    "right",
+    "top",
+    "bottom",
+    "top_left",
+    "top_right",
+    "bottom_left",
+    "bottom_right",
+    "center",
+)
+#: Smallest window placement Locus will make, so a window can't vanish.
+MIN_SIZE = 200
 
 _PAST = {
     "focus": "Focused",
     "minimize": "Minimized",
     "maximize": "Maximized",
     "restore": "Restored",
+    "move": "Moved",
+    "resize": "Resized",
+    "snap": "Snapped",
 }
+
+#: (left, top, width, height) in screen pixels.
+Rect = Tuple[int, int, int, int]
+
+
+def placement_rect(action: str, placement: dict, current: Rect, work: Rect) -> Rect:
+    """Where a move, resize or snap puts a window.
+
+    ``work`` is the usable area of the window's screen (without the taskbar
+    or menu bar). Move coordinates are relative to it, and the result always
+    stays inside it.
+    """
+    wl, wt, ww, wh = work
+    cx, cy, cw, ch = current
+    if action == "snap":
+        position = placement["position"]
+        half_w, half_h = ww // 2, wh // 2
+        if position == "center":
+            w, h = ww * 2 // 3, wh * 2 // 3
+            return wl + (ww - w) // 2, wt + (wh - h) // 2, w, h
+        x = wl + (half_w if "right" in position else 0)
+        y = wt + (half_h if "bottom" in position else 0)
+        w = ww if position in ("top", "bottom") else half_w
+        h = wh if position in ("left", "right") else half_h
+        if "right" in position:
+            w = ww - half_w
+        if "bottom" in position:
+            h = wh - half_h
+        return x, y, w, h
+    if action == "resize":
+        w = max(MIN_SIZE, min(int(placement["width"]), ww))
+        h = max(MIN_SIZE, min(int(placement["height"]), wh))
+        x, y = cx, cy
+    else:  # move
+        w, h = min(cw, ww), min(ch, wh)
+        x, y = wl + int(placement["x"]), wt + int(placement["y"])
+    x = max(wl, min(x, wl + ww - w))
+    y = max(wt, min(y, wt + wh - h))
+    return x, y, w, h
+
+
+def _number(raw: Any) -> Union[int, None]:
+    try:
+        return int(round(float(raw)))
+    except (TypeError, ValueError):
+        return None
+
+
+def _placement(action: str, params: dict) -> Union[dict, str]:
+    """The move, resize or snap arguments, or a message saying what's wrong."""
+    if action == "snap":
+        position = params.get("position")
+        if position not in SNAP_POSITIONS:
+            return f"Give a position: {', '.join(SNAP_POSITIONS)}."
+        return {"position": position}
+    keys = ("x", "y") if action == "move" else ("width", "height")
+    values = {key: _number(params.get(key)) for key in keys}
+    if any(v is None for v in values.values()):
+        return f"Give {' and '.join(keys)} in pixels."
+    if action == "move" and any(v < 0 for v in values.values()):
+        return "x and y start at the screen's top-left corner; they can't be negative."
+    return values
+
 
 #: (handle, title): the handle is whatever the OS needs to act on the window.
 Window = Tuple[Any, str]
@@ -87,7 +176,45 @@ def _apply(hwnd: int, action: str) -> bool:
     return True
 
 
-def _windows_act(hwnd: int, title: str, action: str) -> Union[None, str]:
+def _windows_place(hwnd: int, action: str, placement: dict) -> bool:
+    import ctypes
+    from ctypes import wintypes
+
+    class MONITORINFO(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", wintypes.DWORD),
+            ("rcMonitor", wintypes.RECT),
+            ("rcWork", wintypes.RECT),
+            ("dwFlags", wintypes.DWORD),
+        ]
+
+    user32 = ctypes.windll.user32  # type: ignore[attr-defined]
+    if user32.IsIconic(hwnd) or user32.IsZoomed(hwnd):
+        user32.ShowWindow(hwnd, _SW["restore"])
+    rect = wintypes.RECT()
+    user32.GetWindowRect(hwnd, ctypes.byref(rect))
+    info = MONITORINFO()
+    info.cbSize = ctypes.sizeof(MONITORINFO)
+    monitor = user32.MonitorFromWindow(hwnd, 2)  # MONITOR_DEFAULTTONEAREST
+    user32.GetMonitorInfoW(monitor, ctypes.byref(info))
+    work = info.rcWork
+    x, y, w, h = placement_rect(
+        action,
+        placement,
+        (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top),
+        (work.left, work.top, work.right - work.left, work.bottom - work.top),
+    )
+    # SWP_NOZORDER | SWP_NOACTIVATE: change only position and size.
+    return bool(user32.SetWindowPos(hwnd, 0, x, y, w, h, 0x0014))
+
+
+def _windows_act(
+    hwnd: int, title: str, action: str, placement: Union[dict, None] = None
+) -> Union[None, str]:
+    if action in PLACE_ACTIONS:
+        if not _windows_place(hwnd, action, placement or {}):
+            return f"Windows didn't let Locus move {title}."
+        return None
     if not _apply(hwnd, action):
         return f"Windows didn't let Locus focus {title}."
     return None
@@ -128,6 +255,36 @@ _MAC_ACT = """on run argv
 end run"""
 
 
+_MAC_PLACE = """on run argv
+  set appName to item 1 of argv
+  set winName to item 2 of argv
+  set x to (item 3 of argv) as integer
+  set y to (item 4 of argv) as integer
+  set w to (item 5 of argv) as integer
+  set h to (item 6 of argv) as integer
+  tell application "System Events"
+    tell process appName
+      set win to (first window whose name is winName)
+      set value of attribute "AXMinimized" of win to false
+      if x >= 0 and y >= 0 then set position of win to {x, y}
+      if w > 0 and h > 0 then set size of win to {w, h}
+    end tell
+  end tell
+end run"""
+_MAC_SCREEN = 'tell application "Finder" to get bounds of window of desktop'
+_MAC_MENU_BAR = 25
+
+
+def _mac_work_area() -> Union[Rect, None]:
+    done = _os.run(["osascript", "-e", _MAC_SCREEN])
+    try:
+        left, top, right, bottom = (int(v) for v in done.stdout.split(","))
+    except ValueError:
+        return None
+    top = max(top, _MAC_MENU_BAR)
+    return left, top, right - left, bottom - top
+
+
 def _mac_windows() -> Union[List[Window], ToolResult]:
     done = _os.run(["osascript", "-e", _MAC_LIST])
     if not done.ok:
@@ -144,8 +301,30 @@ def _mac_windows() -> Union[List[Window], ToolResult]:
     return windows
 
 
-def _mac_act(handle: Tuple[str, str], title: str, action: str) -> Union[None, str]:
+def _mac_act(
+    handle: Tuple[str, str],
+    title: str,
+    action: str,
+    placement: Union[dict, None] = None,
+) -> Union[None, str]:
     app, name = handle
+    if action in PLACE_ACTIONS:
+        placement = placement or {}
+        if action == "resize":
+            x, y = -1, -1
+            w, h = (max(MIN_SIZE, placement[k]) for k in ("width", "height"))
+        else:
+            work = _mac_work_area()
+            if work is None:
+                return "Couldn't read the screen size."
+            if action == "move":
+                x, y = work[0] + placement["x"], work[1] + placement["y"]
+                w = h = -1
+            else:
+                x, y, w, h = placement_rect("snap", placement, work, work)
+        args = [str(v) for v in (x, y, w, h)]
+        done = _os.run(["osascript", "-e", _MAC_PLACE, app, name, *args])
+        return None if done.ok else f"Couldn't move {title}: {done.error()}"
     done = _os.run(["osascript", "-e", _MAC_ACT, app, name, action])
     return None if done.ok else f"Couldn't change {title}: {done.error()}"
 
@@ -175,7 +354,45 @@ def _linux_windows() -> Union[List[Window], ToolResult]:
     return windows
 
 
-def _linux_act(window_id: str, title: str, action: str) -> Union[None, str]:
+def _linux_work_area() -> Union[Rect, None]:
+    done = _os.run(["wmctrl", "-d"])
+    for line in done.stdout.splitlines():
+        parts = line.split()
+        if len(parts) > 1 and parts[1] == "*" and "WA:" in parts:
+            i = parts.index("WA:")
+            try:
+                x, y = (int(v) for v in parts[i + 1].split(","))
+                w, h = (int(v) for v in parts[i + 2].split("x"))
+            except (IndexError, ValueError):
+                return None
+            return x, y, w, h
+    return None
+
+
+def _linux_act(
+    window_id: str, title: str, action: str, placement: Union[dict, None] = None
+) -> Union[None, str]:
+    if action in PLACE_ACTIONS:
+        placement = placement or {}
+        if action == "resize":
+            geometry = (
+                -1,
+                -1,
+                *(max(MIN_SIZE, placement[k]) for k in ("width", "height")),
+            )
+        else:
+            work = _linux_work_area()
+            if work is None:
+                return "Couldn't read the screen's work area from wmctrl."
+            if action == "move":
+                geometry = (work[0] + placement["x"], work[1] + placement["y"], -1, -1)
+            else:
+                geometry = placement_rect("snap", placement, work, work)
+        _os.run(["wmctrl", "-i", "-r", window_id, "-b", _WMCTRL_STATES["restore"]])
+        done = _os.run(
+            ["wmctrl", "-i", "-r", window_id, "-e", "0," + ",".join(map(str, geometry))]
+        )
+        return None if done.ok else f"Couldn't move {title}: {done.error()}"
     if action in _WMCTRL_STATES:
         done = _os.run(["wmctrl", "-i", "-r", window_id, "-b", _WMCTRL_STATES[action]])
         if not done.ok:
@@ -209,9 +426,13 @@ class WindowControlTool(BaseTool):
             name="window_control",
             description=(
                 "Work with open windows. 'list' shows window titles. 'focus',"
-                " 'minimize', 'maximize' and 'restore' act on the first window"
-                " whose title contains 'title' (not case-sensitive). To close"
-                " an app, use app_control instead."
+                " 'minimize', 'maximize', 'restore', 'move', 'resize' and 'snap'"
+                " act on the first window whose title contains 'title' (not"
+                " case-sensitive). 'move' takes x and y and 'resize' takes width"
+                " and height, in pixels from the top-left of the screen's usable"
+                " area. 'snap' puts the window in a 'position' (left, right, top,"
+                " bottom, top_left, top_right, bottom_left, bottom_right or"
+                " center). To close an app, use app_control instead."
             ),
             parameters={
                 "type": "object",
@@ -221,6 +442,11 @@ class WindowControlTool(BaseTool):
                         "type": "string",
                         "description": "Part of the window's title, like 'Notepad'.",
                     },
+                    "x": {"type": "number"},
+                    "y": {"type": "number"},
+                    "width": {"type": "number"},
+                    "height": {"type": "number"},
+                    "position": {"type": "string", "enum": list(SNAP_POSITIONS)},
                 },
                 "required": ["action"],
             },
@@ -238,6 +464,11 @@ class WindowControlTool(BaseTool):
         if platform is None:
             return _os.unsupported("window_control", "Controlling windows")
         list_fn, act_fn = platform
+        placement = None
+        if action in PLACE_ACTIONS:
+            placement = _placement(action, params)
+            if isinstance(placement, str):
+                return _os.fail("window_control", placement)
 
         windows = list_fn()
         if isinstance(windows, ToolResult):
@@ -256,10 +487,19 @@ class WindowControlTool(BaseTool):
                 "window_control", f"No open window has {wanted!r} in its title."
             )
         handle, title = match
-        error = act_fn(handle, title, action)
+        error = (
+            act_fn(handle, title, action, placement)
+            if placement is not None
+            else act_fn(handle, title, action)
+        )
         if error:
             return _os.fail("window_control", error)
-        return _os.ok("window_control", f"{_PAST[action]} {title}.")
+        where = (
+            f" to the {placement['position'].replace('_', ' ')}"
+            if action == "snap"
+            else ""
+        )
+        return _os.ok("window_control", f"{_PAST[action]} {title}{where}.")
 
 
 __all__ = ["WindowControlTool", "list_windows"]
