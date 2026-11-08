@@ -6,13 +6,13 @@ import { streamChat, streamResearch } from '../../lib/sse';
 import { fetchSavings, getBase, isTauri, stopAgentRun } from '../../lib/api';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { serializeToolCallArguments } from '../../lib/tool-call';
-import { isSmallForAgent } from '../../lib/model-capabilities';
 import { stoppedSummary } from '../../lib/agent-stop';
 import {
   engineFromCompletionChunk,
   resolveChatEngine,
 } from '../../lib/chat-telemetry';
 import { MicButton } from './MicButton';
+import { AgentModelHint } from './AgentModelHint';
 import { AttachmentChip } from './AttachmentChip';
 import { useSpeech } from '../../hooks/useSpeech';
 import { useHandsFree } from '../../hooks/useHandsFree';
@@ -931,14 +931,7 @@ export function InputArea() {
             )}
           </div>
         </div>
-        {agentMode && selectedModel && isSmallForAgent(selectedModel) && (
-          <div
-            className="text-[11px] leading-snug"
-            style={{ color: 'var(--color-text-tertiary)' }}
-          >
-            Small models like {selectedModel} often miss tool calls. A 4B or larger model works better in Agent mode.
-          </div>
-        )}
+        {agentMode && selectedModel && <AgentModelHint selectedModel={selectedModel} />}
         {deepResearch && corpusSync.syncing && corpusSync.itemsSynced > 0 && (
           <div
             className="text-[11px] leading-snug"

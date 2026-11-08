@@ -544,6 +544,22 @@ async def answer_approval(approval_id: str, body: ApprovalAnswer):
     return {"id": approval_id, "decision": body.decision}
 
 
+@router.get("/v1/agent-model")
+async def agent_model(request: Request):
+    """The model Agent mode works best with on this computer."""
+    import psutil
+
+    from locus.server.model_capabilities import agent_model_recommendation
+
+    engine = request.app.state.engine
+    try:
+        installed = list(await asyncio.to_thread(engine.list_models))
+    except Exception:
+        installed = []
+    ram_gb = psutil.virtual_memory().total / 1024**3
+    return agent_model_recommendation(installed, ram_gb)
+
+
 @router.get("/v1/chat/permissions")
 async def list_agent_permissions():
     """Agent mode's "always allow" rules."""

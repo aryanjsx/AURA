@@ -1273,3 +1273,18 @@ export async function removeAgentPermission(key: string): Promise<void> {
   const res = await apiFetch(`/v1/chat/permissions/${encodeURIComponent(key)}`, { method: 'DELETE' });
   if (!res.ok && res.status !== 404) throw new Error(`Could not remove the rule: ${res.status}`);
 }
+
+export interface AgentModelRecommendation {
+  /** Empty when the computer has too little memory for Agent mode. */
+  model: string;
+  installed: boolean;
+  ram_gb: number;
+  reason: string;
+}
+
+/** The model Agent mode works best with on this computer. */
+export async function fetchAgentModel(): Promise<AgentModelRecommendation> {
+  const res = await apiFetch('/v1/agent-model');
+  if (!res.ok) throw new Error(`Could not get a model suggestion: ${res.status}`);
+  return res.json();
+}
