@@ -16,6 +16,8 @@ export interface ChatRequest {
   max_tokens?: number;
   /** Search the web for the latest user message before answering. */
   web_search?: boolean;
+  /** "agent" runs a tool-using agent; "chat" answers with the model alone. */
+  mode?: 'chat' | 'agent';
 }
 
 export async function* streamChat(

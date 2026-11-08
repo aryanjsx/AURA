@@ -133,6 +133,7 @@ uv run pytest tests/ -v
 | `code-assistant` | Agent with code execution, file I/O, and shell access |
 | `scheduled-monitor` | Stateful agent on a schedule with memory |
 | `chat-simple` | Lightweight conversation, no tools |
+| `assistant` | Agent that reads files, PDFs and its memory to do tasks |
 
 Example:
 

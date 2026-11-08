@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -44,6 +44,9 @@ class ChatCompletionRequest(BaseModel):
     tools: Optional[List[Dict[str, Any]]] = None
     # Locus extension: search the web for the latest user message first.
     web_search: bool = False
+    # Locus extension: "chat" answers with the model alone, "agent" runs a
+    # tool-using agent. Unset keeps the server's configured agent.
+    mode: Optional[Literal["chat", "agent"]] = None
 
 
 # ---------------------------------------------------------------------------
