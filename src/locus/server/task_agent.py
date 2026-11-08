@@ -28,6 +28,14 @@ ASSISTANT_TOOLS = (
     "git_log",
     "file_write",
     "shell_exec",
+    # Desktop control (locus.tools.desktop)
+    "open_path",
+    "app_control",
+    "window_control",
+    "system_control",
+    "clipboard",
+    "notify",
+    "screenshot",
 )
 
 #: Agent mode tasks take more steps than chat; ``agent.max_turns`` can raise it.

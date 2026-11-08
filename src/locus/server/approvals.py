@@ -55,11 +55,22 @@ RUN_TOOLS = frozenset(
 APPROVAL_TIMEOUT_SECONDS = 300.0
 
 
-def tool_risk(name: str, tool: Any = None) -> Risk:
-    """Classify a tool call. Unknown tools ask, so new tools fail closed."""
+def tool_risk(name: str, tool: Any = None, arguments: Optional[dict] = None) -> Risk:
+    """Classify a tool call. Unknown tools ask, so new tools fail closed.
+
+    A tool whose risk depends on what it's asked to do (listing windows vs
+    closing an app) can define ``risk_for(arguments)``.
+    """
     spec = getattr(tool, "spec", None)
     if name in RUN_TOOLS or getattr(spec, "requires_confirmation", False):
         return "run"
+    risk_for = getattr(tool, "risk_for", None)
+    if callable(risk_for):
+        try:
+            risk = risk_for(arguments or {})
+        except Exception:
+            risk = "change"
+        return risk if risk in ("read", "change", "run") else "change"
     if name in READ_ONLY_TOOLS:
         return "read"
     return "change"
@@ -150,7 +161,7 @@ class ApprovalSession:
         """Return whether *tool_name* may run, asking the user if needed."""
         if self.cancelled.is_set():
             raise AgentCancelled()
-        risk = tool_risk(tool_name, self._tools.get(tool_name))
+        risk = tool_risk(tool_name, self._tools.get(tool_name), arguments)
         if risk == "read" or tool_name in self._allowed_tools:
             return True
 

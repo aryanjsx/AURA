@@ -35,7 +35,35 @@ export function describeToolCall(tool: string, argumentsText: string): string {
   if (tool === 'file_write' && text('path')) {
     return text('mode') === 'append' ? `Add to ${text('path')}` : `Write ${text('path')}`;
   }
+  const action = text('action');
+  const level = typeof args.level === 'number' ? `${args.level}%` : '';
+  if (tool === 'open_path' && text('path')) return `Open ${text('path')}`;
+  if (tool === 'app_control' && text('name')) {
+    if (action === 'open') return `Open the app ${text('name')}`;
+    if (action === 'close') return `Close ${text('name')}`;
+  }
+  if (tool === 'system_control') {
+    const settings: Record<string, string> = {
+      set_volume: `Set the volume to ${level}`,
+      mute: 'Mute the speakers',
+      unmute: 'Unmute the speakers',
+      set_brightness: `Set the screen brightness to ${level}`,
+      dark_mode: 'Switch to dark mode',
+      light_mode: 'Switch to light mode',
+      lock_screen: 'Lock the screen',
+    };
+    if (settings[action]) return settings[action];
+  }
+  if (tool === 'clipboard') {
+    if (action === 'read') return 'Read the text on your clipboard';
+    if (action === 'write') return 'Copy text to your clipboard';
+  }
+  if (tool === 'screenshot') return 'Take a screenshot of your screen';
   return `Use ${tool}`;
+}
+
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
 function ApprovalPrompt({ toolCall, argumentsText }: { toolCall: ToolCallInfo; argumentsText: string }) {
@@ -77,8 +105,8 @@ function ApprovalPrompt({ toolCall, argumentsText }: { toolCall: ToolCallInfo; a
       }}
     >
       <div style={{ color: 'var(--color-text)', fontSize: 12 }}>
-        {toolCall.risk === 'run' ? 'Locus wants to run a command:' : 'Locus wants to make a change:'}{' '}
-        <span style={{ fontWeight: 500 }}>{describeToolCall(toolCall.tool, argumentsText)}</span>
+        Allow Locus to{' '}
+        <span style={{ fontWeight: 500 }}>{lowerFirst(describeToolCall(toolCall.tool, argumentsText))}</span>?
       </div>
       <div className="flex flex-wrap gap-1.5">
         {button('Allow', 'approve', true)}

@@ -33,6 +33,7 @@ Locus is that stack. It is a framework for local-first personal AI, built around
 - **Attach files and images:** drop documents (PDF, Word, Excel, PowerPoint, OpenDocument, EPUB, HTML, CSV, code, plain text and more) or images into a chat and ask about them. Images need a vision model such as `qwen3.5` or `gemma3`.
 - **Search the web:** turn on **Web search** and Locus looks up your question online first, reads the top pages, and answers with numbered links to its sources. It's off until you turn it on, since it sends your question to a search engine.
 - **Work with your files:** read and write files and PDFs, search your own documents, run code in a sandbox, and remember facts between conversations.
+- **Control your PC:** in Agent mode, open apps, files and folders, arrange windows, change the volume, brightness and theme, lock the screen, use the clipboard, take screenshots, and set reminders. Locus asks in the chat before anything that changes something.
 - **Connect your apps:** Gmail, Outlook, Google Calendar, Google Drive, Dropbox, Notion, Obsidian, GitHub, Slack and more, each only after you sign in.
 - **Reply on messaging apps:** run it as a bot on Telegram, Slack, Discord, WhatsApp, Teams, Signal, email, SMS and about 25 other channels.
 - **Do tasks on its own:** deep research reports, a daily morning digest, and agents that run on a schedule.

@@ -100,6 +100,22 @@ Most of the agent machinery is in the repo. The gap is mostly wiring and UX.
 
 **Goal:** the agent can operate the computer, not only files and the browser.
 
+> **Status (2026-11-08): implemented (Windows fully; macOS and Linux partly).** As built, in `src/locus/tools/desktop/`:
+> - **Shared OS layer:** `_os.py` runs commands without a shell. Values from the model reach PowerShell only as `LOCUS_ARG_*` environment variables, or other commands as separate arguments, so a title or name can't inject a command. No new dependencies: Windows uses PowerShell, `ctypes` and `winreg`.
+> - **Per-call risk:** tools can define `risk_for(arguments)`, so listing windows doesn't ask but closing an app does. `server/approvals.py` uses it; `requires_confirmation` still forces `run`.
+>
+> | Tool | Actions | Asks? | Windows | macOS | Linux |
+> |---|---|---|---|---|---|
+> | `open_path` | Open a file, folder or http(s) link | Files: no. Programs (`.exe`, `.ps1`, `.lnk`…): always. Links: yes | Yes | Yes | Yes (`xdg-open`) |
+> | `app_control` | list, open, close (graceful, like clicking X) | list: no. open/close: yes | Yes | Yes | open only |
+> | `window_control` | list, focus, minimize, maximize, restore (by title) | No | Yes | Not yet | Not yet |
+> | `system_control` | get/set volume, mute, unmute, brightness, dark/light mode, lock screen | get_volume: no. Rest: yes | Yes (brightness on laptops) | No brightness | Volume (`pactl`), lock |
+> | `clipboard` | read, write | Yes (reading can expose private text) | Yes | Yes | With `wl-clipboard` or `xclip` |
+> | `notify` | Notification now, or a timer/reminder up to 24h | No | Yes (toast) | Yes | Yes (`notify-send`) |
+> | `screenshot` | Whole screen to `~/.locus/screenshots` | Yes | Yes | Yes | With `gnome-screenshot` or `grim` |
+>
+> - **Not done yet:** Wi-Fi and Bluetooth toggles, moving and snapping windows, macOS and Linux window control, sending screenshots to vision models, and reminders that survive a restart (they live in the running app).
+
 New tools under `src/locus/tools/desktop/`, one module per OS behind a common interface (Windows first, since that's where the desktop app is most used, then macOS, then Linux):
 
 | Tool | Actions | Risk |
