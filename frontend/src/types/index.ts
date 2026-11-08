@@ -47,6 +47,9 @@ export interface ToolCallInfo {
   approvalId?: string;
   /** `change` writes something, `run` runs a command or code. */
   risk?: 'change' | 'run';
+  /** Set when the change can be undone with `undoChange`. */
+  undoId?: string;
+  undone?: boolean;
 }
 
 export interface TokenUsage {

@@ -614,6 +614,7 @@ export function InputArea() {
               tc.status = data.success ? 'success' : 'error';
               tc.latency = data.latency;
               tc.result = data.result;
+              if (data.metadata?.undo_id) tc.undoId = data.metadata.undo_id;
             }
             setStreamState({
               phase: 'Generating...',

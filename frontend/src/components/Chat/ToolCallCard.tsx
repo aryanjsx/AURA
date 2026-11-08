@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Loader2, CheckCircle2, XCircle, ShieldQuestion, Ban } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, CheckCircle2, XCircle, ShieldQuestion, Ban, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ToolCallInfo } from '../../types';
 import { serializeToolCallArguments } from '../../lib/tool-call';
-import { answerApproval, type ApprovalDecision } from '../../lib/api';
+import { answerApproval, undoChange, type ApprovalDecision } from '../../lib/api';
 
 interface Props {
   toolCall: ToolCallInfo;
@@ -136,6 +136,55 @@ function previewArgs(raw: string): string {
   return raw.length > 60 ? `${raw.slice(0, 60)}…` : raw;
 }
 
+function UndoButton({ toolCall }: { toolCall: ToolCallInfo }) {
+  const [state, setState] = useState<'ready' | 'working' | 'done'>(toolCall.undone ? 'done' : 'ready');
+  if (state === 'done') {
+    return <span style={{ color: 'var(--color-text-tertiary)', fontSize: 10, flexShrink: 0 }}>Undone</span>;
+  }
+  const undo = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!toolCall.undoId) return;
+    setState('working');
+    try {
+      const { ok, message } = await undoChange(toolCall.undoId);
+      if (ok) {
+        toolCall.undone = true;
+        setState('done');
+        toast.success(message);
+      } else {
+        setState('ready');
+        toast.error(message);
+      }
+    } catch (err: any) {
+      setState('ready');
+      toast.error(err?.message || 'Could not undo the change.');
+    }
+  };
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={undo}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') undo(e as any);
+      }}
+      aria-disabled={state === 'working'}
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer"
+      style={{
+        color: 'var(--color-text-secondary)',
+        border: '1px solid var(--color-border)',
+        fontSize: 10,
+        flexShrink: 0,
+        opacity: state === 'working' ? 0.5 : 1,
+      }}
+      title="Put the file back the way it was"
+    >
+      <Undo2 size={10} />
+      Undo
+    </span>
+  );
+}
+
 export function ToolCallCard({ toolCall }: Props) {
   const [expanded, setExpanded] = useState(false);
   const config = statusConfig[toolCall.status] ?? statusConfig.running;
@@ -184,6 +233,7 @@ export function ToolCallCard({ toolCall }: Props) {
           </span>
         )}
         <div className="flex-1" />
+        {toolCall.status === 'success' && toolCall.undoId && <UndoButton toolCall={toolCall} />}
         {toolCall.status === 'denied' && (
           <span style={{ color: 'var(--color-text-tertiary)', fontSize: 10, flexShrink: 0 }}>
             Denied

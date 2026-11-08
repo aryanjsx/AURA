@@ -527,6 +527,17 @@ async def answer_approval(approval_id: str, body: ApprovalAnswer):
     return {"id": approval_id, "decision": body.decision}
 
 
+@router.post("/v1/chat/undo/{undo_id}")
+async def undo_file_change(undo_id: str):
+    """Undo a file change from Agent mode (``undo_id`` in ``tool_call_end``)."""
+    from locus.tools.undo_journal import get_journal
+
+    done, message = await asyncio.to_thread(get_journal().undo, undo_id)
+    if not done:
+        raise HTTPException(status_code=409, detail=message)
+    return {"undo_id": undo_id, "message": message}
+
+
 @router.post("/v1/chat/runs/{run_id}/stop")
 async def stop_agent_run(run_id: str):
     """Stop the agent run announced by an ``agent_run`` event."""

@@ -85,6 +85,11 @@ def _assistant_tools(config: Any) -> list:
         # folder unless the user configured something narrower or wider.
         if name in ("file_read", "file_write") and not kwargs.get("allowed_dirs"):
             kwargs["allowed_dirs"] = [str(Path.home())]
+        if name == "file_write":
+            # Same tool, but each change can be undone from the chat.
+            from locus.tools.undo_journal import UndoableFileWriteTool
+
+            tool_cls = UndoableFileWriteTool
         tools.append(tool_cls(**kwargs))
     return tools
 

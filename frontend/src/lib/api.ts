@@ -1247,3 +1247,10 @@ export async function answerApproval(id: string, decision: ApprovalDecision): Pr
 export async function stopAgentRun(runId: string): Promise<void> {
   await apiFetch(`/v1/chat/runs/${encodeURIComponent(runId)}/stop`, { method: 'POST' });
 }
+
+/** Undo an Agent mode file change. Resolves to the server's message. */
+export async function undoChange(undoId: string): Promise<{ ok: boolean; message: string }> {
+  const res = await apiFetch(`/v1/chat/undo/${encodeURIComponent(undoId)}`, { method: 'POST' });
+  const body = await res.json().catch(() => ({}));
+  return { ok: res.ok, message: body.message ?? body.detail ?? `Undo failed: ${res.status}` };
+}
