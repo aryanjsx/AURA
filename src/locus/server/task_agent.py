@@ -95,6 +95,60 @@ def _assistant_tools(config: Any) -> list:
 
 
 def _build_task_agent(state: Any) -> Any:
+    return _build_agent(
+        state,
+        tools=_assistant_tools(getattr(state, "config", None)),
+        agent_id=ASSISTANT_AGENT_ID,
+    )
+
+
+DEVELOPER_AGENT_ID = "developer"
+
+#: Developer agents kept per project folder (oldest dropped past this).
+MAX_DEVELOPER_AGENTS = 8
+
+
+def get_developer_agent(state: Any, project_dir: Optional[str]) -> Any:
+    """The developer mode agent for *project_dir*.
+
+    Raises ``ValueError`` (with a message for the user) if the folder can't
+    be used.
+    """
+    from locus.server.developer import resolve_project_dir
+
+    project = resolve_project_dir(project_dir)
+    with _build_lock:
+        agents = getattr(state, "developer_agents", None)
+        if agents is None:
+            agents = {}
+            state.developer_agents = agents
+        agent = agents.get(str(project))
+        if agent is None:
+            agent = _build_developer_agent(state, project)
+            if len(agents) >= MAX_DEVELOPER_AGENTS:
+                agents.pop(next(iter(agents)))
+            agents[str(project)] = agent
+        return agent
+
+
+def _build_developer_agent(state: Any, project: Path) -> Any:
+    from locus.server.developer import developer_prompt, developer_tools
+
+    return _build_agent(
+        state,
+        tools=developer_tools(project, getattr(state, "config", None)),
+        agent_id=DEVELOPER_AGENT_ID,
+        system_prompt=developer_prompt(project),
+    )
+
+
+def _build_agent(
+    state: Any,
+    *,
+    tools: list,
+    agent_id: str,
+    system_prompt: Optional[str] = None,
+) -> Any:
     import inspect
 
     import locus.agents  # noqa: F401  # trigger registration
@@ -110,8 +164,8 @@ def _build_task_agent(state: Any) -> Any:
     agent_cls = AgentRegistry.get("orchestrator")
     kwargs: dict[str, Any] = {
         "bus": bus,
-        "tools": _assistant_tools(config),
-        "agent_id": ASSISTANT_AGENT_ID,
+        "tools": tools,
+        "agent_id": agent_id,
         "max_turns": MIN_MAX_TURNS,
         "before_tool_call": before_tool_call,
         # The hook asks the user first, so the executor may run tools marked
@@ -122,22 +176,28 @@ def _build_task_agent(state: Any) -> Any:
         # threads wouldn't see the run's approval session.
         "parallel_tools": False,
     }
+    if system_prompt:
+        kwargs["system_prompt"] = system_prompt
     if config is not None:
         kwargs["max_turns"] = max(config.agent.max_turns, MIN_MAX_TURNS)
-        if "prompt_builder" in inspect.signature(agent_cls.__init__).parameters:
-            from locus.prompt.builder import SystemPromptBuilder
+    if (
+        config is not None
+        and not system_prompt
+        and "prompt_builder" in inspect.signature(agent_cls.__init__).parameters
+    ):
+        from locus.prompt.builder import SystemPromptBuilder
 
-            kwargs["prompt_builder"] = SystemPromptBuilder(
-                agent_template=config.agent.default_system_prompt or "",
-                memory_files_config=config.memory_files,
-                system_prompt_config=config.system_prompt,
-            )
+        kwargs["prompt_builder"] = SystemPromptBuilder(
+            agent_template=config.agent.default_system_prompt or "",
+            memory_files_config=config.memory_files,
+            system_prompt_config=config.system_prompt,
+        )
     kwargs.update(
         agent_security_kwargs(
             agent_cls,
             capability_policy=capability_policy,
             rate_limiter=rate_limiter,
-            agent_id=ASSISTANT_AGENT_ID,
+            agent_id=agent_id,
         )
     )
 
@@ -147,7 +207,7 @@ def _build_task_agent(state: Any) -> Any:
         bus=bus,
         capability_policy=capability_policy,
         rate_limiter=rate_limiter,
-        agent_id=ASSISTANT_AGENT_ID,
+        agent_id=agent_id,
     )
     return agent
 

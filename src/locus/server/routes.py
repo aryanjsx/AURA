@@ -267,6 +267,15 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
         from locus.server.task_agent import get_task_agent
 
         agent = await asyncio.to_thread(get_task_agent, request.app.state)
+    elif request_body.mode == "developer":
+        from locus.server.task_agent import get_developer_agent
+
+        try:
+            agent = await asyncio.to_thread(
+                get_developer_agent, request.app.state, request_body.project_dir
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     model = request_body.model
     # Agent mode passes web results, attached documents and images to its agent
     # (see _handle_agent). Other requests with them keep going straight to the
@@ -277,7 +286,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
     use_server_agent = (
         agent is not None
         and not request_body.tools
-        and (request_body.mode == "agent" or not has_extras)
+        and (request_body.mode in ("agent", "developer") or not has_extras)
         and (not request_body.stream or bool(getattr(agent, "_tools", None)))
     )
 

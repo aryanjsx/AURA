@@ -32,7 +32,8 @@ describe('describeToolCall', () => {
   });
 
   it('falls back to the tool name', () => {
-    expect(describeToolCall('git_commit', '{"message":"m"}')).toBe('Use git_commit');
+    expect(describeToolCall('git_commit', '{"message":"m"}')).toBe('Commit "m"');
+    expect(describeToolCall('new_tool', '{}')).toBe('Use new_tool');
     expect(describeToolCall('shell_exec', 'not json')).toBe('Use shell_exec');
   });
 });

@@ -8,6 +8,7 @@ the file still holds what the agent wrote, so later edits are never lost.
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import threading
@@ -143,6 +144,31 @@ class UndoableFileWriteTool(FileWriteTool):
         if not path.is_absolute() and self._allowed_dirs:
             path = self._allowed_dirs[0] / path
         return path
+
+    def preview_for(self, arguments: dict) -> Optional[str]:
+        """A diff of the change, shown in the approval before it's written."""
+        path = self._target(arguments.get("path"))
+        content = arguments.get("content")
+        if path is None or not isinstance(content, str):
+            return None
+        old = ""
+        if path.is_file():
+            try:
+                if path.stat().st_size > MAX_BACKUP_BYTES:
+                    return None
+                old = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                return None
+        new = old + content if arguments.get("mode") == "append" else content
+        if new == old:
+            return f"No change to {path}."
+        diff = difflib.unified_diff(
+            old.splitlines(keepends=True),
+            new.splitlines(keepends=True),
+            fromfile=str(path) if path.exists() else "/dev/null",
+            tofile=str(path),
+        )
+        return "".join(diff)
 
     def execute(self, **params: Any) -> ToolResult:
         path = self._target(params.get("path"))

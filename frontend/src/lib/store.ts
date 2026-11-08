@@ -45,6 +45,7 @@ const OPTIN_EMAIL_KEY = 'locus-email';
 const OPTIN_ANONID_KEY = 'locus-anon-id';
 const WEB_SEARCH_KEY = 'locus-web-search';
 const AGENT_MODE_KEY = 'locus-agent-mode';
+const PROJECT_DIR_KEY = 'locus-project-dir';
 
 interface ConversationStore {
   version: 1;
@@ -223,6 +224,9 @@ interface AppState {
   agentMode: boolean;
   setAgentMode: (on: boolean) => void;
   markLastAssistantStopped: (conversationId: string, stopped: boolean) => void;
+  // Developer mode: Agent mode works inside this project folder
+  projectDir: string | null;
+  setProjectDir: (dir: string | null) => void;
 
   // A message for the chat input to send (Continue on a stopped task)
   queuedPrompt: string | null;
@@ -526,6 +530,13 @@ export const useAppStore = create<AppState>((set, get) => {
       localStorage.setItem(AGENT_MODE_KEY, String(on));
       set({ agentMode: on });
     },
+    projectDir: localStorage.getItem(PROJECT_DIR_KEY) || null,
+    setProjectDir: (dir) => {
+      if (dir) localStorage.setItem(PROJECT_DIR_KEY, dir);
+      else localStorage.removeItem(PROJECT_DIR_KEY);
+      set({ projectDir: dir });
+    },
+
     markLastAssistantStopped: (conversationId, stopped) => {
       const store = loadConversations();
       const conv = store.conversations[conversationId];

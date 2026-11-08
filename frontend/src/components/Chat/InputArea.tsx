@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Send, Square, Paperclip, Search, Globe, Bot } from 'lucide-react';
+import { Send, Square, Paperclip, Search, Globe, Bot, FolderCode, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore, generateId } from '../../lib/store';
 import { streamChat, streamResearch } from '../../lib/sse';
-import { fetchSavings, getBase, stopAgentRun } from '../../lib/api';
+import { fetchSavings, getBase, isTauri, stopAgentRun } from '../../lib/api';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { serializeToolCallArguments } from '../../lib/tool-call';
 import { isSmallForAgent } from '../../lib/model-capabilities';
@@ -131,6 +131,8 @@ export function InputArea() {
   const setLastAssistantWebSearch = useAppStore((s) => s.setLastAssistantWebSearch);
   const agentMode = useAppStore((s) => s.agentMode);
   const setAgentMode = useAppStore((s) => s.setAgentMode);
+  const projectDir = useAppStore((s) => s.projectDir);
+  const setProjectDir = useAppStore((s) => s.setProjectDir);
   const corpusSync = useResearchCorpusSync(deepResearch);
 
   const [pending, setPending] = useState<PendingAttachment[]>([]);
@@ -199,6 +201,26 @@ export function InputArea() {
     if (!deepResearch && webSearch) setWebSearch(false);
     if (!deepResearch && agentMode) setAgentMode(false);
   };
+  // Developer mode: Agent mode inside one project folder.
+  const pickProject = async () => {
+    let dir: string | null = null;
+    if (isTauri()) {
+      try {
+        const { open } = await import('@tauri-apps/plugin-dialog');
+        const picked = await open({ directory: true, title: 'Choose a project folder' });
+        dir = typeof picked === 'string' ? picked : null;
+      } catch {
+        dir = null;
+      }
+    } else {
+      dir = window.prompt('Full path of the project folder', projectDir ?? '')?.trim() || null;
+    }
+    if (!dir) return;
+    setProjectDir(dir);
+    if (!agentMode) setAgentMode(true);
+    if (deepResearch) setDeepResearch(false);
+  };
+
   // Agent mode and Deep Research both decide how to answer, so only one is on.
   const toggleAgentMode = () => {
     setAgentMode(!agentMode);
@@ -527,7 +549,11 @@ export function InputArea() {
           temperature,
           max_tokens: maxTokens,
           ...(searchWeb ? { web_search: true } : {}),
-          ...(useAgent ? { mode: 'agent' as const } : {}),
+          ...(useAgent
+            ? projectDir
+              ? { mode: 'developer' as const, project_dir: projectDir }
+              : { mode: 'agent' as const }
+            : {}),
         },
         controller.signal,
       )) {
@@ -790,6 +816,7 @@ export function InputArea() {
     webSearch,
     setLastAssistantWebSearch,
     agentMode,
+    projectDir,
   ]);
 
   const queuedPrompt = useAppStore((s) => s.queuedPrompt);
@@ -866,6 +893,43 @@ export function InputArea() {
             <Bot size={12} />
             Agent
           </button>
+          <div
+            className="inline-flex items-center rounded-full text-xs"
+            style={{
+              background: projectDir && agentMode ? 'var(--color-accent-subtle)' : 'transparent',
+              border: `1px solid ${projectDir && agentMode ? 'var(--color-accent)' : 'var(--color-border)'}`,
+              color: projectDir && agentMode ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
+              opacity: streamState.isStreaming ? 0.5 : 1,
+            }}
+          >
+            <button
+              type="button"
+              onClick={pickProject}
+              disabled={streamState.isStreaming}
+              className="inline-flex items-center gap-1.5 pl-2.5 py-1 cursor-pointer disabled:cursor-default"
+              style={{ paddingRight: projectDir ? 4 : 10 }}
+              title={
+                projectDir
+                  ? `Developer mode in ${projectDir}. Click to choose another folder.`
+                  : 'Developer mode: let Agent mode work on code in one project folder.'
+              }
+            >
+              <FolderCode size={12} />
+              {projectDir ? projectDir.split(/[\\/]/).filter(Boolean).pop() : 'Project'}
+            </button>
+            {projectDir && (
+              <button
+                type="button"
+                onClick={() => setProjectDir(null)}
+                disabled={streamState.isStreaming}
+                className="pr-2 py-1 cursor-pointer disabled:cursor-default"
+                aria-label="Stop using the project folder"
+                title="Stop using the project folder"
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
         </div>
         {agentMode && selectedModel && isSmallForAgent(selectedModel) && (
           <div

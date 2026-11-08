@@ -17,7 +17,9 @@ export interface ChatRequest {
   /** Search the web for the latest user message before answering. */
   web_search?: boolean;
   /** "agent" runs a tool-using agent; "chat" answers with the model alone. */
-  mode?: 'chat' | 'agent';
+  mode?: 'chat' | 'agent' | 'developer';
+  /** Developer mode's project folder. */
+  project_dir?: string;
 }
 
 export async function* streamChat(

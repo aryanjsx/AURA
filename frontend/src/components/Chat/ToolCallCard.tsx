@@ -63,6 +63,7 @@ export function describeToolCall(tool: string, argumentsText: string): string {
     if (action === 'write') return 'Copy text to your clipboard';
   }
   if (tool === 'screenshot') return 'Take a screenshot of your screen';
+  if (tool === 'git_commit' && text('message')) return `Commit "${text('message')}"`;
   return `Use ${tool}`;
 }
 

@@ -45,8 +45,10 @@ class ChatCompletionRequest(BaseModel):
     # Locus extension: search the web for the latest user message first.
     web_search: bool = False
     # Locus extension: "chat" answers with the model alone, "agent" runs a
-    # tool-using agent. Unset keeps the server's configured agent.
-    mode: Optional[Literal["chat", "agent"]] = None
+    # tool-using agent, and "developer" runs one kept inside project_dir.
+    # Unset keeps the server's configured agent.
+    mode: Optional[Literal["chat", "agent", "developer"]] = None
+    project_dir: Optional[str] = None
 
 
 class ApprovalAnswer(BaseModel):

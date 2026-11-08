@@ -66,8 +66,10 @@ def tool_risk(name: str, tool: Any = None, arguments: Optional[dict] = None) -> 
     closing an app) can define ``risk_for(arguments)``.
     """
     spec = getattr(tool, "spec", None)
-    if name in RUN_TOOLS or getattr(spec, "requires_confirmation", False):
+    if getattr(spec, "requires_confirmation", False):
         return "run"
+    # A tool's own risk_for decides before the name lists, so developer
+    # mode's shell can let known checks (tests, git status) through.
     risk_for = getattr(tool, "risk_for", None)
     if callable(risk_for):
         try:
@@ -75,6 +77,8 @@ def tool_risk(name: str, tool: Any = None, arguments: Optional[dict] = None) -> 
         except Exception:
             risk = "change"
         return risk if risk in ("read", "change", "run") else "change"
+    if name in RUN_TOOLS:
+        return "run"
     if name in READ_ONLY_TOOLS:
         return "read"
     return "change"
