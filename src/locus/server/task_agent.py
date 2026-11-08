@@ -18,6 +18,7 @@ logger = logging.getLogger("locus.server")
 # Tools that change something (writing files, running commands) ask in the
 # chat before each call; see ``server/approvals.py``. Network access waits.
 ASSISTANT_TOOLS = (
+    "task_plan",
     "think",
     "calculator",
     "file_read",

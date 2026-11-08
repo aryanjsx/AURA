@@ -595,7 +595,7 @@ export function InputArea() {
               });
             }
             setStreamState({
-              phase: `Calling ${data.tool}...`,
+              phase: data.tool === 'task_plan' ? 'Planning...' : `Calling ${data.tool}...`,
               activeToolCalls: [...toolCalls],
             });
             updateLastAssistant(convId, accumulatedContent, [...toolCalls]);

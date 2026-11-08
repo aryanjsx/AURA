@@ -26,6 +26,7 @@ Decision = Literal["approve", "approve_tool", "deny"]
 #: Tools that only read, or write to Locus's own memory. They never ask.
 READ_ONLY_TOOLS = frozenset(
     {
+        "task_plan",
         "think",
         "calculator",
         "file_read",
