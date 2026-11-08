@@ -79,6 +79,14 @@ Most of the agent machinery is in the repo. The gap is mostly wiring and UX.
 
 **Goal:** the user sees what the agent plans, what it's doing and what it needs approved, without leaving the chat.
 
+> **Status (2026-11-08): approvals, risk levels and Stop are implemented. The plan checklist and Undo are not done yet.** As built:
+> - **Broker:** `src/locus/server/approvals.py`. The Agent mode agent's `before_tool_call` hook classifies each call as `read` (never asks), `change` (asks) or `run` (always asks; covers anything marked `requires_confirmation`). Unknown tools count as `change`, so new tools ask by default.
+> - **Asking:** for a risky call, the agent's thread pauses, the stream sends `approval_required`, and the run waits up to 5 minutes for `POST /v1/chat/approvals/{id}` with `approve`, `approve_tool` (this tool for the rest of the run) or `deny`. No answer counts as a no. Requests that can't ask (non-streaming) deny risky calls.
+> - **Stop:** each stream starts with an `agent_run` event. Stop calls `POST /v1/chat/runs/{run_id}/stop`, which ends the run at its next tool call (`AgentCancelled`), and the answer becomes "Stopped." Closing the stream does the same.
+> - **Agent:** Agent mode now always uses its own `orchestrator`, not the server's configured agent, since only that agent has the hook. It adds `file_write`, `shell_exec`, `git_status`, `git_diff` and `git_log`, is kept to the home folder, runs tools one at a time (approvals are tracked per run on the agent's thread), and gets at least 25 turns.
+> - **UI:** the tool card shows **Allow**, **Allow <tool> for this task** and **Deny**, with the command or path in words. The `assistant` preset stays read-only, because `locus serve` builds its agent without the hook.
+> - **Not done yet:** a plan checklist before multi-step tasks, Undo for file changes, "always allow" rules that last beyond one run, and resuming a stopped run.
+
 - **Plan step:** for multi-step requests, the agent first emits a short plan (a new stream event type in `stream_bridge.py`); the UI shows it as a checklist that ticks off as steps finish.
 - **Inline approvals:** when a tool needs approval, stream an `approval_required` event carrying the action from `ApprovalStore`; render Approve, Deny and "Always allow for this folder/command" buttons in the message. Keep `ApprovalBell` for background agents.
 - **Risk levels:** classify tools as read-only (no prompt), reversible write (prompt once per session or per folder) or irreversible/outward (always prompt: delete, send, purchase, system settings). Reuse `severity_policy.py` and `capabilities.py`.

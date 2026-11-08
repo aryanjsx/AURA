@@ -1226,3 +1226,24 @@ export async function setInferenceSource(
 export const stageInferenceSource = (
   src: InferenceSource & { apiKey?: string },
 ): Promise<void> => setInferenceSource(src, { pending: true });
+
+// ── Agent mode approvals ──────────────────────────────────────
+
+export type ApprovalDecision = 'approve' | 'approve_tool' | 'deny';
+
+/** Answer an Agent mode approval. Returns false if it's no longer waiting. */
+export async function answerApproval(id: string, decision: ApprovalDecision): Promise<boolean> {
+  const res = await apiFetch(`/v1/chat/approvals/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision }),
+  });
+  if (res.status === 404) return false;
+  if (!res.ok) throw new Error(`Approval failed: ${res.status}`);
+  return true;
+}
+
+/** Stop a running Agent mode task. */
+export async function stopAgentRun(runId: string): Promise<void> {
+  await apiFetch(`/v1/chat/runs/${encodeURIComponent(runId)}/stop`, { method: 'POST' });
+}

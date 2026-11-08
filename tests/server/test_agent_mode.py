@@ -125,14 +125,22 @@ def test_chat_mode_skips_the_configured_tool_agent():
     assert _content(resp) == "Hi!"
 
 
-def test_agent_mode_reuses_a_configured_tool_agent():
+def test_agent_mode_uses_its_own_agent_even_when_the_configured_one_has_tools(
+    monkeypatch,
+):
+    # Only the Agent mode agent asks before tools that change something.
     bus = EventBus()
-    agent = FakeAgent(bus=bus)
-    app = create_app(_engine([]), "test-model", agent=agent, bus=bus, config=_config())
+    configured = FakeAgent(bus=bus)
+    built = FakeAgent(bus=bus)
+    monkeypatch.setattr(task_agent, "_build_task_agent", lambda state: built)
+    app = create_app(
+        _engine([]), "test-model", agent=configured, bus=bus, config=_config()
+    )
 
     resp = _post(TestClient(app), mode="agent")
 
-    assert agent.inputs == ["read a.txt"]
+    assert configured.inputs == []
+    assert built.inputs == ["read a.txt"]
     assert _content(resp) == "Done."
 
 
@@ -158,10 +166,11 @@ def test_agent_mode_builds_an_agent_when_the_configured_one_has_none(monkeypatch
     assert seen
 
 
-def test_agent_mode_streams_only_its_own_tool_events():
+def test_agent_mode_streams_only_its_own_tool_events(monkeypatch):
     bus = EventBus()
     agent = FakeAgent(bus=bus)
-    app = create_app(_engine([]), "test-model", agent=agent, bus=bus, config=_config())
+    monkeypatch.setattr(task_agent, "_build_task_agent", lambda state: agent)
+    app = create_app(_engine([]), "test-model", bus=bus, config=_config())
 
     events = _events(_post(TestClient(app), mode="agent"))
 
@@ -209,13 +218,15 @@ def test_agent_mode_falls_back_to_chat_when_the_agent_cannot_start(monkeypatch):
     assert _content(resp) == "Hi!"
 
 
-def test_built_agent_uses_read_only_tools_kept_in_home(monkeypatch):
+def test_built_agent_asks_before_changes_and_stays_in_home(monkeypatch):
     # The shared conftest clears registries between tests.
     from locus.agents.orchestrator import OrchestratorAgent
     from locus.core.registry import AgentRegistry, ToolRegistry
     from locus.tools.calculator import CalculatorTool
     from locus.tools.file_read import FileReadTool
     from locus.tools.file_write import FileWriteTool
+    from locus.tools.http_request import HttpRequestTool
+    from locus.tools.shell_exec import ShellExecTool
     from locus.tools.think import ThinkTool
 
     AgentRegistry.register_value("orchestrator", OrchestratorAgent)
@@ -224,6 +235,8 @@ def test_built_agent_uses_read_only_tools_kept_in_home(monkeypatch):
         ("calculator", CalculatorTool),
         ("file_read", FileReadTool),
         ("file_write", FileWriteTool),
+        ("shell_exec", ShellExecTool),
+        ("http_request", HttpRequestTool),
     ]:
         ToolRegistry.register_value(name, cls)
 
@@ -240,10 +253,16 @@ def test_built_agent_uses_read_only_tools_kept_in_home(monkeypatch):
 
     agent = task_agent._build_task_agent(state)
 
+    from locus.server.approvals import before_tool_call
+
     names = {tool.spec.name for tool in agent._tools}
     assert names <= set(task_agent.ASSISTANT_TOOLS)
-    assert {"think", "calculator", "file_read"} <= names
-    assert not names & {"file_write", "shell_exec", "web_search", "http_request"}
-    file_read = next(t for t in agent._tools if t.spec.name == "file_read")
-    assert file_read._allowed_dirs == [Path.home().resolve()]
+    assert {"think", "calculator", "file_read", "file_write", "shell_exec"} <= names
+    assert not names & {"web_search", "http_request"}
+    for name in ("file_read", "file_write"):
+        tool = next(t for t in agent._tools if t.spec.name == name)
+        assert tool._allowed_dirs == [Path.home().resolve()]
+    assert agent._before_tool_call is before_tool_call
+    assert agent._parallel_tools is False
+    assert agent._max_turns >= task_agent.MIN_MAX_TURNS
     assert task_agent.ASSISTANT_AGENT_ID in task_agent.agent_event_ids(agent)

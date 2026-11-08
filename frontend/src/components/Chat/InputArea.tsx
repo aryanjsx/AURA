@@ -3,7 +3,7 @@ import { Send, Square, Paperclip, Search, Globe, Bot } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore, generateId } from '../../lib/store';
 import { streamChat, streamResearch } from '../../lib/sse';
-import { fetchSavings, getBase } from '../../lib/api';
+import { fetchSavings, getBase, stopAgentRun } from '../../lib/api';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { serializeToolCallArguments } from '../../lib/tool-call';
 import { isSmallForAgent } from '../../lib/model-capabilities';
@@ -103,6 +103,8 @@ export function InputArea() {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Agent mode run being streamed, so Stop can end it on the server too.
+  const agentRunRef = useRef<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const activeId = useAppStore((s) => s.activeId);
@@ -260,6 +262,10 @@ export function InputArea() {
   }, [input]);
 
   const stopStreaming = useCallback(() => {
+    if (agentRunRef.current) {
+      void stopAgentRun(agentRunRef.current).catch(() => {});
+      agentRunRef.current = null;
+    }
     abortRef.current?.abort();
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -343,6 +349,7 @@ export function InputArea() {
 
     const controller = new AbortController();
     abortRef.current = controller;
+    agentRunRef.current = null;
 
     let accumulatedContent = '';
     let usage: TokenUsage | undefined;
@@ -538,6 +545,41 @@ export function InputArea() {
                 : `Web search found ${sources.length} source(s)`,
             });
           } catch {}
+        } else if (eventName === 'agent_run') {
+          try {
+            agentRunRef.current = JSON.parse(sseEvent.data).run_id ?? null;
+          } catch {}
+        } else if (eventName === 'approval_required') {
+          try {
+            const data = JSON.parse(sseEvent.data);
+            toolCalls.push({
+              id: generateId(),
+              tool: data.tool,
+              arguments: serializeToolCallArguments(data.arguments),
+              status: 'awaiting_approval',
+              approvalId: data.id,
+              risk: data.risk,
+            });
+            setStreamState({
+              phase: 'Waiting for your approval...',
+              activeToolCalls: [...toolCalls],
+            });
+            updateLastAssistant(convId, accumulatedContent, [...toolCalls]);
+          } catch {}
+        } else if (eventName === 'approval_resolved') {
+          try {
+            const data = JSON.parse(sseEvent.data);
+            const tc = toolCalls.find((t) => t.approvalId === data.id);
+            if (tc) {
+              tc.status = data.approved ? 'approved' : 'denied';
+              if (data.timed_out) tc.result = 'No answer in time, so the agent skipped this step.';
+            }
+            setStreamState({
+              phase: data.approved ? `Calling ${data.tool}...` : 'Agent thinking...',
+              activeToolCalls: [...toolCalls],
+            });
+            updateLastAssistant(convId, accumulatedContent, [...toolCalls]);
+          } catch {}
         } else if (eventName === 'agent_turn_start') {
           setStreamState({ phase: 'Agent thinking...' });
         } else if (eventName === 'inference_start') {
@@ -549,13 +591,18 @@ export function InputArea() {
         } else if (eventName === 'tool_call_start') {
           try {
             const data = JSON.parse(sseEvent.data);
-            const tc: ToolCallInfo = {
-              id: generateId(),
-              tool: data.tool,
-              arguments: serializeToolCallArguments(data.arguments),
-              status: 'running',
-            };
-            toolCalls.push(tc);
+            // An approved call is already on screen; it starts running now.
+            const approved = toolCalls.find((t) => t.tool === data.tool && t.status === 'approved');
+            if (approved) {
+              approved.status = 'running';
+            } else {
+              toolCalls.push({
+                id: generateId(),
+                tool: data.tool,
+                arguments: serializeToolCallArguments(data.arguments),
+                status: 'running',
+              });
+            }
             setStreamState({
               phase: `Calling ${data.tool}...`,
               activeToolCalls: [...toolCalls],
@@ -627,6 +674,11 @@ export function InputArea() {
       // numbers don't get stuck on the last sample.
       useAppStore.getState().setLiveEnergy(null);
     } finally {
+      agentRunRef.current = null;
+      // A stopped run leaves no step waiting for an answer.
+      for (const tc of toolCalls) {
+        if (tc.status === 'awaiting_approval' || tc.status === 'approved') tc.status = 'denied';
+      }
       if (!accumulatedContent) {
         accumulatedContent = 'No response was generated. Please try again.';
       }
