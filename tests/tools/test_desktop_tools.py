@@ -395,3 +395,66 @@ def test_every_desktop_tool_has_a_spec_and_risk():
     for tool in tools:
         assert tool.spec.category == "desktop"
         assert callable(tool.risk_for)
+
+
+# ── Wi-Fi and Bluetooth ──────────────────────────────────────────
+
+
+def test_radio_state_is_read_on_windows(monkeypatch):
+    FakeOS(monkeypatch, "windows", stdout="WiFi On\nBluetooth Off\n")
+    result = SystemControlTool().execute(action="get_radios")
+    assert result.content == "Wi-Fi: on; Bluetooth: off"
+    assert result.metadata["radios"] == {"Wi-Fi": True, "Bluetooth": False}
+
+
+def test_switching_radios_on_windows_passes_kind_and_state(monkeypatch):
+    fake = FakeOS(monkeypatch, "windows")
+    assert SystemControlTool().execute(action="wifi_off").content == "Turned Wi-Fi off."
+    assert fake.calls[0]["args"] == {"kind": "WiFi", "state": "Off"}
+    assert "$env:LOCUS_ARG_KIND" in fake.calls[0]["script"]
+    SystemControlTool().execute(action="bluetooth_on")
+    assert fake.calls[1]["args"] == {"kind": "Bluetooth", "state": "On"}
+
+
+def test_switching_radios_on_linux(monkeypatch):
+    fake = FakeOS(monkeypatch, "linux")
+    SystemControlTool().execute(action="wifi_on")
+    SystemControlTool().execute(action="bluetooth_off")
+    assert fake.calls[0]["args"] == ["nmcli", "radio", "wifi", "on"]
+    assert fake.calls[1]["args"] == ["rfkill", "block", "bluetooth"]
+
+
+def test_mac_wifi_uses_the_wifi_device(monkeypatch):
+    fake = FakeOS(
+        monkeypatch,
+        "macos",
+        stdout=(
+            "Hardware Port: Ethernet\nDevice: en1\n\n"
+            "Hardware Port: Wi-Fi\nDevice: en0\n"
+        ),
+    )
+    SystemControlTool().execute(action="wifi_off")
+    assert fake.calls[-1]["args"] == ["networksetup", "-setairportpower", "en0", "off"]
+
+
+def test_mac_bluetooth_needs_blueutil(monkeypatch):
+    FakeOS(monkeypatch, "macos")
+    monkeypatch.setattr(_os, "has_command", lambda name: False)
+    result = SystemControlTool().execute(action="bluetooth_on")
+    assert "blueutil" in result.content
+
+
+def test_radio_failures_are_reported(monkeypatch):
+    FakeOS(monkeypatch, "windows", returncode=1)
+    result = SystemControlTool().execute(action="wifi_on")
+    assert not result.success
+    assert "Couldn't switch Wi-Fi" in result.content
+
+
+@pytest.mark.parametrize(
+    "action, risk",
+    [("get_radios", "read"), ("wifi_off", "change"), ("bluetooth_on", "change")],
+)
+def test_radio_risk(action, risk):
+    tool = SystemControlTool()
+    assert tool_risk("system_control", tool, {"action": action}) == risk

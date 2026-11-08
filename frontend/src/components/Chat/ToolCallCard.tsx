@@ -51,6 +51,10 @@ export function describeToolCall(tool: string, argumentsText: string): string {
       dark_mode: 'Switch to dark mode',
       light_mode: 'Switch to light mode',
       lock_screen: 'Lock the screen',
+      wifi_on: 'Turn Wi-Fi on',
+      wifi_off: 'Turn Wi-Fi off',
+      bluetooth_on: 'Turn Bluetooth on',
+      bluetooth_off: 'Turn Bluetooth off',
     };
     if (settings[action]) return settings[action];
   }

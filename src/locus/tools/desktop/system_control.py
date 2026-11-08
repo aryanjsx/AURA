@@ -19,7 +19,20 @@ ACTIONS = (
     "dark_mode",
     "light_mode",
     "lock_screen",
+    "get_radios",
+    "wifi_on",
+    "wifi_off",
+    "bluetooth_on",
+    "bluetooth_off",
 )
+
+#: action -> (radio, turn on?)
+_RADIO_ACTIONS = {
+    "wifi_on": ("wifi", True),
+    "wifi_off": ("wifi", False),
+    "bluetooth_on": ("bluetooth", True),
+    "bluetooth_off": ("bluetooth", False),
+}
 
 # Core Audio's endpoint volume for the default output device. The method
 # order in each interface must match the COM vtable, hence the placeholders.
@@ -95,6 +108,40 @@ _WIN_SET_BRIGHTNESS = (
 )
 _WIN_PERSONALIZE = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
 
+# Windows.Devices.Radios switches Wi-Fi and Bluetooth without admin rights.
+# PowerShell 5.1 waits on its async calls through WindowsRuntime's AsTask.
+_WIN_RADIOS = """Add-Type -AssemblyName System.Runtime.WindowsRuntime
+$asTask = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+  $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and
+  $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' } |
+  Select-Object -First 1
+function Await($op, [Type]$type) {
+  $t = $asTask.MakeGenericMethod($type).Invoke($null, @($op))
+  $t.Wait(-1) | Out-Null
+  $t.Result
+}
+[Windows.Devices.Radios.Radio, Windows.System.Devices, ContentType = WindowsRuntime] |
+  Out-Null
+$listType = [System.Collections.Generic.IReadOnlyList[Windows.Devices.Radios.Radio]]
+$radios = Await ([Windows.Devices.Radios.Radio]::GetRadiosAsync()) $listType
+"""
+_WIN_GET_RADIOS = (
+    _WIN_RADIOS + "$radios | ForEach-Object { '{0} {1}' -f $_.Kind, $_.State }"
+)
+_WIN_SET_RADIO = (
+    _WIN_RADIOS
+    + """$status = [Windows.Devices.Radios.RadioAccessStatus]
+$access = Await ([Windows.Devices.Radios.Radio]::RequestAccessAsync()) $status
+if ($access -ne 'Allowed') { throw "Windows didn't allow it ($access)." }
+$radio = $radios | Where-Object { $_.Kind -eq $env:LOCUS_ARG_KIND } |
+  Select-Object -First 1
+if (-not $radio) { throw "This computer has no $env:LOCUS_ARG_KIND radio." }
+$state = [Windows.Devices.Radios.RadioState]$env:LOCUS_ARG_STATE
+$result = Await ($radio.SetStateAsync($state)) $status
+if ($result -ne 'Allowed') { throw "Windows didn't change it ($result)." }
+"""
+)
+
 
 def _level(raw: object) -> Optional[int]:
     try:
@@ -136,7 +183,9 @@ class SystemControlTool(BaseTool):
                 " to 'level' (0-100) and unmutes. 'mute' and 'unmute' the"
                 " speakers. 'set_brightness' sets a laptop screen to 'level'"
                 " (0-100). 'dark_mode' and 'light_mode' switch the theme."
-                " 'lock_screen' locks the computer."
+                " 'lock_screen' locks the computer. 'get_radios' reports"
+                " whether Wi-Fi and Bluetooth are on; 'wifi_on', 'wifi_off',"
+                " 'bluetooth_on' and 'bluetooth_off' switch them."
             ),
             parameters={
                 "type": "object",
@@ -153,7 +202,8 @@ class SystemControlTool(BaseTool):
         )
 
     def risk_for(self, arguments: dict) -> str:
-        return "read" if arguments.get("action") == "get_volume" else "change"
+        read_only = ("get_volume", "get_radios")
+        return "read" if arguments.get("action") in read_only else "change"
 
     def execute(self, **params: Any) -> ToolResult:
         action = params.get("action")
@@ -162,6 +212,8 @@ class SystemControlTool(BaseTool):
         level = _level(params.get("level"))
         if action in ("set_volume", "set_brightness") and level is None:
             return _os.fail("system_control", "Give a level from 0 to 100.")
+        if action == "get_radios" or action in _RADIO_ACTIONS:
+            return self._radios(action)
         handler = {
             "windows": self._windows,
             "macos": self._macos,
@@ -268,6 +320,111 @@ class SystemControlTool(BaseTool):
         if not done.ok:
             return _os.fail("system_control", f"That didn't work: {done.error()}")
         return self._done(action, level)
+
+    # ── Wi-Fi and Bluetooth ──────────────────────────────────────
+
+    def _radios(self, action: str) -> ToolResult:
+        os_name = _os.system()
+        if action == "get_radios":
+            states = {
+                "windows": self._windows_radio_states,
+                "macos": self._macos_radio_states,
+                "linux": self._linux_radio_states,
+            }.get(os_name)
+            if states is None:
+                return _os.unsupported("system_control", "Wi-Fi and Bluetooth")
+            found = states()
+            if isinstance(found, ToolResult):
+                return found
+            text = "; ".join(
+                f"{name}: {'on' if on else 'off'}" for name, on in found.items()
+            )
+            return _os.ok(
+                "system_control", text or "No Wi-Fi or Bluetooth found.", radios=found
+            )
+
+        radio, on = _RADIO_ACTIONS[action]
+        label = "Wi-Fi" if radio == "wifi" else "Bluetooth"
+        if os_name == "windows":
+            done = _os.powershell(
+                _WIN_SET_RADIO,
+                args={
+                    "kind": "WiFi" if radio == "wifi" else "Bluetooth",
+                    "state": "On" if on else "Off",
+                },
+                timeout=40,
+            )
+        elif os_name == "macos":
+            if radio == "wifi":
+                device = self._macos_wifi_device()
+                if device is None:
+                    return _os.fail("system_control", "This Mac has no Wi-Fi.")
+                done = _os.run(
+                    ["networksetup", "-setairportpower", device, "on" if on else "off"]
+                )
+            elif _os.has_command("blueutil"):
+                done = _os.run(["blueutil", "--power", "1" if on else "0"])
+            else:
+                return _os.fail(
+                    "system_control", "Install blueutil to switch Bluetooth on a Mac."
+                )
+        elif os_name == "linux":
+            if radio == "wifi":
+                done = _os.run(["nmcli", "radio", "wifi", "on" if on else "off"])
+            else:
+                done = _os.run(["rfkill", "unblock" if on else "block", "bluetooth"])
+        else:
+            return _os.unsupported("system_control", "Wi-Fi and Bluetooth")
+        if not done.ok:
+            return _os.fail(
+                "system_control", f"Couldn't switch {label}: {done.error()}"
+            )
+        return _os.ok("system_control", f"Turned {label} {'on' if on else 'off'}.")
+
+    @staticmethod
+    def _windows_radio_states():
+        done = _os.powershell(_WIN_GET_RADIOS, timeout=40)
+        if not done.ok:
+            return _os.fail(
+                "system_control", f"Couldn't read Wi-Fi and Bluetooth: {done.error()}"
+            )
+        names = {"wifi": "Wi-Fi", "bluetooth": "Bluetooth"}
+        found = {}
+        for line in done.stdout.splitlines():
+            parts = line.split()
+            if len(parts) == 2 and parts[0].lower() in names:
+                found[names[parts[0].lower()]] = parts[1].lower() == "on"
+        return found
+
+    @staticmethod
+    def _macos_wifi_device() -> Optional[str]:
+        done = _os.run(["networksetup", "-listallhardwareports"])
+        match = re.search(
+            r"Hardware Port: (?:Wi-Fi|AirPort)\s*\nDevice: (\S+)", done.stdout
+        )
+        return match.group(1) if match else None
+
+    def _macos_radio_states(self):
+        found = {}
+        device = self._macos_wifi_device()
+        if device:
+            done = _os.run(["networksetup", "-getairportpower", device])
+            found["Wi-Fi"] = done.stdout.strip().lower().endswith("on")
+        if _os.has_command("blueutil"):
+            done = _os.run(["blueutil", "--power"])
+            found["Bluetooth"] = done.stdout.strip() == "1"
+        return found
+
+    @staticmethod
+    def _linux_radio_states():
+        found = {}
+        wifi = _os.run(["nmcli", "radio", "wifi"])
+        if wifi.ok:
+            found["Wi-Fi"] = wifi.stdout.strip() == "enabled"
+        bluetooth = _os.run(["rfkill", "list", "bluetooth"])
+        if bluetooth.ok and bluetooth.stdout.strip():
+            found["Bluetooth"] = "Soft blocked: yes" not in bluetooth.stdout
+        return found
 
     # ── Results ──────────────────────────────────────────────────
 

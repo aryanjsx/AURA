@@ -26,6 +26,7 @@ describe('describeToolCall', () => {
     expect(d('app_control', { action: 'close', name: 'chrome' })).toBe('Close chrome');
     expect(d('system_control', { action: 'set_volume', level: 30 })).toBe('Set the volume to 30%');
     expect(d('system_control', { action: 'lock_screen' })).toBe('Lock the screen');
+    expect(d('system_control', { action: 'wifi_off' })).toBe('Turn Wi-Fi off');
     expect(d('clipboard', { action: 'read' })).toBe('Read the text on your clipboard');
     expect(d('screenshot', {})).toBe('Take a screenshot of your screen');
   });
