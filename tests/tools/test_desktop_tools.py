@@ -25,6 +25,19 @@ from locus.tools.desktop import (
 
 
 @pytest.fixture(autouse=True)
+def _no_wayland(monkeypatch):
+    """Linux tests mean X11 unless they set a Wayland session themselves."""
+    for name in (
+        "WAYLAND_DISPLAY",
+        "XDG_SESSION_TYPE",
+        "SWAYSOCK",
+        "HYPRLAND_INSTANCE_SIGNATURE",
+        "XDG_CURRENT_DESKTOP",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _isolate_reminders(tmp_path, monkeypatch):
     """Keep reminders out of the real ``~/.locus`` and drop leftover timers."""
     monkeypatch.setattr(notify, "_store", notify.ReminderStore(tmp_path / "rem.json"))
@@ -706,3 +719,102 @@ def test_moving_on_macos(monkeypatch):
         "-1",
         "-1",
     ]
+
+
+# ── Wayland ──────────────────────────────────────────────────────
+
+
+def _scripted_run(monkeypatch, fake, outputs):
+    """Answer commands by their first two words; record every call."""
+
+    def run(args, *, env=None, input=None, timeout=0):
+        fake.calls.append({"args": args})
+        return _os.Completed(0, outputs.get(" ".join(args[:2]), ""), "")
+
+    monkeypatch.setattr(_os, "run", run)
+
+
+def test_sway_windows_are_listed_and_snapped(monkeypatch):
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-1")
+    monkeypatch.setenv("SWAYSOCK", "/run/sway.sock")
+    fake = FakeOS(monkeypatch, "linux")
+    tree = {
+        "type": "root",
+        "nodes": [
+            {
+                "type": "workspace",
+                "nodes": [
+                    {
+                        "type": "con",
+                        "id": 12,
+                        "name": "notes - Kate",
+                        "rect": {"x": 0, "y": 0, "width": 900, "height": 700},
+                        "nodes": [],
+                    }
+                ],
+                "floating_nodes": [],
+            }
+        ],
+    }
+    _scripted_run(monkeypatch, fake, {"swaymsg -t": json.dumps(tree)})
+    monkeypatch.setattr(
+        "locus.tools.desktop.wayland._sway_output_rect", lambda: (0, 0, 1920, 1080)
+    )
+
+    listed = WindowControlTool().execute(action="list")
+    snapped = WindowControlTool().execute(action="snap", title="kate", position="left")
+
+    assert listed.metadata["titles"] == ["notes - Kate"]
+    assert snapped.success
+    command = fake.calls[-1]["args"][1]
+    assert "[con_id=12] floating enable" in command
+    assert "resize set 960 px 1080 px" in command
+    assert "move absolute position 0 px 0 px" in command
+
+
+def test_hyprland_uses_hyprctl(monkeypatch):
+    monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
+    monkeypatch.setenv("HYPRLAND_INSTANCE_SIGNATURE", "abc")
+    fake = FakeOS(monkeypatch, "linux")
+    clients = [
+        {"address": "0xa1", "title": "Firefox", "at": [0, 0], "size": [800, 600]}
+    ]
+    _scripted_run(monkeypatch, fake, {"hyprctl clients": json.dumps(clients)})
+
+    assert WindowControlTool().execute(action="minimize", title="fire").success
+    assert fake.calls[-1]["args"] == [
+        "hyprctl",
+        "--batch",
+        "dispatch movetoworkspacesilent special:minimized,address:0xa1",
+    ]
+
+
+def test_kde_uses_kdotool(monkeypatch):
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "KDE")
+    fake = FakeOS(monkeypatch, "linux")
+    _scripted_run(
+        monkeypatch,
+        fake,
+        {"kdotool search": "{aa}\n", "kdotool getwindowname": "Dolphin"},
+    )
+
+    assert WindowControlTool().execute(action="focus", title="dolphin").success
+    assert fake.calls[-1]["args"] == ["kdotool", "windowactivate", "{aa}"]
+
+
+def test_gnome_on_wayland_is_explained(monkeypatch):
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "GNOME")
+    FakeOS(monkeypatch, "linux")
+    result = WindowControlTool().execute(action="list")
+    assert not result.success
+    assert "GNOME" in result.content
+
+
+def test_wayland_tool_must_be_installed(monkeypatch):
+    monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "KDE")
+    FakeOS(monkeypatch, "linux")
+    monkeypatch.setattr(_os, "has_command", lambda name: False)
+    assert "install kdotool" in WindowControlTool().execute(action="list").content

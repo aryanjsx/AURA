@@ -1,8 +1,8 @@
 """List, focus, minimize, maximize, restore, move, resize and snap windows.
 
 Windows uses the window API through ctypes, macOS uses System Events (Locus
-needs Accessibility permission), and Linux uses wmctrl, which works on X11
-but not Wayland.
+needs Accessibility permission), and Linux uses wmctrl on X11 or the
+compositor's own tool on Wayland (see ``wayland.py``).
 """
 
 from __future__ import annotations
@@ -463,6 +463,13 @@ class WindowControlTool(BaseTool):
         platform = _PLATFORMS.get(_os.system())
         if platform is None:
             return _os.unsupported("window_control", "Controlling windows")
+        if _os.system() == "linux":
+            from locus.tools.desktop import wayland
+
+            if wayland.is_wayland():
+                platform = wayland.backend()
+                if isinstance(platform, ToolResult):
+                    return platform
         list_fn, act_fn = platform
         placement = None
         if action in PLACE_ACTIONS:
