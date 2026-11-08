@@ -818,3 +818,44 @@ def test_wayland_tool_must_be_installed(monkeypatch):
     FakeOS(monkeypatch, "linux")
     monkeypatch.setattr(_os, "has_command", lambda name: False)
     assert "install kdotool" in WindowControlTool().execute(action="list").content
+
+
+# ── Screenshots the model can see ────────────────────────────────
+
+
+def test_screenshot_look_attaches_a_small_jpeg(monkeypatch, tmp_path):
+    import base64
+    import io
+
+    from PIL import Image
+
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path))
+    fake = FakeOS(monkeypatch, "windows")
+    fake.on_call = lambda call: Image.new("RGB", (3000, 1500), "white").save(
+        call["args"]["path"]
+    )
+
+    plain = ScreenshotTool().execute()
+    looked = ScreenshotTool().execute(look=True)
+
+    assert "images" not in plain.metadata
+    assert "attached" in looked.content
+    data = base64.b64decode(looked.metadata["images"][0])
+    with Image.open(io.BytesIO(data)) as image:
+        assert image.format == "JPEG"
+        assert max(image.size) == 1280
+
+
+def test_screenshot_look_without_pillow(monkeypatch, tmp_path):
+    from locus.tools.desktop import screenshot
+
+    monkeypatch.setenv("LOCUS_HOME", str(tmp_path))
+    fake = FakeOS(monkeypatch, "windows")
+    fake.on_call = lambda call: Path(call["args"]["path"]).write_bytes(b"png")
+    monkeypatch.setattr(screenshot, "image_for_model", lambda path: None)
+
+    result = ScreenshotTool().execute(look=True)
+
+    assert result.success
+    assert "couldn't prepare it" in result.content
+    assert "images" not in result.metadata

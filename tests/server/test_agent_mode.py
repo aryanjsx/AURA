@@ -340,3 +340,40 @@ def test_agents_send_input_images_with_the_last_message():
     assert with_images[-1].content == "what is this?"
     assert with_images[-1].images == ["aW1n"]
     assert without[-1].images is None
+
+
+def test_tool_images_are_shown_only_to_vision_models():
+    from locus.agents.orchestrator import OrchestratorAgent
+    from locus.core.types import Message, Role, ToolResult
+
+    shot = ToolResult(
+        tool_name="screenshot", content="ok", metadata={"images": ["aW1n"]}
+    )
+    plain = ToolResult(tool_name="file_read", content="text")
+
+    messages: list = []
+    OrchestratorAgent._attach_tool_images(messages, [plain, shot], vision=True)
+    assert len(messages) == 1
+    assert messages[0].role == Role.USER
+    assert messages[0].images == ["aW1n"]
+
+    blind: list[Message] = []
+    OrchestratorAgent._attach_tool_images(blind, [shot], vision=False)
+    OrchestratorAgent._attach_tool_images(blind, [plain], vision=True)
+    assert blind == []
+
+
+@pytest.mark.parametrize("sees", [True, False])
+def test_agent_mode_tells_the_agent_whether_the_model_sees_images(monkeypatch, sees):
+    agent = FakeAgent()
+    monkeypatch.setattr(task_agent, "_build_task_agent", lambda state: agent)
+
+    async def accepts(engine, model):
+        return sees
+
+    monkeypatch.setattr("locus.server.routes._model_accepts_images", accepts)
+    app = create_app(_engine([]), "test-model", config=_config())
+
+    _post(TestClient(app), mode="agent")
+
+    assert agent.contexts[0].metadata["vision"] is sees

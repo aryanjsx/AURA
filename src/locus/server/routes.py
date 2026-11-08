@@ -8,7 +8,7 @@ import threading
 import uuid
 import weakref
 from dataclasses import replace
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -292,6 +292,12 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
 
     await _drop_images_without_vision(request_body, engine, model)
 
+    # Agent and developer mode tools can return images (screenshots); show
+    # them only to models that can see images.
+    agent_vision: Optional[bool] = None
+    if use_server_agent and request_body.mode in ("agent", "developer"):
+        agent_vision = await _model_accepts_images(engine, model)
+
     # Search the web for the latest user message (before memory context, which
     # rewrites messages with attachments folded in).
     web_result = None
@@ -459,6 +465,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
                 trace_store=getattr(request.app.state, "trace_store", None),
                 bus=getattr(request.app.state, "bus", None),
                 memory_service=getattr(request.app.state, "memory_service", None),
+                vision=agent_vision,
             )
         else:
             response = await _handle_stream(
@@ -502,6 +509,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
             complexity_info,
             trace_store=getattr(request.app.state, "trace_store", None),
             bus=getattr(request.app.state, "bus", None),
+            vision=agent_vision,
         )
     else:
         bus = getattr(request.app.state, "bus", None)
@@ -800,6 +808,7 @@ def _handle_agent(
     *,
     trace_store=None,
     bus=None,
+    vision: Optional[bool] = None,
 ) -> ChatCompletionResponse:
     """Run through agent.
 
@@ -822,6 +831,9 @@ def _handle_agent(
     input_text = messages[-1].content if messages else ""
     if messages and messages[-1].images:
         ctx.metadata["input_images"] = list(messages[-1].images)
+    if vision is not None:
+        # Whether tool images (screenshots) may be shown to the model.
+        ctx.metadata["vision"] = vision
 
     # Override agent model for this request if the caller specified one.
     # Locked for the full override-run-restore cycle (#759): only the
@@ -941,6 +953,7 @@ async def _handle_agent_stream(
     trace_store=None,
     bus=None,
     memory_service=None,
+    vision: Optional[bool] = None,
 ):
     """Run the configured agent and return its result as an SSE response.
 
@@ -996,6 +1009,7 @@ async def _handle_agent_stream(
                         complexity_info,
                         trace_store=trace_store,
                         bus=bus,
+                        vision=vision,
                     )
                 finally:
                     current_session.reset(token)
