@@ -112,6 +112,8 @@ interface Settings {
   speechEnabled: boolean;
   voiceOutputEnabled: boolean;
   voiceAutoplay: boolean;
+  /** Ctrl/Cmd+Shift+L listens, sends when you stop talking, and speaks the reply. */
+  handsFree: boolean;
 }
 
 function loadSettings(): Settings {
@@ -127,6 +129,7 @@ function loadSettings(): Settings {
     speechEnabled: false,
     voiceOutputEnabled: false,
     voiceAutoplay: false,
+    handsFree: false,
   };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -224,6 +227,10 @@ interface AppState {
   // A message for the chat input to send (Continue on a stopped task)
   queuedPrompt: string | null;
   queuePrompt: (text: string | null) => void;
+
+  // Speak the next finished reply aloud (set by a hands-free turn)
+  speakNextReply: boolean;
+  setSpeakNextReply: (on: boolean) => void;
   setLastAssistantWebSearch: (
     conversationId: string,
     webSearch: WebSearchInfo,
@@ -533,6 +540,9 @@ export const useAppStore = create<AppState>((set, get) => {
 
     queuedPrompt: null,
     queuePrompt: (text) => set({ queuedPrompt: text }),
+
+    speakNextReply: false,
+    setSpeakNextReply: (on) => set({ speakNextReply: on }),
 
     setLastAssistantWebSearch: (conversationId, webSearch, sources) => {
       const store = loadConversations();

@@ -15,6 +15,7 @@ import {
 import { MicButton } from './MicButton';
 import { AttachmentChip } from './AttachmentChip';
 import { useSpeech } from '../../hooks/useSpeech';
+import { useHandsFree } from '../../hooks/useHandsFree';
 import {
   apiAttachmentFields,
   deletePayloads,
@@ -211,7 +212,21 @@ export function InputArea() {
     available: speechAvailable,
     startRecording,
     stopRecording,
+    cancelRecording,
   } = useSpeech();
+
+  // Hands-free: the transcript goes out through the prompt queue, which
+  // sends it as soon as no reply is streaming.
+  const handsFree = useAppStore((s) => s.settings.handsFree);
+  useHandsFree({
+    enabled: handsFree,
+    available: speechAvailable,
+    state: speechState,
+    startRecording,
+    stopRecording,
+    cancelRecording,
+    send: (text) => useAppStore.getState().queuePrompt(text),
+  });
 
   // Abort in-flight stream when the user switches models mid-generation.
   // This prevents errors from trying to continue a stream with a stale model.
