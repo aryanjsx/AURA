@@ -69,6 +69,8 @@ Most of the agent machinery is in the repo. The gap is mostly wiring and UX.
 
 **Goal:** attachments, images and web search work in agent mode instead of silently falling back to plain chat.
 
+> **Status (2026-11-08): implemented.** `_handle_agent` folds attached documents into each message's text (the same budget as direct chat), and the latest message's images reach the agent through `AgentContext.metadata["input_images"]`, which `BaseAgent._build_messages` puts on the final user message. Web results stay a pre-search, so the UI keeps its numbered sources: the web-context system message joins the agent's single system prompt. In Agent mode, requests with these extras no longer fall back to plain chat. Requests that don't use Agent mode route as before.
+
 - Turn attachments into agent context: attached document text goes in as context or as a `file_read`-style handle; images go to vision models as today.
 - Expose web search to the agent as its normal `web_search` tool when the toggle is on, rather than pre-injecting results. The agent decides when to search, and the privacy rule stays the same (off unless the user turns it on).
 - Remove the `has_extras` bypass in `routes.py` once both paths are covered.

@@ -55,9 +55,11 @@ class FakeAgent:
         self._tools = [object()] if tools else []
         self._model = "test-model"
         self.inputs: list[str] = []
+        self.contexts: list = []
 
     def run(self, input, context=None):
         self.inputs.append(input)
+        self.contexts.append(context)
         if self._bus is not None:
             self._bus.publish(
                 EventType.TOOL_CALL_START,
@@ -183,22 +185,78 @@ def test_agent_mode_streams_only_its_own_tool_events(monkeypatch):
     ]
 
 
-def test_agent_mode_with_web_search_answers_without_the_agent(monkeypatch):
+def test_agent_mode_gets_web_results_as_context(monkeypatch):
     from locus.server import web_context
 
     seen: list = []
     agent = FakeAgent()
+    monkeypatch.setattr(task_agent, "_build_task_agent", lambda state: agent)
 
-    async def no_results(query):
-        return web_context.WebSearchResult(query=query, sources=[], error="offline")
+    async def results(query):
+        return web_context.WebSearchResult(
+            query=query,
+            sources=[
+                web_context.WebSource(
+                    ref=1, title="Docs", url="https://example.com", text="Answer 42"
+                )
+            ],
+        )
 
-    monkeypatch.setattr(web_context, "search_web", no_results)
-    app = create_app(_engine(seen), "test-model", agent=agent, config=_config())
+    monkeypatch.setattr(web_context, "search_web", results)
+    app = create_app(_engine(seen), "test-model", config=_config())
 
-    _post(TestClient(app), mode="agent", web_search=True)
+    resp = _post(TestClient(app), mode="agent", web_search=True)
 
-    assert agent.inputs == []
-    assert seen
+    assert agent.inputs == ["read a.txt"]
+    assert seen == []
+    system = [
+        m for m in agent.contexts[0].conversation.messages if m.role.value == "system"
+    ]
+    assert any("Answer 42" in m.content for m in system)
+    assert any(name == "web_search" for name, _ in _events(resp))
+
+
+def test_agent_mode_gets_attached_documents_and_images(monkeypatch):
+    agent = FakeAgent()
+    monkeypatch.setattr(task_agent, "_build_task_agent", lambda state: agent)
+    app = create_app(_engine([]), "test-model", config=_config())
+    monkeypatch.setattr(
+        "locus.server.routes._model_accepts_images",
+        lambda engine, model: _true(),
+    )
+
+    TestClient(app).post(
+        "/v1/chat/completions",
+        json={
+            "model": "test-model",
+            "stream": True,
+            "mode": "agent",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "earlier",
+                    "attachments": [{"name": "old.txt", "text": "OLD NOTES"}],
+                },
+                {"role": "assistant", "content": "ok"},
+                {
+                    "role": "user",
+                    "content": "summarize",
+                    "attachments": [{"name": "plan.md", "text": "THE PLAN"}],
+                    "images": ["aW1n"],
+                },
+            ],
+        },
+    )
+
+    assert "THE PLAN" in agent.inputs[0]
+    assert agent.inputs[0].endswith("summarize")
+    context = agent.contexts[0]
+    assert "OLD NOTES" in context.conversation.messages[0].content
+    assert context.metadata["input_images"] == ["aW1n"]
+
+
+async def _true():
+    return True
 
 
 def test_agent_mode_falls_back_to_chat_when_the_agent_cannot_start(monkeypatch):
@@ -266,3 +324,19 @@ def test_built_agent_asks_before_changes_and_stays_in_home(monkeypatch):
     assert agent._parallel_tools is False
     assert agent._max_turns >= task_agent.MIN_MAX_TURNS
     assert task_agent.ASSISTANT_AGENT_ID in task_agent.agent_event_ids(agent)
+
+
+def test_agents_send_input_images_with_the_last_message():
+    from locus.agents._stubs import AgentContext
+    from locus.agents.simple import SimpleAgent
+
+    agent = SimpleAgent(MagicMock(), "test-model")
+    ctx = AgentContext()
+    ctx.metadata["input_images"] = ["aW1n"]
+
+    with_images = agent._build_messages("what is this?", ctx)
+    without = agent._build_messages("hi", AgentContext())
+
+    assert with_images[-1].content == "what is this?"
+    assert with_images[-1].images == ["aW1n"]
+    assert without[-1].images is None

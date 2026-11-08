@@ -319,17 +319,8 @@ export function InputArea() {
         ...(m.role === 'user' ? await apiAttachmentFields(m.attachments) : {}),
       })),
     );
-    // The agent can't use web results or attached files yet, so a
-    // conversation that has either gets a chat answer.
-    const hasExtras =
-      searchWeb ||
-      apiMessages.some(
-        (m) => ('images' in m && m.images?.length) || ('attachments' in m && m.attachments?.length),
-      );
-    const useAgent = agentMode && !deepResearch && !hasExtras;
-    if (agentMode && !deepResearch && hasExtras) {
-      toast.info("Agent mode can't use web search or attached files yet, so this message gets a chat answer.");
-    }
+    // The agent gets attached files, images and web results too.
+    const useAgent = agentMode && !deepResearch;
 
     const assistantMsg: ChatMessage = {
       id: generateId(),

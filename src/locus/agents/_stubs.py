@@ -259,7 +259,13 @@ class BaseAgent(ABC):
             )
         if context_messages:
             messages.extend(context_messages)
-        messages.append(Message(role=Role.USER, content=input))
+        # Images sent with the latest message (base64 JPEGs, for vision models).
+        input_images = context.metadata.get("input_images") if context else None
+        messages.append(
+            Message(
+                role=Role.USER, content=input, images=list(input_images or []) or None
+            )
+        )
         return messages
 
     def _generate(self, messages: list[Message], **extra_kwargs: Any) -> dict:

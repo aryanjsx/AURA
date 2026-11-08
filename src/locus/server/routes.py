@@ -268,15 +268,16 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
 
         agent = await asyncio.to_thread(get_task_agent, request.app.state)
     model = request_body.model
-    # Agents take only the latest message's text, which would drop web results,
-    # attached documents and images, so those requests go straight to the engine.
+    # Agent mode passes web results, attached documents and images to its agent
+    # (see _handle_agent). Other requests with them keep going straight to the
+    # engine, as they did before agents could take them.
     has_extras = request_body.web_search or any(
         m.images or m.attachments for m in request_body.messages
     )
     use_server_agent = (
         agent is not None
         and not request_body.tools
-        and not has_extras
+        and (request_body.mode == "agent" or not has_extras)
         and (not request_body.stream or bool(getattr(agent, "_tools", None)))
     )
 
@@ -773,15 +774,16 @@ def _handle_agent(
     """
     from locus.agents._stubs import AgentContext
 
-    # Build context from prior messages
+    # Prior messages are the context and the last one is the input, with
+    # attached documents folded into each message's text (the same budget as
+    # direct chat) and the last message's images kept for vision models.
     ctx = AgentContext()
-    if len(req.messages) > 1:
-        prior = _to_messages(req.messages[:-1])
-        for m in prior:
-            ctx.conversation.add(m)
-
-    # Last message is the input
-    input_text = req.messages[-1].content if req.messages else ""
+    messages = _to_messages(req.messages) if req.messages else []
+    for m in messages[:-1]:
+        ctx.conversation.add(m)
+    input_text = messages[-1].content if messages else ""
+    if messages and messages[-1].images:
+        ctx.metadata["input_images"] = list(messages[-1].images)
 
     # Override agent model for this request if the caller specified one.
     # Locked for the full override-run-restore cycle (#759): only the
