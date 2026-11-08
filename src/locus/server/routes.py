@@ -1530,17 +1530,67 @@ async def pull_model(request: Request):
     return {"status": "ok", "model": model_name}
 
 
-@router.delete("/v1/models/{model_name:path}")
-async def delete_model(model_name: str, request: Request):
-    """Delete a model from Ollama."""
+def _ollama_host(request: Request) -> str:
+    """Ollama's address, or 501 when the server isn't using Ollama."""
     engine = request.app.state.engine
     engine_name = getattr(request.app.state, "engine_name", "")
     if engine_name != "ollama" and getattr(engine, "engine_id", "") != "ollama":
         raise HTTPException(status_code=501, detail="Only supported with Ollama engine")
+    return getattr(engine, "_host", "http://localhost:11434")
 
+
+async def _installed_ollama_models(host: str) -> list[dict]:
     import httpx as _httpx
 
-    host = getattr(engine, "_host", "http://localhost:11434")
+    try:
+        async with _httpx.AsyncClient(base_url=host, timeout=15.0) as client:
+            resp = await client.get("/api/tags")
+        resp.raise_for_status()
+    except (_httpx.ConnectError, _httpx.TimeoutException) as exc:
+        raise HTTPException(status_code=502, detail=f"Ollama unreachable: {exc}")
+    except _httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=exc.response.status_code,
+            detail=f"Ollama error: {exc.response.text[:300]}",
+        )
+    return [
+        {
+            "name": m.get("name") or m.get("model", ""),
+            "size_bytes": int(m.get("size") or 0),
+            "modified_at": m.get("modified_at"),
+            "parameter_size": (m.get("details") or {}).get("parameter_size"),
+        }
+        for m in resp.json().get("models") or []
+        if m.get("name") or m.get("model")
+    ]
+
+
+@router.get("/v1/models/installed")
+async def installed_models(request: Request):
+    """Models downloaded to Ollama on this computer, with their sizes."""
+    host = _ollama_host(request)
+    models = await _installed_ollama_models(host)
+    default = getattr(request.app.state, "model", "")
+    for m in models:
+        m["is_default"] = m["name"] == default
+    return {
+        "models": sorted(models, key=lambda m: m["name"]),
+        "total_bytes": sum(m["size_bytes"] for m in models),
+    }
+
+
+@router.delete("/v1/models/{model_name:path}")
+async def delete_model(model_name: str, request: Request):
+    """Uninstall a model from Ollama, freeing its disk space."""
+    import httpx as _httpx
+
+    host = _ollama_host(request)
+    # Look the model up first, so the answer says how much space it freed.
+    # Best effort: a failed lookup mustn't stop the uninstall.
+    try:
+        installed = {m["name"]: m for m in await _installed_ollama_models(host)}
+    except Exception:
+        installed = {}
     try:
         async with _httpx.AsyncClient(base_url=host, timeout=30.0) as client:
             resp = await client.request(
@@ -1552,12 +1602,23 @@ async def delete_model(model_name: str, request: Request):
     except (_httpx.ConnectError, _httpx.TimeoutException) as exc:
         raise HTTPException(status_code=502, detail=f"Ollama unreachable: {exc}")
     except _httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            raise HTTPException(
+                status_code=404, detail=f"{model_name} isn't installed."
+            )
         raise HTTPException(
             status_code=exc.response.status_code,
             detail=f"Ollama error: {exc.response.text[:300]}",
         )
 
-    return {"status": "deleted", "model": model_name}
+    _vision_cache.pop(model_name, None)
+    return {
+        "status": "deleted",
+        "model": model_name,
+        "freed_bytes": installed.get(model_name, {}).get("size_bytes", 0),
+        # The model Locus started with; chats need another model picked.
+        "was_default": model_name == getattr(request.app.state, "model", ""),
+    }
 
 
 @router.post("/v1/cloud/reload")

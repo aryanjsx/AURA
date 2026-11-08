@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Search, Cpu, X, Download, Loader2, Trash2, Check, Cloud, Key, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAppStore } from '../lib/store';
 import {
   pullModel,
   deleteModel,
+  formatBytes,
   fetchModels,
   preloadModel,
   isTauri,
@@ -202,20 +204,31 @@ export function CommandPalette() {
     }
   };
 
+  // Uninstalling takes two clicks: the first asks, the second confirms.
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const handleDelete = async (modelId: string) => {
+    if (confirmDelete !== modelId) {
+      setConfirmDelete(modelId);
+      toast(`Click the bin again to uninstall ${modelId} from this computer.`);
+      return;
+    }
+    setConfirmDelete(null);
     setDeleting(modelId);
     try {
-      await deleteModel(modelId);
+      const { freedBytes } = await deleteModel(modelId);
       useAppStore.getState().addLogEntry({
         timestamp: Date.now(), level: 'info', category: 'model',
-        message: `Deleted ${modelId}`,
+        message: `Uninstalled ${modelId}`,
       });
       await refreshModels();
       if (selectedModel === modelId) {
         const remaining = models.filter((m) => m.id !== modelId);
         if (remaining.length > 0) setSelectedModel(remaining[0].id);
       }
-    } catch {} finally {
+      toast.success(`Uninstalled ${modelId}${freedBytes ? ` and freed ${formatBytes(freedBytes)}` : ''}.`);
+    } catch (err: any) {
+      toast.error(err?.message || `Couldn't uninstall ${modelId}.`);
+    } finally {
       setDeleting(null);
     }
   };
@@ -400,10 +413,18 @@ export function CommandPalette() {
                         onClick={() => handleDelete(model.id)}
                         disabled={isDeleting}
                         className="p-1 rounded transition-colors cursor-pointer"
-                        style={{ color: 'var(--color-text-tertiary)', opacity: 0 }}
-                        title="Delete model"
+                        style={{
+                          color: confirmDelete === model.id ? 'var(--color-error)' : 'var(--color-text-tertiary)',
+                          opacity: confirmDelete === model.id ? 1 : 0.5,
+                        }}
+                        title={confirmDelete === model.id ? `Click again to uninstall ${model.id}` : `Uninstall ${model.id}`}
+                        aria-label={`Uninstall ${model.id}`}
                         onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--color-error)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0'; e.currentTarget.style.color = 'var(--color-text-tertiary)'; }}
+                        onMouseLeave={(e) => {
+                          if (confirmDelete === model.id) return;
+                          e.currentTarget.style.opacity = '0.5';
+                          e.currentTarget.style.color = 'var(--color-text-tertiary)';
+                        }}
                       >
                         {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                       </button>

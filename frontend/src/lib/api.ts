@@ -221,23 +221,55 @@ export async function pullModel(modelName: string): Promise<void> {
   }
 }
 
-export async function deleteModel(modelName: string): Promise<void> {
+export interface UninstallResult {
+  /** Disk space the model used, when the server could tell. */
+  freedBytes: number;
+  /** It was the model Locus started with. */
+  wasDefault: boolean;
+}
+
+/** Uninstall a local (Ollama) model, freeing its disk space. */
+export async function deleteModel(modelName: string): Promise<UninstallResult> {
   if (isTauri()) {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('delete_ollama_model', { modelName });
-      return;
+      return { freedBytes: 0, wasDefault: false };
     } catch (e: any) {
-      throw new Error(e?.message || e || 'Delete failed');
+      throw new Error(e?.message || e || 'Uninstall failed');
     }
   }
   const res = await apiFetch(`/v1/models/${encodeURIComponent(modelName)}`, {
     method: 'DELETE',
   });
+  const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const detail = await res.text().catch(() => res.statusText);
-    throw new Error(`Failed to delete model: ${detail}`);
+    throw new Error(body.detail || `Couldn't uninstall ${modelName} (${res.status}).`);
   }
+  return { freedBytes: body.freed_bytes ?? 0, wasDefault: Boolean(body.was_default) };
+}
+
+export interface InstalledModel {
+  name: string;
+  size_bytes: number;
+  modified_at?: string | null;
+  parameter_size?: string | null;
+  is_default: boolean;
+}
+
+/** Models downloaded to Ollama on this computer, with their sizes. */
+export async function fetchInstalledModels(): Promise<{ models: InstalledModel[]; total_bytes: number }> {
+  const res = await apiFetch('/v1/models/installed');
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || `Couldn't list installed models (${res.status}).`);
+  return body;
+}
+
+/** A byte count as GB or MB, like "6.6 GB". */
+export function formatBytes(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  if (bytes >= 1e6) return `${Math.round(bytes / 1e6)} MB`;
+  return `${bytes} bytes`;
 }
 
 const _CLOUD_PREFIXES = ['gpt-', 'o1-', 'o3-', 'o4-', 'claude-', 'gemini-', 'openrouter/'];

@@ -44,3 +44,16 @@ export function shouldSuggestAgentModel(selected: string, recommended: string): 
   // Unknown sizes are usually cloud or custom models; leave those alone.
   return size !== null && size < AGENT_GOOD_SIZE_B;
 }
+
+/**
+ * After uninstalling `removed`: the model chat should switch to, '' if none
+ * is left, or null when chat wasn't using it.
+ */
+export function nextModelAfterUninstall(
+  selected: string,
+  removed: string,
+  remaining: string[],
+): string | null {
+  if (selected !== removed) return null;
+  return remaining.find((m) => m !== removed && !isEmbedOnlyModel(m)) ?? '';
+}
