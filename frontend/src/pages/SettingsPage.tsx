@@ -36,6 +36,7 @@ import {
   type MemoryStats,
 } from '../lib/api';
 import { isAutoUpdateDisabled, setAutoUpdateDisabled } from '../components/Desktop/UpdateChecker';
+import { AgentPermissionsList } from '../components/Chat/AgentPermissionsList';
 
 const CLOUD_KEY_STATUS_CHANGED = 'locus-cloud-key-status-changed';
 
@@ -657,6 +658,14 @@ export function SettingsPage() {
             <SettingRow label="Web Search" description="Tavily key for web search tool">
               <ApiKeyInput keyName="TAVILY_API_KEY" placeholder="tvly-..." toolName="web_search" />
             </SettingRow>
+          </Section>
+
+          {/* Agent mode */}
+          <Section title="Agent mode">
+            <div className="text-xs mb-2" style={{ color: 'var(--color-text-tertiary)' }}>
+              Steps Locus may take without asking
+            </div>
+            <AgentPermissionsList />
           </Section>
 
           {/* Memory */}

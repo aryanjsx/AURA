@@ -527,6 +527,24 @@ async def answer_approval(approval_id: str, body: ApprovalAnswer):
     return {"id": approval_id, "decision": body.decision}
 
 
+@router.get("/v1/chat/permissions")
+async def list_agent_permissions():
+    """Agent mode's "always allow" rules."""
+    from locus.server.approvals import get_rules
+
+    return {"rules": get_rules().list()}
+
+
+@router.delete("/v1/chat/permissions/{key}")
+async def remove_agent_permission(key: str):
+    """Remove an "always allow" rule, so that step asks again."""
+    from locus.server.approvals import get_rules
+
+    if not get_rules().remove(key):
+        raise HTTPException(status_code=404, detail="No rule with that key")
+    return {"key": key, "removed": True}
+
+
 @router.post("/v1/chat/undo/{undo_id}")
 async def undo_file_change(undo_id: str):
     """Undo a file change from Agent mode (``undo_id`` in ``tool_call_end``)."""

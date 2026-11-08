@@ -50,6 +50,10 @@ export interface ToolCallInfo {
   /** Set when the change can be undone with `undoChange`. */
   undoId?: string;
   undone?: boolean;
+  /** The step can get a lasting "always allow" rule. */
+  canAlways?: boolean;
+  /** What the step would change (a diff, say), for the approval prompt. */
+  preview?: string;
 }
 
 export interface TokenUsage {

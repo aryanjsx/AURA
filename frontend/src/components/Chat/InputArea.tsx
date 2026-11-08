@@ -550,6 +550,8 @@ export function InputArea() {
               status: 'awaiting_approval',
               approvalId: data.id,
               risk: data.risk,
+              canAlways: Boolean(data.can_always),
+              preview: data.preview || undefined,
             });
             setStreamState({
               phase: 'Waiting for your approval...',

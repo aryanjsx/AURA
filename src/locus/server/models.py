@@ -50,8 +50,9 @@ class ChatCompletionRequest(BaseModel):
 
 
 class ApprovalAnswer(BaseModel):
-    # "approve_tool" also approves later calls to the same tool in this run.
-    decision: Literal["approve", "approve_tool", "deny"]
+    # "approve_tool" also approves later calls to the same tool in this run;
+    # "always" saves a lasting rule (change-level calls only).
+    decision: Literal["approve", "approve_tool", "always", "deny"]
 
 
 # ---------------------------------------------------------------------------

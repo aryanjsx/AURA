@@ -14,14 +14,17 @@ no session (non-streaming requests) can't ask, so risky tools are denied.
 from __future__ import annotations
 
 import contextvars
+import json
 import threading
 import time
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Dict, Literal, Optional
 
 Risk = Literal["read", "change", "run"]
-Decision = Literal["approve", "approve_tool", "deny"]
+# "always" also saves a lasting rule; it applies only to "change" calls.
+Decision = Literal["approve", "approve_tool", "always", "deny"]
 
 #: Tools that only read, or write to Locus's own memory. They never ask.
 READ_ONLY_TOOLS = frozenset(
@@ -75,6 +78,82 @@ def tool_risk(name: str, tool: Any = None, arguments: Optional[dict] = None) -> 
     if name in READ_ONLY_TOOLS:
         return "read"
     return "change"
+
+
+#: Previews longer than this are cut before they're sent to the chat.
+MAX_PREVIEW_CHARS = 8000
+
+
+def rule_key(tool_name: str, arguments: Optional[dict] = None) -> str:
+    """A lasting rule covers one tool, or one action of it (``tool:action``)."""
+    action = (arguments or {}).get("action")
+    return f"{tool_name}:{action}" if isinstance(action, str) and action else tool_name
+
+
+class PermissionRules:
+    """ "Always allow" rules, kept in ``~/.locus/agent_permissions.json``."""
+
+    def __init__(self, path: Optional[Path] = None) -> None:
+        if path is None:
+            from locus.core.paths import get_config_dir
+
+            path = Path(get_config_dir()) / "agent_permissions.json"
+        self.path = Path(path)
+        self._lock = threading.Lock()
+
+    def _load(self) -> Dict[str, dict]:
+        try:
+            rows = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        return {r["key"]: r for r in rows if isinstance(r, dict) and r.get("key")}
+
+    def _save(self, rules: Dict[str, dict]) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(list(rules.values()), indent=2), encoding="utf-8")
+        tmp.replace(self.path)
+
+    def allows(self, tool_name: str, arguments: Optional[dict] = None) -> bool:
+        with self._lock:
+            return rule_key(tool_name, arguments) in self._load()
+
+    def add(self, tool_name: str, arguments: Optional[dict] = None) -> str:
+        key = rule_key(tool_name, arguments)
+        with self._lock:
+            rules = self._load()
+            rules[key] = {
+                "key": key,
+                "tool": tool_name,
+                "action": (arguments or {}).get("action"),
+                "created": time.time(),
+            }
+            self._save(rules)
+        return key
+
+    def remove(self, key: str) -> bool:
+        with self._lock:
+            rules = self._load()
+            if rules.pop(key, None) is None:
+                return False
+            self._save(rules)
+            return True
+
+    def list(self) -> list:
+        with self._lock:
+            return sorted(self._load().values(), key=lambda r: r["key"])
+
+
+_rules: Optional[PermissionRules] = None
+_rules_lock = threading.Lock()
+
+
+def get_rules() -> PermissionRules:
+    global _rules
+    with _rules_lock:
+        if _rules is None:
+            _rules = PermissionRules()
+        return _rules
 
 
 class AgentCancelled(BaseException):
@@ -162,8 +241,12 @@ class ApprovalSession:
         """Return whether *tool_name* may run, asking the user if needed."""
         if self.cancelled.is_set():
             raise AgentCancelled()
-        risk = tool_risk(tool_name, self._tools.get(tool_name), arguments)
+        tool = self._tools.get(tool_name)
+        risk = tool_risk(tool_name, tool, arguments)
         if risk == "read" or tool_name in self._allowed_tools:
+            return True
+        # Lasting rules never cover "run" calls: commands and code always ask.
+        if risk == "change" and get_rules().allows(tool_name, arguments):
             return True
 
         pending = _Pending(id=uuid.uuid4().hex, tool=tool_name)
@@ -178,6 +261,9 @@ class ApprovalSession:
                     "tool": tool_name,
                     "arguments": arguments,
                     "risk": risk,
+                    "can_always": risk == "change",
+                    "rule": rule_key(tool_name, arguments),
+                    "preview": _preview(tool, arguments),
                     "timeout_seconds": self._timeout,
                 },
             )
@@ -193,9 +279,11 @@ class ApprovalSession:
         if self.cancelled.is_set():
             raise AgentCancelled()
         decision = pending.decision
-        approved = decision in ("approve", "approve_tool")
+        approved = decision in ("approve", "approve_tool", "always")
         if decision == "approve_tool":
             self._allowed_tools.add(tool_name)
+        elif decision == "always" and risk == "change":
+            get_rules().add(tool_name, arguments)
         self._emit(
             "approval_resolved",
             {
@@ -206,6 +294,23 @@ class ApprovalSession:
             },
         )
         return approved
+
+
+def _preview(tool: Any, arguments: dict) -> Optional[str]:
+    """What the call would change (a diff, say), if the tool can tell."""
+    preview_for = getattr(tool, "preview_for", None)
+    if not callable(preview_for):
+        return None
+    try:
+        text = preview_for(arguments)
+    except Exception:
+        return None
+    if not text:
+        return None
+    text = str(text)
+    if len(text) > MAX_PREVIEW_CHARS:
+        text = text[:MAX_PREVIEW_CHARS] + "\n… (preview cut off)"
+    return text
 
 
 current_session: contextvars.ContextVar[Optional[ApprovalSession]] = (

@@ -108,9 +108,27 @@ function ApprovalPrompt({ toolCall, argumentsText }: { toolCall: ToolCallInfo; a
         Allow Locus to{' '}
         <span style={{ fontWeight: 500 }}>{lowerFirst(describeToolCall(toolCall.tool, argumentsText))}</span>?
       </div>
+      {toolCall.preview && (
+        <pre
+          className="p-1.5 rounded overflow-auto"
+          style={{
+            background: 'var(--color-code-bg, rgba(0,0,0,0.2))',
+            color: 'var(--color-text-secondary)',
+            fontSize: 11,
+            lineHeight: 1.4,
+            maxHeight: 220,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+          }}
+        >
+          {toolCall.preview}
+        </pre>
+      )}
       <div className="flex flex-wrap gap-1.5">
         {button('Allow', 'approve', true)}
         {button(`Allow ${toolCall.tool} for this task`, 'approve_tool')}
+        {toolCall.canAlways && button('Always allow', 'always')}
         {button('Deny', 'deny')}
       </div>
     </div>
