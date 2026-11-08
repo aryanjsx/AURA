@@ -213,6 +213,9 @@ DEFAULT_TOOL_CAPABILITIES: Dict[str, List[str]] = {
     "agent_send": [Capability.SYSTEM_ADMIN],
     "agent_spawn": [Capability.SYSTEM_ADMIN],
     "apply_patch": [Capability.FILE_WRITE],
+    # Desktop control (locus.tools.desktop). Opening a path or an app can start
+    # a program; system_control changes computer settings.
+    "app_control": [Capability.CODE_EXECUTE],
     "audio_transcribe": [Capability.FILE_READ, Capability.NETWORK_FETCH],
     "browser_axtree": [Capability.NETWORK_FETCH],
     "browser_click": [Capability.NETWORK_FETCH],
@@ -228,6 +231,7 @@ DEFAULT_TOOL_CAPABILITIES: Dict[str, List[str]] = {
     "channel_send": [Capability.CHANNEL_SEND],
     "channel_status": [Capability.SYSTEM_ADMIN],
     "check_permission": [Capability.MEMORY_READ],
+    "clipboard": [Capability.FILE_READ, Capability.FILE_WRITE],
     "code_interpreter": [Capability.CODE_EXECUTE],
     "code_interpreter_docker": [Capability.CODE_EXECUTE],
     "db_query": [Capability.CODE_EXECUTE],
@@ -262,6 +266,8 @@ DEFAULT_TOOL_CAPABILITIES: Dict[str, List[str]] = {
     "memory_retrieve": [Capability.MEMORY_READ],
     "memory_search": [Capability.MEMORY_READ],
     "memory_store": [Capability.MEMORY_WRITE],
+    "notify": [Capability.SCHEDULE_CREATE],
+    "open_path": [Capability.FILE_READ, Capability.CODE_EXECUTE],
     "pause_scheduled_task": [Capability.SCHEDULE_CREATE],
     "pdf_extract": [Capability.FILE_READ],
     "queue_action": [Capability.MEMORY_WRITE],
@@ -271,17 +277,22 @@ DEFAULT_TOOL_CAPABILITIES: Dict[str, List[str]] = {
     "retrieval": [Capability.MEMORY_READ],
     "scan_chunks": [Capability.MEMORY_READ],
     "schedule_task": [Capability.SCHEDULE_CREATE],
+    "screenshot": [Capability.FILE_READ, Capability.FILE_WRITE],
     "shell_exec": [Capability.CODE_EXECUTE],
     "skill_manage": [Capability.FILE_READ, Capability.FILE_WRITE],
+    "system_control": [Capability.SYSTEM_ADMIN],
+    "task_plan": [],
     "text_to_speech": [Capability.NETWORK_FETCH, Capability.FILE_WRITE],
     "think": [],
     "user_profile_manage": [Capability.FILE_READ, Capability.FILE_WRITE],
+    "window_control": [Capability.TOOL_INVOKE],
     "web_search": [Capability.NETWORK_FETCH],
 }
 
 _SAFE_BUILTIN_PROVENANCE = {
     "calculator": ("locus.tools.calculator", "CalculatorTool"),
     "think": ("locus.tools.think", "ThinkTool"),
+    "task_plan": ("locus.tools.task_plan", "TaskPlanTool"),
 }
 
 
