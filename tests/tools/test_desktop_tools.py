@@ -24,6 +24,13 @@ from locus.tools.desktop import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _isolate_reminders(tmp_path, monkeypatch):
+    """Keep reminders out of the real ``~/.locus`` and drop leftover timers."""
+    monkeypatch.setattr(notify, "_store", notify.ReminderStore(tmp_path / "rem.json"))
+    monkeypatch.setattr(notify, "_timers", {})
+
+
 class FakeOS:
     """Records commands instead of running them."""
 
@@ -220,11 +227,59 @@ def test_windows_are_matched_by_part_of_the_title(monkeypatch):
     assert not WindowControlTool().execute(action="focus", title="excel").success
 
 
-def test_window_control_is_windows_only_for_now(monkeypatch):
-    FakeOS(monkeypatch, "linux")
+def test_window_control_on_macos_uses_system_events(monkeypatch):
+    fake = FakeOS(monkeypatch, "macos", stdout="Safari\tApple\nNotes\tShopping list\n")
+
+    listed = WindowControlTool().execute(action="list")
+    result = WindowControlTool().execute(action="minimize", title="shopping")
+
+    assert listed.metadata["titles"] == ["Apple", "Shopping list"]
+    assert result.content == "Minimized Shopping list."
+    args = fake.calls[-1]["args"]
+    assert args[0] == "osascript"
+    assert args[-3:] == ["Notes", "Shopping list", "minimize"]
+
+
+def test_window_control_on_macos_explains_accessibility(monkeypatch):
+    FakeOS(monkeypatch, "macos", returncode=1)
     result = WindowControlTool().execute(action="list")
-    assert not result.success
-    assert "isn't supported on linux" in result.content
+    assert "Accessibility" in result.content
+
+
+def test_window_control_on_linux_uses_wmctrl(monkeypatch):
+    fake = FakeOS(
+        monkeypatch,
+        "linux",
+        stdout="0x01 0 host Terminal\n0x02 0 host notes.txt - gedit\n",
+    )
+
+    result = WindowControlTool().execute(action="restore", title="GEDIT")
+
+    assert result.content == "Restored notes.txt - gedit."
+    calls = [c["args"] for c in fake.calls[1:]]
+    assert calls == [
+        [
+            "wmctrl",
+            "-i",
+            "-r",
+            "0x02",
+            "-b",
+            "remove,hidden,maximized_vert,maximized_horz",
+        ],
+        ["wmctrl", "-i", "-a", "0x02"],
+    ]
+
+
+def test_window_control_on_linux_needs_wmctrl(monkeypatch):
+    FakeOS(monkeypatch, "linux")
+    monkeypatch.setattr(_os, "has_command", lambda name: False)
+    assert "wmctrl" in WindowControlTool().execute(action="list").content
+
+
+def test_window_control_on_other_systems(monkeypatch):
+    FakeOS(monkeypatch, "freebsd")
+    result = WindowControlTool().execute(action="list")
+    assert "isn't supported on freebsd" in result.content
 
 
 # ── system_control ───────────────────────────────────────────────
@@ -333,17 +388,61 @@ def test_reminders_wait(monkeypatch):
         def start(self):
             started.append(self)
 
+        def cancel(self):
+            started.remove(self)
+
     monkeypatch.setattr(notify.threading, "Timer", FakeTimer)
 
     result = NotifyTool().execute(message="Stand up", delay_minutes=2.5)
 
     assert result.success
     assert "2.5 minutes from now" in result.content
-    assert started[0].seconds == 150
+    assert started[0].seconds == pytest.approx(150, abs=2)
     assert started[0].daemon is True
+    saved = notify.get_store().all()
+    assert [r["message"] for r in saved] == ["Stand up"]
+
+    listed = NotifyTool().execute(action="list_reminders")
+    assert "Stand up" in listed.content
+    reminder_id = saved[0]["id"]
+    assert NotifyTool().execute(action="cancel_reminder", id=reminder_id).success
+    assert notify.get_store().all() == []
+    assert started == []
+    assert not NotifyTool().execute(action="cancel_reminder", id=reminder_id).success
 
 
-@pytest.mark.parametrize("delay", [-1, 2000, "soon"])
+def test_reminders_are_restored_after_a_restart(monkeypatch):
+    import time as _time
+
+    fake = FakeOS(monkeypatch, "linux")
+    store = notify.get_store()
+    future = store.add("Call", "Ring the bank", _time.time() + 3600)
+    store.add("Meds", "Take them", _time.time() - 60)
+    scheduled = []
+    monkeypatch.setattr(notify, "_schedule", scheduled.append)
+
+    class Inline:
+        def __init__(self, target, args, daemon):
+            self.target, self.args = target, args
+
+        def start(self):
+            self.target(*self.args)
+
+    monkeypatch.setattr(notify.threading, "Thread", Inline)
+
+    assert notify.restore_reminders() == 2
+
+    assert [e["id"] for e in scheduled] == [future["id"]]
+    # The one that came due while Locus was closed shows now and is done.
+    assert fake.calls[0]["args"] == [
+        "notify-send",
+        "Meds (missed while Locus was closed)",
+        "Take them",
+    ]
+    assert [r["id"] for r in store.all()] == [future["id"]]
+
+
+@pytest.mark.parametrize("delay", [-1, 50000, "soon"])
 def test_reminder_delays_are_checked(monkeypatch, delay):
     FakeOS(monkeypatch, "linux")
     assert not NotifyTool().execute(message="x", delay_minutes=delay).success
