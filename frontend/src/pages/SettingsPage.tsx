@@ -866,6 +866,30 @@ export function SettingsPage() {
                 />
               </button>
             </SettingRow>
+            <SettingRow
+              label="Say “Hey Locus”"
+              description="Start hands-free voice by saying “Hey Locus” (or “Hey Locus, mute the sound”). The microphone stays on while this is on; only short bursts of speech are transcribed, on this computer, with the local Whisper backend."
+            >
+              <button
+                onClick={() => { updateSettings({ wakeWord: !settings.wakeWord }); showSaved(); }}
+                disabled={!settings.handsFree}
+                className="relative w-11 h-6 rounded-full transition-colors cursor-pointer"
+                style={{
+                  background: settings.wakeWord && settings.handsFree ? 'var(--color-accent)' : 'var(--color-bg-tertiary)',
+                  opacity: settings.handsFree ? 1 : 0.4,
+                  cursor: settings.handsFree ? 'pointer' : 'default',
+                }}
+                aria-pressed={settings.wakeWord && settings.handsFree}
+              >
+                <span
+                  className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform bg-white"
+                  style={{
+                    transform: settings.wakeWord && settings.handsFree ? 'translateX(20px)' : 'translateX(0)',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }}
+                />
+              </button>
+            </SettingRow>
             <SettingRow label="Voice" description="Backend and voice used for spoken replies">
               <div className="flex items-center gap-2">
                 <span

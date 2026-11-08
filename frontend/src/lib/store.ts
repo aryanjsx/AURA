@@ -115,6 +115,8 @@ interface Settings {
   voiceAutoplay: boolean;
   /** Ctrl/Cmd+Shift+L listens, sends when you stop talking, and speaks the reply. */
   handsFree: boolean;
+  /** With hands-free on, "Hey Locus" starts listening (local Whisper only). */
+  wakeWord: boolean;
 }
 
 function loadSettings(): Settings {
@@ -131,6 +133,7 @@ function loadSettings(): Settings {
     voiceOutputEnabled: false,
     voiceAutoplay: false,
     handsFree: false,
+    wakeWord: false,
   };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);

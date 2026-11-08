@@ -8,7 +8,7 @@ import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { serializeToolCallArguments } from '../../lib/tool-call';
 import { stoppedSummary } from '../../lib/agent-stop';
 import { approvalQuestion, canAnswerByVoice, parseYesNo } from '../../lib/voice-approval';
-import { speakAndWait } from '../../lib/tts';
+import { speakAndWait, useTtsStore } from '../../lib/tts';
 import {
   engineFromCompletionChunk,
   resolveChatEngine,
@@ -18,6 +18,7 @@ import { AgentModelHint } from './AgentModelHint';
 import { AttachmentChip } from './AttachmentChip';
 import { useSpeech } from '../../hooks/useSpeech';
 import { useHandsFree } from '../../hooks/useHandsFree';
+import { useWakeWord } from '../../hooks/useWakeWord';
 import {
   apiAttachmentFields,
   deletePayloads,
@@ -271,7 +272,9 @@ export function InputArea() {
   // Hands-free: the transcript goes out through the prompt queue, which
   // sends it as soon as no reply is streaming.
   const handsFree = useAppStore((s) => s.settings.handsFree);
-  useHandsFree({
+  const wakeWord = useAppStore((s) => s.settings.wakeWord);
+  const ttsState = useTtsStore((s) => s.state);
+  const { listen: listenHandsFree } = useHandsFree({
     enabled: handsFree,
     available: speechAvailable,
     state: speechState,
@@ -279,6 +282,20 @@ export function InputArea() {
     stopRecording,
     cancelRecording,
     send: (text) => useAppStore.getState().queuePrompt(text),
+  });
+  // "Hey Locus": a command said with it goes straight out; the name alone
+  // starts listening.
+  useWakeWord({
+    enabled: handsFree && wakeWord,
+    busy: speechState !== 'idle' || streamState.isStreaming || ttsState !== 'idle',
+    onWake: (command) => {
+      if (command) {
+        useAppStore.getState().setSpeakNextReply(true);
+        useAppStore.getState().queuePrompt(command);
+      } else {
+        void listenHandsFree();
+      }
+    },
   });
 
   // Abort in-flight stream when the user switches models mid-generation.
