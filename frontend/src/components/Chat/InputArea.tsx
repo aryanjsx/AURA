@@ -3,10 +3,12 @@ import { Send, Square, Paperclip, Search, Globe, Bot, FolderCode, X } from 'luci
 import { toast } from 'sonner';
 import { useAppStore, generateId } from '../../lib/store';
 import { streamChat, streamResearch } from '../../lib/sse';
-import { fetchSavings, getBase, isTauri, stopAgentRun } from '../../lib/api';
+import { answerApproval, fetchSavings, getBase, isTauri, stopAgentRun } from '../../lib/api';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { serializeToolCallArguments } from '../../lib/tool-call';
 import { stoppedSummary } from '../../lib/agent-stop';
+import { approvalQuestion, canAnswerByVoice, parseYesNo } from '../../lib/voice-approval';
+import { speakAndWait } from '../../lib/tts';
 import {
   engineFromCompletionChunk,
   resolveChatEngine,
@@ -236,6 +238,35 @@ export function InputArea() {
     stopRecording,
     cancelRecording,
   } = useSpeech();
+
+  // Hands-free turns answer approvals aloud: Locus reads the step out and
+  // listens for yes or no. Commands and code still need a click.
+  const askApprovalAloud = useCallback(
+    async (tc: ToolCallInfo) => {
+      if (!tc.approvalId || !speechAvailable) return;
+      const spoke = await speakAndWait(`approval-${tc.approvalId}`, approvalQuestion(tc));
+      if (!spoke || !canAnswerByVoice(tc)) return;
+      const heard = await new Promise<string>((resolve) => {
+        void startRecording({
+          onEndOfSpeech: (reason) => {
+            if (reason === 'no_speech') {
+              cancelRecording();
+              resolve('');
+            } else {
+              stopRecording().then(resolve, () => resolve(''));
+            }
+          },
+        });
+      });
+      const answer = parseYesNo(heard);
+      if (!answer) {
+        void speakAndWait(`approval-${tc.approvalId}-retry`, "Sorry, I didn't catch that. Please answer on screen.");
+        return;
+      }
+      await answerApproval(tc.approvalId, answer === 'yes' ? 'approve' : 'deny').catch(() => false);
+    },
+    [speechAvailable, startRecording, stopRecording, cancelRecording],
+  );
 
   // Hands-free: the transcript goes out through the prompt queue, which
   // sends it as soon as no reply is streaming.
@@ -591,7 +622,7 @@ export function InputArea() {
         } else if (eventName === 'approval_required') {
           try {
             const data = JSON.parse(sseEvent.data);
-            toolCalls.push({
+            const pending: ToolCallInfo = {
               id: generateId(),
               tool: data.tool,
               arguments: serializeToolCallArguments(data.arguments),
@@ -600,7 +631,10 @@ export function InputArea() {
               risk: data.risk,
               canAlways: Boolean(data.can_always),
               preview: data.preview || undefined,
-            });
+            };
+            toolCalls.push(pending);
+            // A hands-free turn asks aloud too (the buttons still work).
+            if (useAppStore.getState().speakNextReply) void askApprovalAloud(pending);
             setStreamState({
               phase: 'Waiting for your approval...',
               activeToolCalls: [...toolCalls],
@@ -817,6 +851,7 @@ export function InputArea() {
     setLastAssistantWebSearch,
     agentMode,
     projectDir,
+    askApprovalAloud,
   ]);
 
   const queuedPrompt = useAppStore((s) => s.queuedPrompt);

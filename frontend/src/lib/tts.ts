@@ -154,6 +154,31 @@ export const useTtsStore = create<TtsStore>((set, get) => ({
   },
 }));
 
+/**
+ * Speak `text` and resolve once playback ends (or fails, or something else
+ * starts speaking). Resolves false when voice output isn't available.
+ */
+export async function speakAndWait(id: string, text: string, timeoutMs = 60000): Promise<boolean> {
+  const tts = useTtsStore.getState();
+  await tts.ensureHealth();
+  if (useTtsStore.getState().available !== true) return false;
+  await tts.speak(id, text);
+  if (useTtsStore.getState().speakingId !== id) return useTtsStore.getState().errorId !== id;
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      unsubscribe();
+      resolve(true);
+    }, timeoutMs);
+    const unsubscribe = useTtsStore.subscribe((state) => {
+      if (state.speakingId !== id) {
+        clearTimeout(timer);
+        unsubscribe();
+        resolve(state.errorId !== id);
+      }
+    });
+  });
+}
+
 /** Test seam: reset module-level playback handles between cases. */
 export function __resetTtsForTests(): void {
   teardown();
