@@ -81,13 +81,16 @@ Most of the agent machinery is in the repo. The gap is mostly wiring and UX.
 
 **Goal:** the user sees what the agent plans, what it's doing and what it needs approved, without leaving the chat.
 
-> **Status (2026-11-08): approvals, risk levels and Stop are implemented. The plan checklist and Undo are not done yet.** As built:
+> **Status (2026-11-08): implemented.** As built:
 > - **Broker:** `src/locus/server/approvals.py`. The Agent mode agent's `before_tool_call` hook classifies each call as `read` (never asks), `change` (asks) or `run` (always asks; covers anything marked `requires_confirmation`). Unknown tools count as `change`, so new tools ask by default.
 > - **Asking:** for a risky call, the agent's thread pauses, the stream sends `approval_required`, and the run waits up to 5 minutes for `POST /v1/chat/approvals/{id}` with `approve`, `approve_tool` (this tool for the rest of the run) or `deny`. No answer counts as a no. Requests that can't ask (non-streaming) deny risky calls.
 > - **Stop:** each stream starts with an `agent_run` event. Stop calls `POST /v1/chat/runs/{run_id}/stop`, which ends the run at its next tool call (`AgentCancelled`), and the answer becomes "Stopped." Closing the stream does the same.
 > - **Agent:** Agent mode now always uses its own `orchestrator`, not the server's configured agent, since only that agent has the hook. It adds `file_write`, `shell_exec`, `git_status`, `git_diff` and `git_log`, is kept to the home folder, runs tools one at a time (approvals are tracked per run on the agent's thread), and gets at least 25 turns.
 > - **UI:** the tool card shows **Allow**, **Allow <tool> for this task** and **Deny**, with the command or path in words. The `assistant` preset stays read-only, because `locus serve` builds its agent without the hook.
-> - **Not done yet:** a plan checklist before multi-step tasks, Undo for file changes, "always allow" rules that last beyond one run, and resuming a stopped run.
+> - **Plan checklist:** a `task_plan` tool (never asks) that the agent calls before multi-step work and as steps finish. The chat shows the latest call as a checklist instead of a tool card.
+> - **Undo:** Agent mode's `file_write` is `UndoableFileWriteTool` (`tools/undo_journal.py`). It saves the old contents under `~/.locus/undo` and returns an `undo_id`, the tool card shows Undo, and `POST /v1/chat/undo/{id}` puts the file back or deletes a file the agent created, only while it still holds what the agent wrote. Files over 10 MB aren't backed up; the last 100 changes are kept.
+> - **"Always allow":** for change-level steps only, keyed by tool or `tool:action`, in `~/.locus/agent_permissions.json`. Settings > Agent mode lists and removes rules (`GET`/`DELETE /v1/chat/permissions`). Commands and code never get lasting rules. Approvals can also carry a `preview` from the tool's `preview_for()`, such as a file diff.
+> - **Continue:** a stopped Agent mode reply says what was finished and shows Continue, which turns Agent mode on and asks the agent to pick up where it stopped.
 
 - **Plan step:** for multi-step requests, the agent first emits a short plan (a new stream event type in `stream_bridge.py`); the UI shows it as a checklist that ticks off as steps finish.
 - **Inline approvals:** when a tool needs approval, stream an `approval_required` event carrying the action from `ApprovalStore`; render Approve, Deny and "Always allow for this folder/command" buttons in the message. Keep `ApprovalBell` for background agents.
@@ -116,7 +119,8 @@ Most of the agent machinery is in the repo. The gap is mostly wiring and UX.
 > | `notify` | Notification now, or a timer/reminder up to 24h | No | Yes (toast) | Yes | Yes (`notify-send`) |
 > | `screenshot` | Whole screen to `~/.locus/screenshots` | Yes | Yes | Yes | With `gnome-screenshot` or `grim` |
 >
-> - **Not done yet:** Wi-Fi and Bluetooth toggles, moving and snapping windows, macOS and Linux window control, sending screenshots to vision models, and reminders that survive a restart (they live in the running app).
+> - **Added later the same day:** Wi-Fi and Bluetooth (`system_control` `get_radios`, `wifi_on/off`, `bluetooth_on/off`; Windows.Devices.Radios without admin rights, `networksetup` and `blueutil` on macOS, `nmcli` and `rfkill` on Linux). Window control on macOS (System Events; needs Accessibility permission) and Linux (`wmctrl`, X11 only). Reminders saved in `~/.locus/reminders.json` and restored when `locus serve` starts, with missed ones shown at once, plus `list_reminders` and `cancel_reminder`.
+> - **Not done yet:** moving and snapping windows, window control on Wayland, and sending screenshots to vision models.
 
 New tools under `src/locus/tools/desktop/`, one module per OS behind a common interface (Windows first, since that's where the desktop app is most used, then macOS, then Linux):
 
@@ -137,6 +141,8 @@ New tools under `src/locus/tools/desktop/`, one module per OS behind a common in
 
 ### Phase 5: hands-free voice loop
 
+> **Status (2026-11-08): implemented, except a wake word.** Settings > Speech > Hands-free voice turns on Ctrl+Shift+L (Cmd+Shift+L on a Mac): in the window, and system-wide in the desktop app, which raises its window first (new `core:window` permissions). `lib/vad.ts` learns the noise floor, ends the turn after 1.2 s of quiet, cancels after 8 s of silence, and caps a turn at 30 s. The transcript is sent through the prompt queue and the reply is read aloud even with autoplay off. Pressing the shortcut during a spoken reply interrupts it and listens. Not built: a wake word, voice answers to approvals, and listening for the user talking over a reply (interrupting is by shortcut).
+
 **Goal:** talk to Locus without touching the keyboard.
 
 - **Activation:** a global hotkey (Tauri global shortcut) that opens the overlay and starts listening; an optional local wake word (for example openWakeWord) behind a setting, off by default.
@@ -149,6 +155,8 @@ New tools under `src/locus/tools/desktop/`, one module per OS behind a common in
 **Done when:** from the hotkey, "what's on my calendar today?" is answered aloud with no clicks; interrupting stops playback within ~300 ms; everything runs offline with faster-whisper + Kokoro.
 
 ### Phase 6: developer mode
+
+> **Status (2026-11-08): implemented.** The Project button beside Agent picks a folder; requests then use `mode: "developer"` with `project_dir` (`server/developer.py`, one cached agent per folder). File, git and shell tools stay in the project, file edits show a diff and can be undone, and `command_risk` lets tests, linters and git status/diff/log/show run without asking while anything else (or anything with shell operators) asks every time. Commits always ask. The prompt asks for a branch before the first change, tests after changes (fixing failures up to 3 times), and no pushes. `apply_patch` isn't included (it has no folder limit); edits use `file_write` with a diff instead. No `developer` preset: it would run without the approval hook under `locus serve`.
 
 **Goal:** a strong local coding agent built on the existing tools.
 
